@@ -1,0 +1,17 @@
+; WORDLIST.TXT - extra words for the Mystic spell checker.
+; One word per line.  Blank lines and lines starting with ';' are ignored.
+; BBS/FidoNet terms that a normal dictionary would flag but are valid here.
+sysop
+BBS
+FidoNet
+netmail
+echomail
+BinkP
+QWK
+ANSI
+telnet
+nodelist
+tosser
+areafix
+filefix
+Mystic

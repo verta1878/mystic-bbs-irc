@@ -496,3 +496,11 @@
    (WFCSCRN.ANS) rebuilt from the Mystic 1.07 layout - the caller-info fields
    and the full sysop command bar in colour.  Point wfcscreen at it in
    modem.ini, or drop in your own, just like the old DOS version.
+
+ + spell check: added an optional spell-check module (mystic_spell/) using the
+   Hunspell engine - the same one Mystic 1.12 uses - as a self-contained add-on
+   that checks words and offers suggestions, with a BBS-terms word list for
+   things like netmail and echomail.  It loads Hunspell at run time (drop the
+   library and a dictionary in place, as in 1.12) and simply stays off if
+   they're absent.  Wiring live checking into the message editor is the
+   remaining step.

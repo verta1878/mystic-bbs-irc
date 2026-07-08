@@ -2188,3 +2188,26 @@
   Honest note: this is a faithful RECONSTRUCTION from the binary's authentic strings/layout,
   not a byte-for-byte extraction of the original compressed screen (not possible from this
   archive). Sysops can replace WFCSCRN.ANS with their own, exactly as in 1.07.
+
+## mystic_spell: spell-check add-on (Hunspell), separate module (2026-07-07)
+  CORRECTION first: I earlier said Mystic had no spellchecker - WRONG. It does, since
+  1.12, using the Hunspell engine (on-the-fly spell check + word suggestions in the full
+  screen editor). It postdates our A38/A39 base, which is why it's not in our tree.
+  Sysop wanted it added SEPARATELY (not in main src), like the modem/mailer modules.
+  Built mystic_spell/: spl_hunspell.pas (runtime binding), spl_engine.pas (TSpellEngine),
+  spelltest.pas (tester), + build-spell.sh, WORDLIST.TXT (sample BBS terms), README.
+  DESIGN: Hunspell loaded at RUNTIME via dlopen/LoadLibrary (NOT linked at compile time),
+  so it builds with no Hunspell present and degrades gracefully (no library/dict => spell
+  check simply OFF, everything reports OK) - exactly the 1.12 deployment model (sysop drops
+  the library + .aff/.dic dictionaries + optional WORDLIST.TXT in place).
+  REAL TOOLCHAIN FIX: FPC 2.6.2's legacy `dl` unit links the old standalone libdl, but
+  modern glibc 2.34+ folds dlopen/dlsym/dlclose into libc (standalone libdl is now a stub),
+  causing 32-bit link failures. Fixed by declaring dlopen/dlsym/dlclose directly as
+  cdecl external 'c' instead of using FPC's dl unit. Now builds clean 32-bit AND 64-bit.
+  VERIFIED: 64-bit build run against the container's real Hunspell 1.7 + en_US dictionary
+  correctly spell-checks and suggests (mesage->message, recieve->receive, definately->
+  definitely, teh->the; hello/sysop/BBS OK). WORDLIST.TXT loads (netmail/echomail accepted).
+  32-bit builds + runs, degrades gracefully (no 32-bit Hunspell in container - sysop
+  supplies one, same as 1.12). INTEGRATION SEAM (documented, NOT done - it's core work):
+  live highlight-as-you-type in the full-screen message editor would hook the editor
+  keypress loop; this module provides the engine (Check/Suggest) that hook would call.

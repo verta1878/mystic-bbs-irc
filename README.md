@@ -69,6 +69,10 @@ Linux -> Darwin cross-compile recipe.
   style) built on `mystic_modem/`: answers the phone, tells apart an EMSI
   mailer, a BinkP mailer, or a human, and routes each. Includes the
   BinkP-over-modem spec. See its README.
+- `mystic_spell/` - **optional spell-check add-on**: on-the-fly spell checking
+  and word suggestions via the Hunspell engine (the same approach Mystic 1.12
+  uses), as a self-contained module. Runtime-loads Hunspell; ships a BBS-terms
+  word list. See its README.
 - `attic/` - retired code, kept (not deleted) for GPL attribution and scene
   history (superseded classes, reference implementations)
 
