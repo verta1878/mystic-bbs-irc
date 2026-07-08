@@ -73,6 +73,9 @@ Linux -> Darwin cross-compile recipe.
   and word suggestions via the Hunspell engine (the same approach Mystic 1.12
   uses), as a self-contained module. Runtime-loads Hunspell; ships a BBS-terms
   word list. See its README.
+- `mystic_sdl/` - **optional SDL2 DOS-session front-end**: renders a full-screen
+  80x25 CP437 DOS window (the toolkit g00r00 uses for NetRunner) so the dialup /
+  BinkP screens can display graphically. Runtime-loads SDL2. See its README.
 - `attic/` - retired code, kept (not deleted) for GPL attribution and scene
   history (superseded classes, reference implementations)
 

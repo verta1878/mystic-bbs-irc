@@ -2239,3 +2239,38 @@
   Verified all THREE targets now build: win32 (spelltest.exe, THE Windows port), linux i386,
   and linux x86_64 (still spell-checks correctly against real Hunspell). Lesson: build the
   target that matters, not just the convenient one.
+
+## mystic_spell: Darwin portability review (2026-07-07)
+  Sysop reminder not to forget Darwin. The container's i386-darwin RTL is incomplete
+  (system.ppu missing), so a darwin COMPILE can't run here - did a portability review
+  instead (same as the project's deferred-darwin-link policy). Code is darwin-correct:
+  FPC treats DARWIN as a subset of UNIX, so on macOS the UNIX branch (dlopen, declared
+  external 'c' - resolves in libSystem on macOS) is used, and DefaultNames has a
+  {$IFDEF DARWIN} sub-branch that picks libhunspell.dylib (the exact name Mystic looks
+  for; sysop symlinks the installed Hunspell to it). No darwin-specific code errors.
+
+## mystic_sdl: SDL2 full-screen DOS-session front-end (2026-07-07)
+  Sysop wants an SDL2 front-end that renders a full-screen DOS session (80x25 CP437) so
+  the modem/BinkP WFC (and future live sessions) can display in a graphical DOS-style
+  window - "the future if they pick it". CONTEXT CORRECTION: I'd earlier dismissed SDL as
+  wrong for a WFC; that was for a console STATUS screen. g00r00 uses SDL2 for the NetRunner
+  TERMINAL (font switching, DOS/Amiga fonts) - for a client/emulator SDL is exactly right,
+  and this DOS-session emulator is that use case. Separate module, nothing depends on it.
+  mystic_sdl/: sdl_bind.pas (minimal SDL2 binding, runtime-loaded like Hunspell - looks for
+  SDL2.dll / libSDL2-2.0.so.0 / libSDL2.dylib, DARWIN guard included), sdl_dosscreen.pas
+  (TDosScreen: 80x25 CP437 cell grid -> SDL window via an 8x16 VGA font, DOS 16-colour
+  palette, WriteXY/SetAttr/Clear + LoadAnsi that parses ESC[..m and cursor pos), sdl_demo,
+  VGA8X16.FNT (generated 4096-byte font asset), build-sdl.sh, README.
+  BUGS FOUND+FIXED during build: SDL_QUIT const vs SDL_Quit fn name clash (renamed to
+  SDL_QUIT_EVENT); file Close() vs method Close() (System.Close); FPC 2.6.2 rejects inline
+  Var decls (moved to var blocks); and an EAccessViolation in the glyph blit - added a
+  bounds guard on the pixel index (the real fix). VERIFIED: builds win32 (.exe), linux i386,
+  linux x86_64; the 64-bit run against real SDL2 (dummy video driver, headless) renders both
+  a built-in WFC and the modem module's real WFCSCRN.ANS, and a dumped frame (PPM->PNG)
+  visually confirms a correct blue DOS screen with legible VGA font + DOS colours.
+  Darwin: portability review only (container can't link darwin); code path correct
+  (libSDL2.dylib via UNIX/dlopen). SDL2 ~1.9MB/platform, runtime-loaded, NOT bundled -
+  sysop drops the SDL2 lib in place, as NetRunner does. cl32.dll question answered
+  separately (it's cryptlib - Peter Gutmann's crypto toolkit Mystic uses for SSH/TLS/
+  encrypted netmail); advised NOT renaming it (canonical cryptlib name; rename risks
+  breakage) - document instead.

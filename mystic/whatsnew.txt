@@ -504,3 +504,10 @@
    library and a dictionary in place, as in 1.12) and simply stays off if
    they're absent.  Wiring live checking into the message editor is the
    remaining step.
+
+ + sdl: added an optional SDL2 front-end (mystic_sdl/) that renders a full-
+   screen 80x25 DOS session in a real window - the same toolkit g00r00 uses for
+   NetRunner.  It draws the modem / BinkP Waiting-For-Caller screens (and, in
+   future, a live session) with an authentic CP437 VGA font and the DOS 16-
+   colour palette.  SDL2 is loaded at run time and nothing else depends on it,
+   so it's there for anyone who wants the graphical DOS look.
