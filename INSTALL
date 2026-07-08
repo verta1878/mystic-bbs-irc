@@ -1,0 +1,330 @@
+# Building Mystic 1.10 A38 (fork)
+
+This fork targets three platforms, each with its own build script and its own
+set of prerequisites you must install first. Compiler: **Free Pascal (FPC) 2.6.2**
+(the original A38 toolchain), CPU target **i386** (32-bit) on all three.
+
+| Target            | Script             | Runs on           |
+|-------------------|--------------------|-------------------|
+| Windows (XP+)     | `build-win32.bat`  | Windows / cmd.exe |
+| Linux (Debian)    | `build.sh`         | Linux / bash      |
+| macOS (Darwin)    | `build-darwin.sh`  | macOS, or Linux w/ cross toolchain |
+
+Run a script with no arguments to build every binary, or pass one target name
+to build just that one (e.g. `./build.sh mis`).
+
+> **macOS note:** the Darwin target is **i386 (32-bit Intel)** - a vintage target.
+> This has real consequences for which Macs can run it and which SDK you need to
+> link it. Before attempting a Mac build, read
+> **"macOS target: processor eras and which SDK you need"** near the bottom of
+> this file.
+
+---
+
+## Windows (XP and later) - `build-win32.bat`
+
+**Prerequisites:**
+- **FPC 2.6.2 for win32**, installed normally (the official installer). This
+  ships every unit the build needs on its unit path (RTL + packages), so there
+  is nothing else to fetch.
+
+**Notes:**
+- Produces PE32 i386 `.exe` files, console subsystem, MinSubsystemVersion 4.0
+  (Win95/NT4+), so they run on Windows XP.
+- No C glue and no package pre-builds are required on Windows.
+
+---
+
+## Linux (Debian 4/5 era, i386) - `build.sh`
+
+**Prerequisites:**
+- **FPC 2.6.2 for i386-linux** (matches the A38 toolchain). A *full* FPC install
+  is expected because the MIS socket resolver pulls in **fcl-net (cnetdb)**, and
+  the message/hash code uses **fcl-base / md5**; these ship with a complete FPC
+  install and are found on the unit path automatically. If you installed only a
+  minimal "base" component, add the missing unit dirs with `-Fu` in the script.
+- **No C toolchain / resolver glue needed.** This fork uses a pure-Pascal
+  address resolver, so the old `m_resolve_address.c` / `{$link ...o}` step is
+  gone (the original C glue is kept only for reference in `attic/`). The Linux
+  build is therefore pure FPC - no `cc` step.
+
+**Notes (native i386 Debian):**
+- On a real i386 Debian box the default linker and libc are already i386, so the
+  plain script works with no extra flags.
+- **Cross-linking i386 on an x86_64 host** (only relevant if you build on a
+  64-bit machine): the linker may grab x86_64 crt objects. Add
+  `-Xd -Fl/usr/lib32 -Fl/usr/lib/gcc/<triplet>/<ver>/32` so it finds the 32-bit
+  runtime. This is a host quirk, not needed on a native i386 system.
+
+---
+
+## macOS / Darwin (i386) - `build-darwin.sh`
+
+Darwin has two modes because the compile and link steps have different needs.
+
+### Compile to Mach-O objects (works on ANY platform, incl. Linux, no Xcode)
+
+**Prerequisites:**
+- **FPC 2.6.2** with the **i386-darwin RTL units** available. If your FPC install
+  lacks them, they cross-build from the FPC RTL source with FPC's *internal*
+  Mach-O assembler (no external assembler / Xcode needed):
+  ```
+  cd <fpcsrc>/rtl/darwin
+  make OS_TARGET=darwin CPU_TARGET=i386 FPC=<path>/ppc386 OPT="-Amacho"
+  ```
+  Then point the build at them with `DARWINUNITS=<...>/units/i386-darwin`.
+
+Run compile-only:
+```
+COMPILE_ONLY=1 DARWINUNITS=/path/to/i386-darwin ./build-darwin.sh
+```
+This produces verified **Mach-O i386 objects** in `out_darwin/units/` but does
+NOT link a runnable binary. `-Amacho` makes FPC use its internal Mach-O writer,
+so no external assembler is required.
+
+### Link a full runnable Mac binary
+
+The final link needs a **Mach-O linker** and the **macOS system libraries** -
+neither of which FPC 2.6.2 bundles, and neither of which exists on a plain Linux
+box by default. Two ways to get a runnable binary:
+
+1. **On a real Mac** - simplest. A Mac with Xcode / Command Line Tools already
+   has Apple's linker (`ld64`) and the SDK. Just run `./build-darwin.sh` and it
+   links normally.
+
+2. **From Linux, with a cross toolchain** - no Mac needed at build time, but you
+   must supply two things Apple owns:
+   - **`ld64` / cctools built for Linux.** Apple open-sourced the linker
+     (apple-opensource/ld64); the practical Linux ports are
+     `tpoechtrager/cctools-port` or `osxcross`. Build it, then tell FPC where the
+     linker lives with `-FD<path-to-cctools>/bin`.
+   - **The macOS SDK libraries** (`crt1.o`, `libSystem`, frameworks). These are
+     **Apple's** and must be copied from a Mac / an OS X install medium - they
+     cannot be obtained on Linux alone. Point FPC's linker at the SDK root with
+     `-XR<sdk-root>` (and `-Fl<sdk>/usr/lib`) so it links the correct startup
+     objects instead of the host's.
+
+   With both present, FPC drives the Darwin linker and produces a real Mac
+   binary from Linux. This is the classic FPC "cross-compile to Darwin" setup.
+
+**Why the split:** compilation is pure FPC (portable), but linking binds against
+a specific OS's runtime. Mach-O compilation works anywhere; a *runnable* Mac
+binary requires Apple's linker + SDK, by design.
+
+---
+
+## macOS target: processor eras and which SDK you need
+
+This is the most misunderstood part of building the Mac version, so read it
+before hunting for an SDK. The short version: **there is no single SDK that
+covers "all Mac eras," and for our target you want an OLD one, not a new one.**
+
+### Mac processor eras
+- **PowerPC** (~1994-2006) - old; not a target here.
+- **Intel x86 / x86-64** (2006-2020) - the middle era. "Intel Macs" are the
+  OLDER/middle generation now, not the newest.
+- **Apple Silicon / ARM** (M1, M2, M3, M4 - 2020-present) - the NEWEST Macs.
+
+So newer Macs are **ARM**; Intel Macs are the older ones. Apple finished the
+transition off Intel around 2022-2023.
+
+### What our target is, and what can run it
+This fork builds **i386-darwin = 32-bit Intel**. Consequences:
+- **32-bit Intel Mac binaries stopped running on macOS after 10.15 Catalina
+  (2019).** Apple removed all 32-bit support.
+- A modern **ARM Mac cannot run a 32-bit Intel binary at all** - Rosetta 2
+  translates 64-bit Intel only, never 32-bit.
+- So an `i386-darwin` binary runs natively only on an **Intel Mac running
+  pre-Catalina macOS** (roughly 10.6 - 10.14). That fits this project's vintage
+  theme (Win XP 32-bit, Debian 4/5 i386, FPC 2.6.2), but set expectations
+  accordingly.
+
+### Which SDK to use (counterintuitive)
+A **newer** SDK does **not** give wider backward compatibility - the opposite:
+- **New macOS SDKs (11, 12, 13, 14, ...) dropped 32-bit entirely.** They CANNOT
+  link an i386 binary. A modern SDK is useless for this target.
+- For **i386 (32-bit Intel)** you need an **OLD SDK from the 32-bit Intel era**,
+  around **MacOSX10.6 (Snow Leopard)** - this is exactly what the FPC cross-
+  compile guides use (e.g. `-XR/opt/MacOSX10.6.sdk`). MacOSX10.5/10.6 are the
+  safe choices for a 32-bit Intel build.
+
+There is no SDK that spans both 32-bit Intel and ARM - they are mutually
+exclusive worlds. Pick the SDK to match the target:
+- **This project (i386, 32-bit Intel)** -> old SDK (~10.6 Snow Leopard).
+- **A modern Mac (64-bit Intel or ARM)** -> a NEW SDK **and** a different FPC
+  target (`x86_64-darwin` or `aarch64-darwin`) **and** a newer FPC. FPC 2.6.2
+  (2013) predates Apple Silicon and cannot target ARM Macs.
+
+### Where the old SDK comes from
+The 10.5/10.6 SDKs shipped inside old Xcode (3.x/4.x) and on the retail Snow
+Leopard install media - they are not on Apple's current download site. You
+extract `MacOSX10.6.sdk` from an old Xcode / OS X install (do this once on a
+Mac, or from install media), then copy it to your Linux box for cross-linking.
+The `osxcross` project includes `gen_sdk_package.sh` to package an SDK for this
+purpose. The SDK must contain `libSystem`, `crt1.o`, and the frameworks the
+linker binds against.
+
+A widely-used convenience source is the community repo **phracker/MacOSX-SDKs**
+(github.com/phracker/MacOSX-SDKs), which hosts pre-extracted SDK folders from
+`MacOSX10.1.5.sdk` through `MacOSX11.3.sdk` - including the 10.6 SDK this i386
+target needs. It is the SDK source most osxcross guides point to.
+
+**Licensing caveat, stated plainly:** these SDKs are Apple's copyrighted
+material. Apple has never granted redistribution rights for them, so a repo that
+re-hosts extracted SDKs sits in a tolerated-but-technically-infringing gray area
+(Apple has historically not pursued such repos, but that is Apple declining to
+enforce, not Apple granting permission). Using one is a decision for the person
+doing the build to make with eyes open; the strictly-clean route is to extract
+the SDK yourself from Apple tooling/media you own. This project neither bundles
+nor redistributes any Apple SDK - the SDK is always the builder's own to supply.
+
+### Cross-compile toolchain docs (for reference)
+- **osxcross** (github.com/tpoechtrager/osxcross) - the practical "build macOS
+  binaries from Linux" toolkit; bundles cctools-port (`ld64`) + SDK packaging.
+- **cctools-port** (github.com/tpoechtrager/cctools-port) - the `ld64`/cctools
+  Linux port itself.
+- **phracker/MacOSX-SDKs** (github.com/phracker/MacOSX-SDKs) - pre-extracted
+  macOS SDK folders (10.1.5 - 11.3); see the licensing caveat above.
+- **FPC "Cross compiling to Darwin"** (FPC/Lazarus wiki + fpc-pascal list) - the
+  FPC-specific flags: `-FD<cctools>/bin` (linker path), `-XR<sdk-root>` (SDK
+  root), `-Fl<sdk>/usr/lib`.
+- **Alternative with no Mac hardware:** a **GitHub Actions macOS runner** already
+  has Xcode + SDK; for a GitHub-hosted repo you can build/link the Mac binary in
+  CI on a real macOS runner, then publish it as a release artifact.
+
+---
+
+## Turnkey: cross-compiling Darwin binaries on your own Linux box
+
+This is the concrete, step-by-step recipe. Everything here runs on **your**
+Linux machine. The only Apple-owned piece is the SDK, which **you** supply in
+Step 3 - it is never uploaded anywhere, it just sits on your disk.
+
+### Step 1 - build the Mach-O linker (ld64 / cctools) for Linux
+```
+# deps (Debian/Ubuntu): clang, llvm, cmake, libssl-dev, uuid-dev, git
+git clone https://github.com/tpoechtrager/apple-libtapi.git
+cd apple-libtapi && INSTALLPREFIX=$HOME/cctools ./build.sh && ./install.sh && cd ..
+
+git clone https://github.com/tpoechtrager/cctools-port.git
+cd cctools-port/cctools
+./configure --prefix=$HOME/cctools \
+            --with-libtapi=$HOME/cctools \
+            --target=i386-apple-darwin11
+make && make install && cd ../..
+# result: $HOME/cctools/bin/i386-apple-darwin11-ld  (this is ld64)
+```
+
+### Step 2 - have the i386-darwin FPC RTL units
+If your FPC lacks them, cross-build from the FPC RTL source (no Xcode needed -
+FPC's internal Mach-O writer via OPT="-Amacho"):
+```
+cd <fpcsrc>/rtl/darwin
+make OS_TARGET=darwin CPU_TARGET=i386 FPC=<path>/ppc386 OPT="-Amacho"
+# -> installs i386-darwin *.ppu units; note their path as DARWINUNITS
+```
+
+### Step 3 - supply the macOS SDK  *** YOUR PART ***
+Obtain `MacOSX10.6.sdk` from your legal Snow Leopard / old-Xcode media (extract
+it on a Mac, or with osxcross's gen_sdk_package.sh). Place it on your Linux box,
+e.g. `/opt/MacOSX10.6.sdk`. It must contain `usr/lib/libSystem.*`, `usr/lib/
+crt1.o`, and `System/Library/Frameworks`. (10.5 SDK also works for i386.)
+
+### Step 4 - link a full Darwin binary
+Point the compiler at (a) the Darwin RTL, (b) the ld64 you built, (c) your SDK:
+```
+ppc386 -Tdarwin -Pi386 -Mdelphi -O2 \
+  -Fu<DARWINUNITS> \
+  -Fumdl -Fumystic -Fimdl -Fimystic -Fomdl \
+  -FD$HOME/cctools/bin \                 # where ld64 lives  (-FD)
+  -XR/opt/MacOSX10.6.sdk \               # SDK root          (-XR)
+  -Fl/opt/MacOSX10.6.sdk/usr/lib \       # SDK libs
+  -FUout_darwin/units -FEout_darwin/bin \
+  mystic/mystic.pas
+```
+`build-darwin.sh` accepts these via env vars once you've done Steps 1-3:
+```
+FPC=<ppc386> DARWINUNITS=<...> \
+CCTOOLS=$HOME/cctools/bin SDKROOT=/opt/MacOSX10.6.sdk \
+  ./build-darwin.sh
+```
+(Set COMPILE_ONLY=1 to skip linking and just verify Mach-O objects.)
+
+### Gotchas (from the FPC cross-compile community)
+- If the linker grabs the host's `/usr/lib/crt1.o` instead of the SDK's, your
+  `-XR` SDK root isn't taking precedence - double-check the path and that the SDK
+  actually contains `usr/lib/crt1.o`.
+- Everything here is **i386 (32-bit Intel)** - runs on Intel Macs, pre-Catalina
+  (10.6-10.14). See the processor-eras section above.
+- Zero-hardware alternative: a **GitHub Actions macOS runner** already has the
+  SDK + linker; build/link there in CI and publish the binary as a release.
+
+---
+
+## Period-correct toolchain matrix (build it all with 2007-2013 era tools)
+
+This project is deliberately vintage. A sysop can build every target with
+period-correct tooling and never touch a modern dependency (except the emulator
+*host*, which should be current - see the note). Everything lands in a tight
+2007-2013 window.
+
+| Piece                | Version / target                 | Era        |
+|----------------------|----------------------------------|------------|
+| Compiler             | Free Pascal **2.6.2**            | Feb 2013   |
+| Windows target       | Windows XP, 32-bit (PE32 i386)   | 2001+      |
+| Linux target         | Debian 4/5 (Etch/Lenny), i386    | 2007-2009  |
+| macOS target         | `i386-darwin` (32-bit Intel)     | 2006-2011  |
+| macOS SDK (to link)  | **MacOSX10.6.sdk** (Snow Leopard)| 2009       |
+| macOS test emulator  | QEMU (Intel) + **Mac OS X 10.6** | guest=2009 |
+
+Why these pair up: FPC 2.6.2 (2013) predates Apple Silicon, so it targets
+PowerPC and 32-bit/64-bit Intel Darwin, not ARM. Our i386 target needs the
+**10.6** SDK (newer SDKs dropped 32-bit) and runs on **Intel** macOS 10.6-10.14
+(32-bit Intel binaries stop running after 10.15 Catalina). Snow Leopard 10.6 is
+the sweet spot: it is the SDK era AND a clean 32-bit-Intel runtime, so what you
+link and what you test are the same vintage.
+
+### Testing a Darwin build in an emulator
+Note two DIFFERENT QEMU targets - pick by CPU:
+- **Intel macOS (what runs our i386-darwin binary):** `qemu-system-x86_64` with
+  an old Intel OS X (10.6 Snow Leopard .. 10.12). The practical guide is the
+  **royalgraphx/LegacyOSXKVM** project on GitHub. Note: Snow Leopard's 32-bit
+  installer is finicky under QEMU TCG; the common workaround is a pre-installed
+  10.6 disk image rather than installing from scratch.
+- **PowerPC macOS (only if you add a `powerpc-darwin` target):** `qemu-system-ppc`
+  runs Mac OS 9 .. OS X 10.5. The **E-Maculation wiki**
+  (emaculation.com/doku.php/ppc-osx-on-qemu-for-windows) is the reference.
+
+Sources: QEMU itself from **qemu.org**. The emulator *program* can (and should)
+be a current build - a modern QEMU runs an old guest OS more reliably than an
+old QEMU would. Only the *guest OS* needs to be period-correct. As always, the
+macOS guest image / install media is Apple's; supply your own (same licensing
+note as the SDK section above).
+
+## Darwin note: cNetDB / fcl-net
+
+The network unit `m_io_Sockets` uses FPC's `cNetDB` (from the `fcl-net` package)
+on all UNIX targets, including Darwin. A complete FPC Darwin installation builds
+`fcl-net` as part of its normal package build, so `cNetDB` is present automatically.
+If you build against a minimal/partial Darwin unit set and hit
+`Can't find unit cNetDB used by m_io_Sockets`, compile it once from FPC source:
+
+    ppc386 -Tdarwin -Amacho -Mobjfpc \
+           -Fu<i386-darwin-units> -FU<output-dir> \
+           -Fi<fpc-src>/packages/fcl-net/src \
+           <fpc-src>/packages/fcl-net/src/cnetdb.pp
+
+then place `cnetdb.ppu`/`cnetdb.o` in your i386-darwin units directory. This
+affects every socket-using unit (nodespy_term, mis_client_smtp, mis_client_binkp,
+fidopoll), not just one.
+
+## Cross-platform text file convention
+
+All documentation/reference .txt files in this project use:
+- CRLF line endings (native on DOS/Windows; tolerated by modern macOS/Linux)
+- No byte-order mark (a UTF-8 BOM breaks DOS and older tools)
+- Plain ASCII in prose; CP437 high bytes ONLY inside actual ANSI art / display
+  files, never in reference docs
+
+This keeps whatsnew.txt, mystic_wiki_reference.txt, and wiki_docs/*.txt readable
+identically on DOS, Windows, macOS, and Linux, and on the board itself.

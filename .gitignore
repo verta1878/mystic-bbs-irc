@@ -1,0 +1,38 @@
+# Free Pascal compiler artifacts
+*.ppu
+*.o
+*.a
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Build output directories
+out/
+outwin/
+out386/
+out_darwin/
+bin/
+
+# Compiler leftovers
+link.res
+ppas.sh
+*.compiled
+*.mpx
+
+# Editor / OS cruft
+*.bak
+*.orig
+*~
+.DS_Store
+Thumbs.db
+
+# Add-on module generated / build files
+modem.ini
+mystic_modem/out/
+mystic_modem/bin/
+mystic_mailer/out/
+mystic_mailer/bin/
+
+# MIS running-lock semaphore
+*.bsy
