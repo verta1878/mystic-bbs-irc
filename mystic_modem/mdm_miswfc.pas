@@ -77,9 +77,12 @@ End;
 
 Procedure DrawModemWfc (Const Cfg: TModemConfig; Const St: TModemWfcStats);
 Begin
+  // Layout echoes the authentic Mystic 1.07 DOS "Waiting for a caller" screen:
+  // a status panel plus the sysop command bar and the caller-info fields the
+  // original showed.  (Field/label names taken from the 1.07 binary.)
   WriteLn;
   WriteLn(Bar);
-  WriteLn(Centre('M Y S T I C   -   Modem Server (Waiting For Caller)'));
+  WriteLn(Centre('M Y S T I C   B B S   -   Waiting for a caller'));
   WriteLn(Bar);
   WriteLn(Row('Device',   Cfg.Device));
   WriteLn(Row('Baud',     IntToStr(Cfg.Baud)));
@@ -87,13 +90,15 @@ Begin
   WriteLn(Row('Rings',    IntToStr(Cfg.RingsToAns)));
   WriteLn(Row('FOSSIL',   BoolToStr(Cfg.UseFossil, 'yes', 'no')));
   WriteLn(Bar);
-  WriteLn(Row('Line',     St.LineState));
+  WriteLn(Row('Status',   St.LineState));
   WriteLn(Row('Connect',  IntToStr(St.ConnBaud) + ' bps'));
-  WriteLn(Row('Carrier',  BoolToStr(St.Carrier, 'present', 'none')));
+  WriteLn(Row('Carrier',  BoolToStr(St.Carrier, 'detected', 'none')));
   WriteLn(Row('Calls',    IntToStr(St.Calls)));
   WriteLn(Row('Last',     St.LastCall));
   WriteLn(Bar);
-  WriteLn('  SPACE/Local   TAB/Switch   ALT-H/Hangup   ESC/Shutdown');
+  // The 1.07 sysop status/command bar (ALT keys).
+  WriteLn('  ALT (C)hat  (S)plit  (E)dit  (H)angup  (J) DOS  (U)pgrade  (B) Bar');
+  WriteLn('  (G) Offhook Modem   (L) Local Logon   (ESC) Exit Mystic');
   WriteLn;
 End;
 

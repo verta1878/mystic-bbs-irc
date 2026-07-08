@@ -15,6 +15,9 @@ that matter to it - **Windows XP (32-bit)**, **Debian/Linux (i386)**, and
 Mystic BBS is Copyright 1997-2013 by James Coyle (g00r00). This fork preserves
 that attribution and all GPL notices; see [COPYING](COPYING).
 
+*Maintained by Antonio Rico — Ecstasy BBS (aric2746@aim.com). It's been a long
+time since 1999; just trying to give back.*
+
 ## Why this fork exists
 
 Free software, kept free. This tree exists so that anyone - not just its
@@ -110,3 +113,6 @@ running board unless a change is explicitly a data-format migration.
 
 Mystic BBS by James Coyle (g00r00). This fork stands on that work and on the
 broader free-software BBS scene. Kept free, in that tradition.
+
+Fork maintained by **Antonio Rico — Ecstasy BBS** — aric2746@aim.com. It's been
+a long time since 1999; just trying to give back.

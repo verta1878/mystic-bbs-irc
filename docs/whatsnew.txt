@@ -485,3 +485,9 @@
    modem - device, baud, init string, rings, flow control, FOSSIL, local mode -
    from a simple menu instead of hand-editing modem.ini.  Shared by both the
    modem module and the mailer front-end.
+
+ + dialup: the Waiting-For-Caller screen and modem setup now follow the real
+   Mystic 1.07 DOS layout - the original 'Waiting for a caller' screen with the
+   sysop command bar (Chat/Split/Edit/Hangup/DOS/Upgrade, Offhook Modem, Local
+   Logon) and the classic modem fields, including the Answer and Offhook
+   strings.

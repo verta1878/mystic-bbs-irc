@@ -43,6 +43,8 @@ Begin
   WriteLn('  |  7. Local mode          : ', YN(Cfg.LocalMode));
   WriteLn('  |  8. Use FOSSIL layer    : ', YN(Cfg.UseFossil));
   WriteLn('  |  9. FOSSIL port number  : ', Cfg.FossilPort);
+  WriteLn('  |  A. Answer string       : ', Cfg.AnswerStr);
+  WriteLn('  |  O. Offhook string      : ', Cfg.OffhookStr);
   WriteLn('  +------------------------------------------------------------+');
   WriteLn('  |  S. Save    Q. Quit without saving                         |');
   WriteLn('  +------------------------------------------------------------+');
@@ -105,6 +107,8 @@ Begin
       '7' : Cfg.LocalMode    := AskBool('Start in local mode (skip modem)?', Cfg.LocalMode);
       '8' : Cfg.UseFossil    := AskBool('Route through the FOSSIL layer?', Cfg.UseFossil);
       '9' : Cfg.FossilPort   := AskInt('FOSSIL port number (0 = COM1):', Cfg.FossilPort);
+      'A' : Cfg.AnswerStr    := AskStr('Answer string (classic: ATA):', Cfg.AnswerStr);
+      'O' : Cfg.OffhookStr   := AskStr('Offhook string (e.g. ATH1):', Cfg.OffhookStr);
       'S' : Begin
               SaveModemConfig(IniPath, Cfg);
               WriteLn('  Saved to ', IniPath, '.');

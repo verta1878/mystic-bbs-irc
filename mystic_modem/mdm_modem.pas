@@ -55,8 +55,9 @@ Type
     // Non-blocking ring check (reads RI line and/or a pending RING result).
     Function  IsRinging: Boolean;
 
-    // Answer an incoming call (ATA).  On CONNECT, FConnBaud holds the speed.
-    Function  Answer (TimeoutMS: LongInt = 60000): Boolean;
+    // Answer an incoming call.  AnswerCmd defaults to ATA; pass the sysop's
+    // configured answer string to override.  On CONNECT, FConnBaud holds speed.
+    Function  Answer (TimeoutMS: LongInt = 60000; Const AnswerCmd: String = 'ATA'): Boolean;
 
     // Dial out (ATDT<number>).  On CONNECT, FConnBaud holds the speed.
     Function  Dial (Const Number: String; TimeoutMS: LongInt = 60000): Boolean;
@@ -208,11 +209,11 @@ Begin
   If Result Then FState := msRinging;
 End;
 
-Function TModem.Answer (TimeoutMS: LongInt): Boolean;
+Function TModem.Answer (TimeoutMS: LongInt; Const AnswerCmd: String): Boolean;
 Begin
   Result := False;
   If Not FSer.IsOpen Then Exit;
-  If Command('ATA', TimeoutMS) = mrConnect Then Begin
+  If Command(AnswerCmd, TimeoutMS) = mrConnect Then Begin
     FState := msConnected;
     Result := True;
   End Else

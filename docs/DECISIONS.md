@@ -2146,3 +2146,27 @@
   a tree entry for each + a 'Dialup / modem support (optional)' section. GPL headers 8/8
   (modem) + 4/4 (mailer). Both modules have README + build script. modemcfg in module
   README. No private paths/cruft remain. Core 14/14 + all module programs build clean.
+
+## Authentic 1.07 WFC screen + full sysop commands + maintainer credit (2026-07-07)
+  Sysop noted the WFC screens weren't based on the REAL Mystic 1.07 DOS screen (the
+  dialup WFC-with-modem-window is the whole reason the DOS version existed), wanted the
+  sysop to have all the config commands, and asked for a maintainer credit line.
+  SOURCE OF TRUTH: extracted the actual 1.07 strings from MROOT.MYS inside the downloaded
+  mysd_107.zip archive (binary, no source, but the strings are authentic). Found the real
+  WFC title "Waiting for a caller", the sysop command/status bar (ALT (C)hat (S)plit (E)dit
+  (H)angup (J) DOS (U)pgrade (B) Status Bar), caller-info fields ([Alias][Baud][Sec][Time]
+  [Name][Flag1][Address]...), modem lifecycle msgs (Initializing Modem, Taking modem
+  offhook, Incomming caller; Answering phone, Carrier detected, NO CARRIER!, Waiting for
+  handshake), and the real modem config fields (Com Port, Baud Rate, Modem Offhook /
+  Offhook Command, Answer, Dialup).
+  REBUILT mdm_miswfc.pas DrawModemWfc to echo the authentic 1.07 layout + command bar
+  (added (G) Offhook Modem, (L) Local Logon, (ESC) Exit Mystic). Updated mdm_wfc status
+  strings to the real 1.07 wording (Waiting for a caller / Incomming caller; Answering
+  phone / Initializing Modem / Carrier detected).
+  CONFIG: added AnswerStr + OffhookStr fields to TModemConfig (1.07's Answer + Offhook),
+  wired into Load/Save/WriteDefault and the modemcfg editor (menu items A + O). Made
+  TModem.Answer accept a configurable command (defaults ATA, backward-compatible) and
+  wired Cfg.AnswerStr through the WFC answer path.
+  CREDIT: added maintainer line to README (top + Credits): Antonio Rico - Ecstasy BBS -
+  aric2746@aim.com, "It's been a long time since 1999; just trying to give back."
+  All builds clean (wfcdemo, modemcfg, mailer); screens verified rendering.

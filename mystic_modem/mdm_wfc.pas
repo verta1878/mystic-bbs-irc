@@ -111,7 +111,7 @@ Begin
     Exit;
   End;
 
-  DrawWfc('initialising...');
+  DrawWfc('Initializing Modem');
   If Not FMdm.Initialise(FCfg.InitString) Then Begin
     WriteLn('  ERROR: modem did not respond on ', FCfg.Device);
     FSer.Close;
@@ -134,14 +134,14 @@ Begin
     Exit;
   End;
 
-  DrawWfc('READY - waiting for ring');
+  DrawWfc('Waiting for a caller');
 
   While FRunning Do Begin
     If FMdm.IsRinging Then Begin
-      DrawWfc('RING - answering');
+      DrawWfc('Incomming caller; Answering phone');
 
-      If FMdm.Answer(60000) Then Begin
-        DrawWfc('CONNECT ' + IntToStr(FMdm.ConnBaud));
+      If FMdm.Answer(60000, FCfg.AnswerStr) Then Begin
+        DrawWfc('CONNECT ' + IntToStr(FMdm.ConnBaud) + ' - Carrier detected');
 
         KeepGoing := True;
         If Assigned(FOnConnect) Then
@@ -157,9 +157,9 @@ Begin
 
         // Re-initialise before waiting again (some modems need it).
         FMdm.Initialise(FCfg.InitString);
-        DrawWfc('READY - waiting for ring');
+        DrawWfc('Waiting for a caller');
       End Else
-        DrawWfc('READY - waiting for ring');   // answer failed, keep waiting
+        DrawWfc('Waiting for a caller');   // answer failed, keep waiting
     End;
 
     Sleep(200);   // idle tick; host program can also poll the keyboard here

@@ -29,6 +29,8 @@ Type
     LocalMode   : Boolean;    // skip modem, go straight to a local session
     UseFossil   : Boolean;    // route through the FOSSIL layer (INT14h on DOS)
     FossilPort  : LongInt;    // FOSSIL port number when UseFossil + DOS (0=COM1)
+    AnswerStr   : String;     // command to answer the phone (1.07: default ATA)
+    OffhookStr  : String;     // command to take the modem off-hook (1.07 field)
   End;
 
 // Load modem.ini from the given path (or ./modem.ini).  Missing keys get
@@ -112,6 +114,8 @@ Begin
     Result.LocalMode    := Ini.ReadBoolean('Modem', 'localmode',    False);
     Result.UseFossil    := Ini.ReadBoolean('Modem', 'usefossil',    False);
     Result.FossilPort   := Ini.ReadInteger('Modem', 'fossilport',   0);
+    Result.AnswerStr    := Ini.ReadString ('Modem', 'answer',       'ATA');
+    Result.OffhookStr   := Ini.ReadString ('Modem', 'offhook',      'ATH1');
   Finally
     Ini.Free;
   End;
@@ -174,6 +178,12 @@ Begin
   WriteLn(F, ';');
   WriteLn(F, '; FOSSIL port number when usefossil=true on a DOS build (0 = COM1).');
   WriteLn(F, 'fossilport   = ', Cfg.FossilPort);
+  WriteLn(F, ';');
+  WriteLn(F, '; Command sent to answer an incoming call (classic Mystic: ATA).');
+  WriteLn(F, 'answer       = ', Cfg.AnswerStr);
+  WriteLn(F, ';');
+  WriteLn(F, '; Command to take the modem off-hook (busy).  1.07 "Offhook" field.');
+  WriteLn(F, 'offhook      = ', Cfg.OffhookStr);
   Close(F);
 End;
 
