@@ -76,6 +76,10 @@ Linux -> Darwin cross-compile recipe.
 - `mystic_sdl/` - **optional SDL2 DOS-session front-end**: renders a full-screen
   80x25 CP437 DOS window (the toolkit g00r00 uses for NetRunner) so the dialup /
   BinkP screens can display graphically. Runtime-loads SDL2. See its README.
+- `mystic_crypt/` - **optional cryptlib (SSH/TLS) example**: groundwork for
+  secure sessions using cryptlib (the cl32.dll stock Mystic 1.12 uses), as a
+  self-contained example. Runtime-loads cryptlib; degrades to plaintext if
+  absent. Our core is telnet/plaintext only - this is a feature-forward. See README.
 - `attic/` - retired code, kept (not deleted) for GPL attribution and scene
   history (superseded classes, reference implementations)
 

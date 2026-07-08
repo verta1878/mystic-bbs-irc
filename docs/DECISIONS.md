@@ -2274,3 +2274,27 @@
   separately (it's cryptlib - Peter Gutmann's crypto toolkit Mystic uses for SSH/TLS/
   encrypted netmail); advised NOT renaming it (canonical cryptlib name; rename risks
   breakage) - document instead.
+
+## mystic_crypt: cryptlib (SSH/TLS) example, separate module (2026-07-07)
+  Sysop asked for a cryptlib example separate from the main source, before release.
+  CONFIRMED FIRST (honest check): our A38/A39 fork core has NO cryptlib/SSH/TLS - MIS
+  creates only telnet/smtp/pop3/ftp/nntp/binkp (six servers, no SSH); m_crypt.pas is just
+  Base64+CRC, not cryptlib. SSH/TLS is a 1.12 feature (the A49 binary has cl32.dll +
+  cryptCreateSession + "Cryptlib not detected; SSL/SSH capabilities disabled"; A51/1.10 has
+  none). So this is a feature-forward example, not something already in the fork.
+  mystic_crypt/: cl_bind.pas (runtime cryptlib binding - looks for cl32.dll on Windows /
+  libcl.so on Linux / libcl.dylib on macOS, DARWIN guard; entry-point names cryptInit/
+  cryptCreateSession/cryptSetAttribute[String]/cryptPushData/cryptPopData/cryptDestroy
+  Session/cryptEnd taken from the stock Mystic binary so a real cl32.dll is a drop-in),
+  cl_session.pas (TCryptSession: StartSession(crSSHServer/crSSHClient/crTLSServer/
+  crTLSClient, socketHandle, privKey), Send/Recv via push/pop, graceful-off), cl_demo.pas
+  (prints the exact "Cryptlib not detected..." message when absent), build-crypt.sh, README.
+  BUG FOUND+FIXED: parameterless fn pointers cryptInit/cryptEnd need () to CALL rather than
+  compare the pointer (FPC objfpc). VERIFIED: builds win32(.exe)/linux i386/linux x86_64;
+  demo runs and degrades gracefully (no cryptlib in container). Darwin: portability review
+  (can't link in container), code path correct. cryptlib NOT bundled - runtime-loaded, sysop
+  drops cl32.dll in place, exactly as stock Mystic. cl32.dll NOT renamed (canonical cryptlib
+  name; rename risks breakage + it has its own deps) - documented instead in the README.
+  INTEGRATION SEAM (NOT done - it's core work): a real SSH server = a 7th MIS client type
+  (like mis_client_telnet) wrapping the accepted socket in a cryptlib SSH session over
+  TIOBase; TLS on SMTP/POP3 the same idea; plus config fields (SSH port, host-key paths).

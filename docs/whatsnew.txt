@@ -511,3 +511,9 @@
    future, a live session) with an authentic CP437 VGA font and the DOS 16-
    colour palette.  SDL2 is loaded at run time and nothing else depends on it,
    so it's there for anyone who wants the graphical DOS look.
+
+ + crypto: added an optional cryptlib example (mystic_crypt/) showing how the
+   fork could add SSH and TLS using cryptlib - the same cl32.dll library stock
+   Mystic 1.12 uses.  It's a self-contained example (the core is still telnet/
+   plaintext); it loads cryptlib at run time and prints the familiar "Cryptlib
+   not detected" notice when the library isn't present.
