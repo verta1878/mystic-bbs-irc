@@ -491,3 +491,8 @@
    sysop command bar (Chat/Split/Edit/Hangup/DOS/Upgrade, Offhook Modem, Local
    Logon) and the classic modem fields, including the Answer and Offhook
    strings.
+
+ + dialup: the module now ships a real blue ANSI Waiting-For-Caller screen
+   (WFCSCRN.ANS) rebuilt from the Mystic 1.07 layout - the caller-info fields
+   and the full sysop command bar in colour.  Point wfcscreen at it in
+   modem.ini, or drop in your own, just like the old DOS version.

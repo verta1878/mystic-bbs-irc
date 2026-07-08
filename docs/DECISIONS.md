@@ -2170,3 +2170,21 @@
   CREDIT: added maintainer line to README (top + Credits): Antonio Rico - Ecstasy BBS -
   aric2746@aim.com, "It's been a long time since 1999; just trying to give back."
   All builds clean (wfcdemo, modemcfg, mailer); screens verified rendering.
+
+## Authentic blue ANSI WFCSCRN.ANS built from 1.07 (2026-07-07)
+  Sysop noted the real WFC is a blue ANSI screen (WFCSCRN) showing all commands, not a
+  plain-text box. Investigated the 1.07 binary: the .MYS data files are Mystic's own
+  COMPRESSED archive format, so the original WFCSCRN.ANS is not directly extractable (and
+  it was a sysop-customisable template, referenced by name in MROOT.MYS, not embedded as a
+  complete screen). BUT the exact field layout + command bar ARE in the binary as strings
+  (the caller-info grid: [Alias][Baud][Sec][Time][Name][Flag1][Address][BDay][Sex][Home PH]
+  [Data PH][Email][Flag2], and the ALT command bar). Built a faithful blue ANSI screen
+  mystic_modem/WFCSCRN.ANS from those authentic strings: blue bg, cyan labels, yellow
+  command keys, CP437 box borders, all 11 sysop commands (Line Chat/Split Chat/Edit User/
+  Hangup/Drop to DOS/Upgrade User/Status Bar/Offhook Modem/Local Logon/Exit Mystic) + the
+  caller-info grid + modem status. Added ShowWfcAnsi(Cfg) to mdm_miswfc: if wfcscreen names
+  an ANSI file, stream it to the console verbatim (per-char write, CP437-safe), else fall
+  back to the plain-text DrawModemWfc. Tested: streams the full 1974-byte screen intact.
+  Honest note: this is a faithful RECONSTRUCTION from the binary's authentic strings/layout,
+  not a byte-for-byte extraction of the original compressed screen (not possible from this
+  archive). Sysops can replace WFCSCRN.ANS with their own, exactly as in 1.07.

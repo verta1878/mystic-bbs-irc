@@ -33,6 +33,12 @@ Win32 (COM ports) and Linux (/dev/ttyS*, /dev/ttyUSB* for USB serial adapters).
                        modem (device, baud, init string, rings, flow control,
                        FOSSIL, local mode) without hand-editing modem.ini.
                        Shared by both add-on modules.
+- `WFCSCRN.ANS`     — an authentic blue ANSI Waiting-For-Caller screen echoing
+                       the Mystic 1.07 DOS layout: caller-info fields (Alias/Name/
+                       Address/Email, Baud/Sec/Time/Flags), modem status, and the
+                       full sysop command bar (Chat/Split/Edit/Hangup/DOS/Upgrade/
+                       Status Bar/Offhook/Local Logon/Exit).  Point `wfcscreen` at
+                       it in modem.ini; ShowWfcAnsi streams it to the console.
 - `wfcdemo.pas`      — a standalone test program that runs the WFC loop and,
                        on CONNECT, hands the open serial handle to a callback.
 

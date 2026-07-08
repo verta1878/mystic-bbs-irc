@@ -38,6 +38,11 @@ Type
 // Draw the full modem WFC status screen for the given config + live stats.
 Procedure DrawModemWfc (Const Cfg: TModemConfig; Const St: TModemWfcStats);
 
+// If Cfg.WfcScreen names an ANSI file (e.g. WFCSCRN.ANS), stream it to the
+// console verbatim (the authentic blue 1.07-style screen).  Returns True if a
+// screen file was found and shown; False to fall back to DrawModemWfc.
+Function ShowWfcAnsi (Const Cfg: TModemConfig): Boolean;
+
 Implementation
 
 Uses
@@ -100,6 +105,29 @@ Begin
   WriteLn('  ALT (C)hat  (S)plit  (E)dit  (H)angup  (J) DOS  (U)pgrade  (B) Bar');
   WriteLn('  (G) Offhook Modem   (L) Local Logon   (ESC) Exit Mystic');
   WriteLn;
+End;
+
+Function ShowWfcAnsi (Const Cfg: TModemConfig): Boolean;
+Var
+  F  : File;
+  Buf: Array[0..1023] of Char;
+  N  : LongInt;
+  I  : LongInt;
+Begin
+  Result := False;
+  If Cfg.WfcScreen = '' Then Exit;
+
+  Assign(F, Cfg.WfcScreen);
+  {$I-} Reset(F, 1); {$I+}
+  If IOResult <> 0 Then Exit;
+
+  Repeat
+    BlockRead(F, Buf, SizeOf(Buf), N);
+    For I := 0 to N - 1 Do Write(Buf[I]);
+  Until N = 0;
+
+  Close(F);
+  Result := True;
 End;
 
 End.
