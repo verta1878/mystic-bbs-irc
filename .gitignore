@@ -36,3 +36,11 @@ mystic_mailer/bin/
 
 # MIS running-lock semaphore
 *.bsy
+
+# add-on module build outputs
+mystic_*/out/
+mystic_*/bin/
+mystic_*/out64/
+mystic_*/bin64/
+mystic_*/outwin/
+mystic_*/binwin/
