@@ -98,13 +98,28 @@ Function LoadHunspell (Const LibName: String): Boolean;
   Begin
     Result := True;
     {$IFDEF UNIX}
-      If TryOpen('libhunspell-1.7.so.0') Then Exit;
-      If TryOpen('libhunspell-1.6.so.0') Then Exit;
-      If TryOpen('libhunspell.so')       Then Exit;
+      {$IFDEF DARWIN}
+        // macOS: Mystic looks for libhunspell.dylib (sysop symlinks the real one).
+        If TryOpen('libhunspell.dylib')    Then Exit;
+      {$ELSE}
+        // Linux: Mystic looks for libhunspell.so (sysop symlinks the real one).
+        If TryOpen('libhunspell.so')       Then Exit;
+        // fall back to versioned names if the .so symlink isn't present
+        If TryOpen('libhunspell-1.7.so.0') Then Exit;
+        If TryOpen('libhunspell-1.6.so.0') Then Exit;
+      {$ENDIF}
     {$ELSE}
-      If TryOpen('libhunspell.dll')      Then Exit;
-      If TryOpen('hunspell.dll')         Then Exit;
-      If TryOpen('hunspell-1.7.dll')     Then Exit;
+      // Windows: Mystic uses libhunspell32.dll (32-bit) / libhunspell64.dll (64-bit).
+      // Match g00r00's names so the SAME DLL from the Mystic spellcheck package
+      // works here.  We try the size that matches this build's pointer width.
+      If SizeOf(Pointer) = 4 Then Begin
+        If TryOpen('libhunspell32.dll')    Then Exit;
+      End Else Begin
+        If TryOpen('libhunspell64.dll')    Then Exit;
+      End;
+      // generic fallbacks
+      If TryOpen('libhunspell.dll')        Then Exit;
+      If TryOpen('hunspell.dll')           Then Exit;
     {$ENDIF}
     Result := False;
   End;

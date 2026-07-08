@@ -2211,3 +2211,19 @@
   supplies one, same as 1.12). INTEGRATION SEAM (documented, NOT done - it's core work):
   live highlight-as-you-type in the full-screen message editor would hook the editor
   keypress loop; this module provides the engine (Check/Suggest) that hook would call.
+
+## mystic_spell: match g00r00's Hunspell DLL names (2026-07-07)
+  Sysop noted g00r00 ships Hunspell as a DLL. Confirmed the exact names from the 1.12
+  wiki and corrected the binding to match, so the SAME DLL from the Mystic spellcheck
+  package is a drop-in for our fork:
+    Windows 32-bit -> libhunspell32.dll ; Windows 64-bit -> libhunspell64.dll
+    Linux -> libhunspell.so ; macOS -> libhunspell.dylib (sysop symlinks the real one)
+  My first binding looked for the wrong names (libhunspell.dll/hunspell.dll) - fixed.
+  Pointer-width guard picks 32 vs 64 DLL on Windows; versioned .so names kept as fallback
+  (that's what caught the container's libhunspell-1.7.so.0 in the 64-bit test). Also added
+  a DARWIN guard for the .dylib path. Rebuilt: 32-bit + 64-bit clean; 64-bit still spell-
+  checks correctly against real Hunspell. UI behaviour confirmed from the wiki for future
+  editor integration: 1.12 highlights misspelled words live, auto-suggests on the bottom
+  line after a ~0.5s typing pause (msg_editor.ini suggestion-delay option), and a hotkey
+  pops a listbox of suggestions that replaces the word - that live UI is the core editor
+  seam, still out of scope for this separate module.

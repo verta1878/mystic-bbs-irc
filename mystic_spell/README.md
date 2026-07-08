@@ -11,11 +11,17 @@ This module brings the capability forward as an add-on.
 
 ## How it works
 
-- Uses **Hunspell** via a runtime-loaded shared library (libhunspell on Linux,
-  hunspell*.dll on Windows).  Nothing is linked at compile time, so the module
-  builds with no Hunspell present and reports "unavailable" gracefully if the
-  library or dictionaries are missing — exactly how a sysop deployment works
-  (drop the library + dictionaries in place, like 1.12).
+- Uses **Hunspell** via a runtime-loaded shared library.  It looks for the SAME
+  names Mystic 1.12 uses, so the sysop can drop in the exact same DLL from the
+  Mystic spellcheck package:
+    - Windows 32-bit : `libhunspell32.dll`
+    - Windows 64-bit : `libhunspell64.dll`
+    - Linux          : `libhunspell.so` (symlink to the installed version)
+    - macOS          : `libhunspell.dylib` (symlink to the installed version)
+  (Versioned names like `libhunspell-1.7.so.0` are tried as a fallback.)
+  Nothing is linked at compile time, so the module builds with no Hunspell
+  present and reports "unavailable" gracefully if the library or dictionaries
+  are missing — exactly how the 1.12 deployment works.
 - Reads standard ISPELL/HUNSPELL `dictionary.aff` + `dictionary.dic` from the
   data directory (any language), plus an optional `WORDLIST.TXT` of BBS-specific
   terms/acronyms that a normal dictionary would not contain.
