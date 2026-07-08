@@ -57,3 +57,12 @@ Serial + modem + WFC compile on Linux (i386) with FPC 2.6.2.  Win32 uses the
 same FPC `Serial` unit (standard in a full install; absent only from this build
 container's partial RTL).  Live testing needs real modem hardware / a serial
 loopback.
+
+## Cross-platform / Darwin
+
+The serial layer is built on Free Pascal's cross-platform Serial unit, so the
+same source targets Windows, Linux and macOS.  Device names differ by platform:
+Windows uses COM1/COM2..., Linux uses /dev/ttyS0 or /dev/ttyUSB0, and macOS uses
+/dev/cu.* (e.g. /dev/cu.usbserial-XXXX for a USB serial adapter) - set this in
+modem.ini.  As elsewhere in this fork, the Darwin build is maintained by code
+review (the build container cannot link Darwin); it links on a real Mac.

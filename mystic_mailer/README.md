@@ -68,3 +68,10 @@ EMSI handshake + detector compile, link, and pass logic tests (CRC vector,
 EMSI/BinkP classification) on Linux i386 (FPC 2.6.2). The transfer and hand-off
 seams are the documented next steps, and all of it needs real modem hardware —
 ideally V.42-capable on both ends — for live validation.
+
+## Cross-platform / Darwin
+
+The mailer is pure protocol code (EMSI/BinkP framing over the shared I/O
+layer) with no platform-specific calls, so it targets Windows, Linux and macOS
+from the same source.  As elsewhere in this fork, the Darwin build is maintained
+by code review (the build container cannot link Darwin); it links on a real Mac.

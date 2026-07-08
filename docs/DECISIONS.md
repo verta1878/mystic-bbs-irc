@@ -2298,3 +2298,22 @@
   INTEGRATION SEAM (NOT done - it's core work): a real SSH server = a 7th MIS client type
   (like mis_client_telnet) wrapping the accepted socket in a cryptlib SSH session over
   TIOBase; TLS on SMTP/POP3 the same idea; plus config fields (SSH port, host-key paths).
+
+## Darwin audit + library-size documentation across all modules (2026-07-07)
+  Sysop reminder: don't forget Darwin, and asked how big the libs the examples need are.
+  DARWIN AUDIT (all 5 modules): spell/sdl/crypt already had {$IFDEF DARWIN} .dylib paths
+  (libhunspell.dylib / libSDL2.dylib / libcl.dylib). GAP FOUND: mystic_modem used FPC's
+  cross-platform Serial unit (compiles on macOS) but its config only documented Windows COM
+  and Linux /dev/ttyS0 - not macOS /dev/cu.* devices. Fixed the modem.ini comments to
+  include macOS /dev/cu.usbserial-*. mystic_mailer is pure protocol (portable, no platform
+  calls). Added a Cross-platform/Darwin section to the modem + mailer READMEs (the other
+  three already covered it). All 5 module READMEs now document Darwin/macOS. Container still
+  can't LINK darwin (RTL gap) - maintained by code review, links on a real Mac, as throughout.
+  LIBRARY SIZES (measured, runtime-loaded, NOT bundled in the repo):
+    Hunspell (spell): Linux 721 KB / Windows ~300-600 KB, + en_US dict .dic 840 KB + .aff 3 KB
+    SDL2 (sdl): Linux 1.8 MB / Windows ~1.5-2.5 MB
+    cryptlib (crypt): cl32.dll ~1.1 MB / libcl ~1-2 MB
+    modem + mailer: no external lib (FPC serial unit / pure protocol)
+  Only bundled asset is VGA8X16.FNT (4 KB). All libs are the sysop's drop-in, so the repo
+  stays small (3.3M with git history); enabling all optional features on Windows adds ~4.5 MB
+  of libraries but only for features the sysop turns on.

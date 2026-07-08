@@ -60,7 +60,8 @@ Begin
   WriteLn(F, ';');
   WriteLn(F, '[Modem]');
   WriteLn(F, '; Serial device.  Windows: COM1, COM2, ...  Linux: /dev/ttyS0 or');
-  WriteLn(F, '; /dev/ttyUSB0 for a USB serial adapter.');
+  WriteLn(F, '; /dev/ttyUSB0 for a USB serial adapter.  macOS: /dev/cu.usbserial-*');
+  WriteLn(F, '; (or /dev/cu.* for the built-in / adapter port).');
   WriteLn(F, 'device       = /dev/ttyS0');
   WriteLn(F, ';device      = COM1');
   WriteLn(F, ';');
