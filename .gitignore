@@ -44,3 +44,9 @@ mystic_*/out64/
 mystic_*/bin64/
 mystic_*/outwin/
 mystic_*/binwin/
+
+# but DO keep the runtime libraries placed under libs/
+!libs/*.dll
+!libs/*.so
+!libs/*.so.*
+!libs/*.dylib

@@ -2317,3 +2317,18 @@
   Only bundled asset is VGA8X16.FNT (4 KB). All libs are the sysop's drop-in, so the repo
   stays small (3.3M with git history); enabling all optional features on Windows adds ~4.5 MB
   of libraries but only for features the sysop turns on.
+
+## libs/: bundle the three optional runtime libraries (2026-07-07)
+  Sysop chose to ship the libraries with the repo. Verified cryptlib IS bundle-able: its
+  Sleepycat license is GPL-compatible and permits binary redistribution (conditions: keep
+  the copyright/disclaimer + provide info on obtaining cryptlib source). Free tier covers a
+  non-revenue BBS (large-scale commercial = >US$5000). SDL2=zlib, Hunspell=GPL/LGPL/MPL,
+  both clearly fine. To avoid the documented GPLv3-vs-Sleepycat "further restriction" gray
+  area, the libs live in a SEPARATE libs/ tree as MERE AGGREGATION (not combined into the
+  GPL source), each with its own LICENSE file: SDL2-LICENSE.txt (zlib), HUNSPELL-LICENSE.txt
+  (tri-license + source URL), CRYPTLIB-LICENSE.txt (Sleepycat text + mandatory source-code
+  pointer to Gutmann's site, satisfying condition 3). libs/README.md maps each lib to its
+  module + platform filenames. .gitignore un-ignores libs/*.dll/.so/.dylib so the dropped
+  binaries ARE tracked; .gitattributes marks them binary. Assistant CANNOT fetch the actual
+  binaries (egress proxy blocks downloads) - sysop drops the .dll/.so/.dylib into libs/
+  before pushing. Modules already search the working dir/system path; libs/ is the drop spot.

@@ -80,6 +80,8 @@ Linux -> Darwin cross-compile recipe.
   secure sessions using cryptlib (the cl32.dll stock Mystic 1.12 uses), as a
   self-contained example. Runtime-loads cryptlib; degrades to plaintext if
   absent. Our core is telnet/plaintext only - this is a feature-forward. See README.
+- `libs/` - drop-in runtime libraries for the optional modules (Hunspell,
+  SDL2, cryptlib), each under its own license; see libs/README.md.
 - `attic/` - retired code, kept (not deleted) for GPL attribution and scene
   history (superseded classes, reference implementations)
 
