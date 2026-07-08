@@ -2227,3 +2227,15 @@
   line after a ~0.5s typing pause (msg_editor.ini suggestion-delay option), and a hotkey
   pops a listbox of suggestions that replaces the word - that live UI is the core editor
   seam, still out of scope for this separate module.
+
+## mystic_spell: fix Windows port build (2026-07-07)
+  Sysop pointed at the Windows port specifically (where g00r00 ships the Hunspell DLL and
+  the DLL IS the deployment). Discovered mystic_spell did NOT compile for -Twin32: Windows
+  LoadLibrary returns HModule (a LongWord), not a Pointer, so LibHandle:Pointer and the
+  '<> Nil' comparisons failed on Windows (4 type errors). Only surfaced by actually building
+  the win32 target - had only tested Linux before. Fixed: LibHandle is now Pointer on UNIX
+  and HModule on Windows via IFDEF, with a LibOpen helper doing the platform-correct empty
+  check (<> Nil on unix, <> 0 on windows) and UnloadHunspell resetting to Nil/0 accordingly.
+  Verified all THREE targets now build: win32 (spelltest.exe, THE Windows port), linux i386,
+  and linux x86_64 (still spell-checks correctly against real Hunspell). Lesson: build the
+  target that matters, not just the convenient one.

@@ -70,8 +70,21 @@ Function HunspellLoaded: Boolean;
 Implementation
 
 Var
-  LibHandle : {$IFDEF UNIX} Pointer {$ELSE} HModule {$ENDIF} = Nil;
+  {$IFDEF UNIX}
+  LibHandle : Pointer = Nil;
+  {$ELSE}
+  LibHandle : HModule = 0;
+  {$ENDIF}
   Loaded    : Boolean = False;
+
+Function LibOpen: Boolean;
+Begin
+  {$IFDEF UNIX}
+    LibOpen := LibHandle <> Nil;
+  {$ELSE}
+    LibOpen := LibHandle <> 0;
+  {$ENDIF}
+End;
 
 Function Sym (Const Name: String): Pointer;
 Begin
@@ -89,7 +102,7 @@ Begin
   {$ELSE}
     LibHandle := LoadLibrary(PChar(N));
   {$ENDIF}
-  TryOpen := LibHandle <> Nil;
+  TryOpen := LibOpen;
 End;
 
 Function LoadHunspell (Const LibName: String): Boolean;
@@ -153,9 +166,14 @@ End;
 
 Procedure UnloadHunspell;
 Begin
-  If LibHandle <> Nil Then Begin
-    {$IFDEF UNIX} dlclose(LibHandle); {$ELSE} FreeLibrary(LibHandle); {$ENDIF}
-    LibHandle := Nil;
+  If LibOpen Then Begin
+    {$IFDEF UNIX}
+      dlclose(LibHandle);
+      LibHandle := Nil;
+    {$ELSE}
+      FreeLibrary(LibHandle);
+      LibHandle := 0;
+    {$ENDIF}
   End;
   Hunspell_create := Nil; Hunspell_destroy := Nil;
   Hunspell_spell := Nil;  Hunspell_suggest := Nil;
