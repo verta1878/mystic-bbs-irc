@@ -25,7 +25,11 @@ Unit m_io_stdio;
 Interface
 
 Uses
-  BaseUnix,
+  {$IFDEF OS2}
+    DosCalls,   // OS/2: FPC RTL Dos* API (no BaseUnix on OS/2)
+  {$ELSE}
+    BaseUnix,
+  {$ENDIF}
   m_io_Base;
 
 Const
@@ -51,6 +55,42 @@ Type
 
 Implementation
 
+// Raw stdio primitives.  Unix uses the fp* syscalls; OS/2 uses the FPC
+// RTL DosCalls API on the standard handles.  Everything above these two
+// helpers is platform-independent.
+
+Function StdWrite (Var Buf; Len: LongInt) : LongInt;
+{$IFDEF OS2}
+Var
+  Actual : LongInt;
+{$ENDIF}
+Begin
+  {$IFDEF OS2}
+    If DosWrite (STDIO_OUT, Buf, Len, Actual) = 0 Then
+      Result := Actual
+    Else
+      Result := -1;
+  {$ELSE}
+    Result := fpWrite(STDIO_OUT, Buf, Len);
+  {$ENDIF}
+End;
+
+Function StdRead (Var Buf; Len: LongInt) : LongInt;
+{$IFDEF OS2}
+Var
+  Actual : LongInt;
+{$ENDIF}
+Begin
+  {$IFDEF OS2}
+    If DosRead (STDIO_IN, Buf, Len, Actual) = 0 Then
+      Result := Actual
+    Else
+      Result := -1;
+  {$ELSE}
+    Result := fpRead(STDIO_IN, Buf, Len);
+  {$ENDIF}
+End;
+
 Constructor TSTDIO.Create;
 Begin
   Inherited Create;
@@ -72,13 +112,13 @@ End;
 
 Function TSTDIO.WriteBuf (Var Buf; Len: LongInt) : LongInt;
 Begin
-  Result := fpWrite(STDIO_OUT, Buf, Len);
+  Result := StdWrite(Buf, Len);
 End;
 
 Procedure TSTDIO.BufFlush;
 Begin
   If FOutBufPos > 0 Then Begin
-    fpWrite (STDIO_OUT, FOutBuf, FOutBufPos);
+    StdWrite (FOutBuf, FOutBufPos);
 
     FOutBufPos := 0;
   End;
@@ -119,7 +159,7 @@ End;
 Function TSTDIO.ReadBuf (Var Buf; Len: LongInt) : LongInt;
 Begin
   If FInBufPos = FInBufEnd Then Begin
-    FInBufEnd := fpRead(STDIO_IN, @FInBuf, TIOBufferSize);
+    FInBufEnd := StdRead(FInBuf, TIOBufferSize);
     FInBufPos := 0;
 
     If FInBufEnd <= 0 Then Begin
@@ -161,17 +201,27 @@ End;
 Function TSTDIO.WriteLine (Str: String) : LongInt;
 Begin
   Str    := Str + #13#10;
-  Result := fpWrite(STDIO_OUT, Str[1], Length(Str));
+  Result := StdWrite(Str[1], Length(Str));
 End;
 
 Function TSTDIO.WaitForData (TimeOut: LongInt) : LongInt;
+{$IFNDEF OS2}
 Var
   FDSIN : TFDSET;
+{$ENDIF}
 Begin
-  fpFD_Zero (FDSIN);
-  fpFD_Set  (STDIO_IN, FDSIN);
+  {$IFDEF OS2}
+    // OS/2 phase 1: no select() on file handles.  Report "ready" and let
+    // DosRead block - correct for a blocking pipe/handle session.  Revisit
+    // with DosPeekNPipe/DosWaitEventSem once the native session model is
+    // exercised on real OS/2 (see docs/TODO.md OS/2 item).
+    Result := 1;
+  {$ELSE}
+    fpFD_Zero (FDSIN);
+    fpFD_Set  (STDIO_IN, FDSIN);
 
-  Result := fpSelect (STDIO_IN + 1, @FDSIN, NIL, NIL, TimeOut);
+    Result := fpSelect (STDIO_IN + 1, @FDSIN, NIL, NIL, TimeOut);
+  {$ENDIF}
 End;
 
 End.

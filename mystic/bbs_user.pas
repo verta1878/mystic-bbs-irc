@@ -433,41 +433,7 @@ Begin
   Result   := True;
 End;
 
-{$IFDEF UNIX}
-Procedure TBBSUser.DetectGraphics;
-Var
-  Loop : Byte;
-Begin
-  If Session.Theme.Flags AND ThmAllowANSI = 0 Then Begin
-    Session.io.Graphics := 0;
-    Exit;
-  End;
-
-  Session.io.OutFull (Session.GetPrompt(258));
-  Session.io.BufFlush;
-
-  Console.BufAddStr(#27 + '[6n');
-  Console.BufFlush;
-
-  For Loop := 1 to 24 Do Begin
-    While Keyboard.KeyPressed Do
-      If Keyboard.ReadKey in [#27, '[', '0'..'9', ';', 'R'] Then Begin
-        Session.io.Graphics := 1;
-        Break;
-      End;
-
-    If Session.io.Graphics = 1 Then Break;
-
-    WaitMS(250);
-  End;
-
-  While Keyboard.KeyPressed Do
-    Loop := Byte(Keyboard.ReadKey);
-
-  Session.io.OutFullLn (Session.GetPrompt(259));
-  Session.io.BufFlush;
-End;
-{$ELSE}
+{$IFDEF WINDOWS}
 Procedure TBBSUser.DetectGraphics;
 Var
   Loop : Byte;
@@ -501,6 +467,40 @@ Begin
   End;
 
   Session.io.OutFullLn (Session.GetPrompt(259));
+End;
+{$ELSE}
+Procedure TBBSUser.DetectGraphics;
+Var
+  Loop : Byte;
+Begin
+  If Session.Theme.Flags AND ThmAllowANSI = 0 Then Begin
+    Session.io.Graphics := 0;
+    Exit;
+  End;
+
+  Session.io.OutFull (Session.GetPrompt(258));
+  Session.io.BufFlush;
+
+  Console.BufAddStr(#27 + '[6n');
+  Console.BufFlush;
+
+  For Loop := 1 to 24 Do Begin
+    While Keyboard.KeyPressed Do
+      If Keyboard.ReadKey in [#27, '[', '0'..'9', ';', 'R'] Then Begin
+        Session.io.Graphics := 1;
+        Break;
+      End;
+
+    If Session.io.Graphics = 1 Then Break;
+
+    WaitMS(250);
+  End;
+
+  While Keyboard.KeyPressed Do
+    Loop := Byte(Keyboard.ReadKey);
+
+  Session.io.OutFullLn (Session.GetPrompt(259));
+  Session.io.BufFlush;
 End;
 {$ENDIF}
 
@@ -1295,7 +1295,7 @@ Begin
       Session.User.GetPassword(False);
     End;
 
-  {$IFNDEF UNIX}
+  {$IFDEF WINDOWS}
     UpdateStatusLine(Session.StatusPtr, '');
   {$ENDIF}
 End;

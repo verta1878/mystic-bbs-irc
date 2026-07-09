@@ -8,7 +8,7 @@
 
 --------------------------------------------------------------------------
 
-## STATUS (2026-07-07)
+## STATUS (2026-07-08)
 
 The substantive A39 feature-import work is essentially COMPLETE. The full list
 of what landed is in whatsnew.txt; in brief: the FidoNet tosser subsystem, JAM
@@ -18,7 +18,15 @@ subsystem. All build 14/14 on win32 + linux, compile clean for Darwin, and are
 cross-checked against the stock A51/A49 binaries. On-disk data format unchanged
 (anchors SizeOf RecConfig=5282 / RecTheme=768 / RecEchoMailNode=901).
 
-What remains is not more porting — it's PROOF. See item 1.
+NEW (2026-07-08): RIP graphics Phase 1 landed — the ripterm client engine is
+now IN THE TREE as a self-contained example module, mystic_rip/ (TTermRip in
+rip_term.pas — the TTermAnsi parallel — plus the rip_canvas seam, software
+surface, SDL viewer and demos; FPC RTL units only, no mdl deps). Verified
+both platforms; renders pixel-identical to the client reference. Promotion
+to mdl/ happens at the live hook-up. Design + status: docs/RIP-INTEGRATION.md.
+Phases 2/3 below (item 4).
+
+What remains on the A39 side is not more porting — it's PROOF. See item 1.
 
 --------------------------------------------------------------------------
 
@@ -83,6 +91,85 @@ Whatever surfaces here IS the next real work.
     accepts telnet. Mechanism unknown. KEEP the working code, flagged.
   - ANSI high-ASCII bleeding (chars 128-255): in output (m_output_*) AND parser
     (bbs_ansi*); strStripPipe a candidate.
+
+--------------------------------------------------------------------------
+
+## 4. RIP GRAPHICS — Phase 1 DONE, next phases
+
+  Engine landed 2026-07-08 (see docs/RIP-INTEGRATION.md §9 for exactly what
+  went where). Remaining, in design-doc order:
+
+  - Phase 2a (renderer): fill patterns (RIP 'S'/'s'), line styles/thickness
+    ('='), stroked/scalable fonts ('Y' text settings), the button/icon system
+    ('U','1B' level-1 buttons) with <clk> invert feedback, text windows ('w')
+    and viewports ('v') instead of the simplified whole-screen 'e'/'E' clear.
+  - Phase 2b (hook-up): give TTermRip a live seat next to TTermAnsi — an
+    RIP-capable front-end path (nodespy_term / mystic_sdl session) that
+    auto-detects RIP and routes the stream; wire TRipWindow.OnRegionClick to
+    the connection so hot-region clicks type at the host. THIS is the
+    promotion point: rip_term.pas -> mdl/m_term_rip.pas, reply callback ->
+    TIOBase. Threading (if any) = FPC TThread/cthreads (like
+    m_socket_server), never a custom layer.
+  - Phase 2c (emitter): serve RIP from the BBS side — author screens ->
+    '!|' sequences, the way ANSI is emitted from templates/MCI today.
+  - Phase 3: Beziers ('Z'), polygons ('P'/'p'), clipboard ops ('C' level-1
+    extended), RIP_QUERY replies via the SetReplyClient seam, the rare-command
+    long tail.
+  - Environment note (RESOLVED 2026-07-08 for the shipped lib): the FPC 2.6.2
+    i386 "crash in SDL_Init" was the 4-byte vs 16-byte i386 stack-alignment
+    mismatch with modern distro SDL. libs/linux-i386/libSDL2-2.0.so.0 is now
+    built from 2.32.8 source WITH -mstackrealign and runs clean (rip_view and
+    sdl_demo verified headless). A stock distro SDL will still crash; use the
+    bundled one. Windows SDL2.dll was never affected.
+
+--------------------------------------------------------------------------
+
+## 5. OS/2 TARGET — source done, native link + live test outstanding
+
+  Source ported and compiles 14/14 for i386-os2 (cross, compile-only) as of
+  2026-07-08; details + toolchain in docs/DECISIONS.md. Remaining:
+  - OS/2 NATIVE LINK: the container can compile but not link OS/2 (needs
+    emxbind + EMX OS/2 import libs; FPC's os2 link is ld-then-emxbind). Build
+    natively on OS/2/eComStation/ArcaOS with the FPC 2.6.2 OS/2 release
+    (period-matched to this fork's compiler). This produces the actual .exe.
+  - LIVE SHAKE-OUT on real OS/2: m_io_stdio's OS/2 WaitForData is a blocking
+    stub (revisit with DosPeekNPipe if a nonblocking poll is needed); confirm
+    so32dll TCP/IP sockets, TProcess per-node spawning, and door drop-file
+    behavior. Sysop has OS/2 history - this is his gate.
+  - Optional: once linking works, wire an os2 arm into build.sh (today it's
+    linux/win32/darwin).
+
+--------------------------------------------------------------------------
+
+## 6. 1.12 FILE_ID / DIZ color support (9a DONE; 9b + extras pending)
+
+  9a DONE (2026-07-09): color-aware DIZ. mdl/m_strings.pas strDizColor()
+  preserves pipe codes + converts ANSI SGR color to pipe; wired into
+  bbs_filebase ReadDIZ and mutil_upload. Verified 14/14 + unit test.
+  Still pending (minor, fold in later):
+  - @BEGIN_FILE_ID.DIZ inline-tag scanner (description embedded in a text file).
+  - Raise the desc line cap toward 99 (mind mysMaxFileDescLen=50 + MsgText).
+  - Wildcat/PCBoard/WWIV color notations (only ANSI+pipe handled so far).
+  9b LATER + HUGE (sysop): the 1.12 full-screen ARCHIVE VIEWER
+  (archive_view.ans/.ini) - browse inside a ZIP, show embedded FILE_ID.ANS.
+  Separate UI subsystem, its own project.
+
+## 7. cryptlib win32 cross-build (feasibility proven; finish the wiring)
+
+  Answered: cl32.dll CAN cross-compile with mingw. docs/patches/
+  cryptlib-mingw-endian.patch (one endian branch) makes the entropy module
+  random/win32.c compile under i686-w64-mingw32. Remaining: wire cryptlib's
+  makefile win32 target (target-init win32 + WIN32ASMOBJS) to the mingw prefix
+  and link the DLL, then drop it in libs/win32/cl32.dll. Or use a vendor
+  (commercial-license) DLL. See DECISIONS.md 2026-07-09.
+
+## 8. Release packaging (tooling done; use it per build)
+
+  file_id.diz = master example (literal "xxx BINARIES"); 6 per-target files
+  file_id.{win,lnx,os2,mac,dos} each have their tag filled in.
+  make_release.sh <tag> <bin-dir> copies file_id.<tag> into a per-target
+  archive renamed to FILE_ID.DIZ. One archive per target, never combined.
+  (dos DIZ exists; no dos build target yet - come back to it.)
 
 --------------------------------------------------------------------------
 

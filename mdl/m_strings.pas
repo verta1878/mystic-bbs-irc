@@ -48,6 +48,7 @@ Function strStripL    (Str: String; Ch: Char) : String;
 Function strStripR    (Str: String; Ch: Char) : String;
 Function strStripB    (Str: String; Ch: Char) : String;
 Function strStripLow  (Str: String) : String;
+Function strDizColor  (Str: String) : String;
 Function strStripPipe (Str: String) : String;
 Function strStripMCI  (Str: String) : String;
 Function strMCILen    (Str: String) : Byte;
@@ -396,6 +397,113 @@ Begin
      Inc(Count);
 
   strStripLow := Str;
+End;
+
+// ----------------------------------------------------------------------
+// strDizColor - 1.12-style FILE_ID.DIZ line processing.
+//
+// Older Mystic (A38) ran every DIZ line through strStripLow, which
+// deletes ALL control chars (#0..#31) - including the ESC (#27) that
+// ANSI color is built from - flattening colored DIZ art to monochrome.
+// Mystic 1.12 instead PRESERVES color in file descriptions.  This
+// helper does the faithful minimum:
+//   * Mystic pipe codes (|00..|23 etc) are printable ASCII, so they
+//     already survive untouched - kept as-is.
+//   * Embedded ANSI SGR color (ESC [ ... m) is CONVERTED to the
+//     equivalent Mystic pipe code, so the color is retained in the
+//     native storage format the file listing already renders.
+//   * Any other control chars (cursor moves, #0..#31 that aren't part
+//     of a recognized color SGR) are dropped, as before - DIZ text is
+//     a description, not a full-screen ANSI.
+//
+// Only the standard 16 SGR foreground (30-37 + bold) / background
+// (40-47) attributes are mapped; unknown SGR params are skipped.  This
+// covers effectively all colored DIZ art without pulling in a full
+// ANSI state machine.
+// ----------------------------------------------------------------------
+Function strDizColor (Str: String) : String;
+Const
+  // ANSI SGR base color index (0=blk 1=red..7=whi) -> Mystic color 0..15
+  AnsiToMystic : Array[0..7] of Byte = (0, 4, 2, 6, 1, 5, 3, 7);
+Var
+  I, J    : Integer;
+  Res     : String;
+  Params  : String;
+  Fg, Bg  : Integer;
+  Bold    : Boolean;
+  P, Code : Integer;
+  HadCol  : Boolean;
+
+  Procedure EmitColor;
+  Var
+    MFg : Integer;
+  Begin
+    MFg := Fg;
+    If Bold Then Inc (MFg, 8);
+    // Mystic pipe: |<fg 00..15><bg 16..23 as bg*... > - use |NN foreground
+    // and |NN background via the standard 00..23 scheme.
+    Res := Res + '|' + Copy(strI2S(100 + MFg), 2, 2);
+    Res := Res + '|' + Copy(strI2S(100 + 16 + Bg), 2, 2);
+  End;
+
+Begin
+  Res    := '';
+  I      := 1;
+  Fg     := 7;
+  Bg     := 0;
+  Bold   := False;
+
+  While I <= Length(Str) Do Begin
+    If (Str[I] = #27) And (I < Length(Str)) And (Str[I + 1] = '[') Then Begin
+      // parse an ANSI escape: ESC [ params letter
+      J := I + 2;
+      Params := '';
+
+      While (J <= Length(Str)) And (Str[J] In ['0'..'9', ';']) Do Begin
+        Params := Params + Str[J];
+        Inc (J);
+      End;
+
+      If (J <= Length(Str)) And (Str[J] = 'm') Then Begin
+        // an SGR color sequence - translate each ; separated code
+        HadCol := False;
+        P      := 1;
+
+        While P <= Length(Params) Do Begin
+          Code := 0;
+
+          While (P <= Length(Params)) And (Params[P] In ['0'..'9']) Do Begin
+            Code := Code * 10 + (Ord(Params[P]) - Ord('0'));
+            Inc (P);
+          End;
+
+          Case Code of
+            0     : Begin Fg := 7; Bg := 0; Bold := False; End;
+            1     : Bold := True;
+            30..37: Fg := AnsiToMystic[Code - 30];
+            40..47: Bg := AnsiToMystic[Code - 40];
+          End;
+
+          HadCol := True;
+
+          If (P <= Length(Params)) And (Params[P] = ';') Then Inc (P);
+        End;
+
+        If HadCol Then EmitColor;
+
+        I := J + 1;                 // skip past the 'm'
+      End Else
+        I := J + 1;                 // non-color escape: drop it
+    End Else
+    If Str[I] in [#00..#31] Then
+      Inc (I)                       // drop other control chars
+    Else Begin
+      Res := Res + Str[I];
+      Inc (I);
+    End;
+  End;
+
+  strDizColor := Res;
 End;
 
 Function strStripPipe (Str: String) : String;

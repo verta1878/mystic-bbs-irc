@@ -238,7 +238,7 @@ Begin
                     Result   := True;
                   End;
             'N' : ShowOneLiners (CmdData);
-            'P' : {$IFNDEF UNIX} PageForSysopChat (Pos('/F', strUpper(CmdData)) > 0) {$ENDIF};
+            'P' : {$IFDEF WINDOWS} PageForSysopChat (Pos('/F', strUpper(CmdData)) > 0) {$ENDIF};
             'R' : Begin
                     If StackPos > 0 Then Begin
                       MenuOld  := MenuName;
@@ -355,7 +355,7 @@ Begin
 
                     // DEBUG FIX ABOVE COMMENT OUT GETMATRIXUSER
                   End;
-            'P' : {$IFNDEF UNIX} If Session.User.GetMatrixUser Then
+            'P' : {$IFDEF WINDOWS} If Session.User.GetMatrixUser Then
                     PageForSysopChat (Pos('/F', strUpper(CmdData)) > 0) {$ENDIF};
           End;
     '*' : Begin

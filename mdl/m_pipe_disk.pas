@@ -59,7 +59,8 @@ Type
     // General functions
     Procedure   DeleteFiles;
     Procedure   SendToPipe   (Var Buf; Len: Longint);
-    Procedure   ReadFromPipe (Var Buf; Len: LongInt; Var bRead: LongWord);
+    Procedure   ReadFromPipe (Var Buf; Len: LongInt; Var bRead: LongInt);
+    Function    DataWaiting  : Boolean;
     Procedure   Disconnect;
   End;
 
@@ -145,7 +146,21 @@ Begin
   BlockWrite (PipeOutput, Buf, Len, bWrite);
 End;
 
-Procedure TPipeDisk.ReadFromPipe (Var Buf; Len: LongInt; Var bRead: LongWord);
+// True if the input pipe-file has bytes not yet read.  The disk-pipe
+// model is file-backed (no select()); comparing the current file
+// position to its size tells us whether a read would return data.
+Function TPipeDisk.DataWaiting : Boolean;
+Begin
+  Result := False;
+
+  If Not Connected Then Exit;
+
+  FileMode := 66;
+
+  Result := FilePos(PipeInput) < FileSize(PipeInput);
+End;
+
+Procedure TPipeDisk.ReadFromPipe (Var Buf; Len: LongInt; Var bRead: LongInt);
 Var
   Buffer  : TPipeDiskBuffer Absolute Buf;
   Ch      : Char;

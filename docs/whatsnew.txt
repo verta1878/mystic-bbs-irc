@@ -60,6 +60,31 @@
 
 
 ================================================================
+ Phase 1 - RIPscrip graphics (mystic_rip/ example module)
+================================================================
+
+ + rip: RIPscrip graphics support, phase 1.  The fork now has a working RIP
+   terminal engine, as a self-contained example module (mystic_rip/) beside
+   the other add-ons.  TTermRip (mystic_rip/rip_term.pas) is the exact
+   parallel of the ANSI class TTermAnsi: feed it a byte stream and it
+   interprets RIPscrip 1.x drawing commands (lines, boxes, bars, circles,
+   ovals, flood fill, text, pixels, and mouse hot-region buttons).  Because
+   RIP is vector graphics, TTermRip renders to a graphics seam (rip_canvas)
+   instead of the text screen; a pure-software EGA surface (rip_surface)
+   implements it, and an SDL2 window presenter (rip_window, runtime-loaded
+   SDL via mystic_sdl's binding) shows it with working clickable buttons.
+   Two demos ship: rip_render turns a .RIP file into a BMP with no display
+   at all, and rip_view shows it in a window where clicking a RIP button
+   prints what it would send to the host.  The engine is the maintainer's
+   clean-room ripterm client lifted into the tree - built once, used twice -
+   and the in-tree renderer's output is pixel-identical to the standalone
+   client's.  The module uses FPC RTL units only (no mdl units); when RIP
+   goes live in the core, rip_term.pas is promoted to mdl/m_term_rip.pas
+   beside m_term_ansi.pas (docs/RIP-INTEGRATION.md maps it).  Fill patterns,
+   fonts, the full button/icon system, and serving RIP screens are the next
+   phases.
+
+================================================================
  DESIGN NOTES (why certain choices were made)
 ================================================================
 
@@ -517,3 +542,21 @@
    Mystic 1.12 uses.  It's a self-contained example (the core is still telnet/
    plaintext); it loads cryptlib at run time and prints the familiar "Cryptlib
    not detected" notice when the library isn't present.
+ + libs: the optional runtime libraries the add-on modules load are now
+   provided pre-built (i386) under libs/win32 and libs/linux-i386: SDL2
+   2.32.8, Hunspell 1.7.2, and (linux) cryptlib.  The linux SDL2 is built
+   with stack realignment so it runs cleanly under the period FPC 2.6.2
+   binaries - the SDL viewer and RIP viewer now work against it out of the
+   box.  Spell checking is proven end-to-end against the bundled Hunspell.
+   Match the library bitness to your Mystic build (all provided are i386).
+   See libs/README.md for provenance and licensing (each keeps its own).
+ + os2: OS/2 target support (source complete; compiles 14/14).  Mystic's
+   platform layer now has an OS/2 branch throughout, written on FPC's own
+   RTL (DosCalls for stdio, TProcess for per-node spawning, System/SysUtils
+   for process id and shelling, so32dll sockets, the generic Keyboard input
+   path) - no raw-API surprises.  All 14 programs compile clean for
+   i386-os2.  Final linking is done natively on OS/2 / eComStation / ArcaOS
+   with the period FPC 2.6.2 OS/2 release (its emxbind binds the OS/2 DLL
+   imports) - the same two-stage build FPC has always used for OS/2.  See
+   docs/DECISIONS.md (2026-07-08) for the porting details and the native-
+   link recipe.

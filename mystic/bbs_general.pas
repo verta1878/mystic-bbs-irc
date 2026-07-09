@@ -28,7 +28,7 @@ Interface
 Uses
   m_Strings,
   m_DateTime,
-  {$IFNDEF UNIX}
+  {$IFDEF WINDOWS}
     Windows,
     bbs_SysopChat,
   {$ENDIF}
@@ -61,7 +61,7 @@ Procedure Voting_Booth_Delete;
 Procedure View_Directory (Data: String; ViewType: Byte);
 Procedure AnsiViewer (Bar: RecPercent; Data: String);
 
-{$IFNDEF UNIX}
+{$IFDEF WINDOWS}
   Procedure PageForSysopChat (Forced: Boolean);
 {$ENDIF}
 
@@ -1520,7 +1520,7 @@ Begin
     Dispose (DirList[Count]);
 End;
 
-{$IFNDEF UNIX}
+{$IFDEF WINDOWS}
 Procedure PageForSysopChat (Forced: Boolean);
 Var
   Temp  : String;

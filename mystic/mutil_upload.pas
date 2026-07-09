@@ -170,7 +170,8 @@ Begin
                 Inc    (List.DescLines);
                 ReadLn (DizFile, Desc[List.DescLines]);
 
-                Desc[List.DescLines] := strStripLow(Desc[List.DescLines]);
+                // 1.12: preserve DIZ color instead of flattening it
+                Desc[List.DescLines] := strDizColor(Desc[List.DescLines]);
 
                 If Length(Desc[List.DescLines]) > mysMaxFileDescLen Then Desc[List.DescLines][0] := Chr(mysMaxFileDescLen);
 

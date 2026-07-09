@@ -1,4 +1,5 @@
-*.dll  binary
-*.so   binary
-*.so.* binary
-*.dylib binary
+# Runtime library binaries — never text-convert or diff these.
+win32/*.dll        binary
+linux-i386/*.so    binary
+linux-i386/*.so.*  binary
+*.dylib            binary

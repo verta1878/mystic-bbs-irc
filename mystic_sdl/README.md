@@ -29,6 +29,11 @@ for the full DOS-session look.)  SDL2 is cross-platform: Windows, Linux, macOS.
                      LoadAnsi that feeds a .ANS/CP437 stream into the grid.
 - `sdl_demo.pas`  — opens the window and renders the modem/BinkP WFC into it.
 
+The runtime SDL2 binding (`sdl_bind.pas`) is also used by the **RIPscrip
+graphics example** in `mystic_rip/` (its viewer builds with
+`-Fu../mystic_sdl`); `sdl_bind` carries the mouse-button event constant and
+coordinate-decode helpers for it.
+
 ## Cross-platform / Darwin
 
 SDL2 runs on Windows, Linux and macOS.  The library is loaded at runtime by its
@@ -46,3 +51,7 @@ in place, exactly as NetRunner does.
 
 Binding + DOS screen render verified headless (SDL dummy driver) in the build
 container.  Real display use is a sysop-side test.
+
+Note for Linux GUI testing: FPC 2.6.2-built i386 binaries crash inside
+*modern distro* SDL builds (16-byte i386 stack-alignment ABI mismatch);
+Windows SDL2.dll and period-appropriate Linux SDL builds are unaffected.

@@ -2332,3 +2332,625 @@
   binaries ARE tracked; .gitattributes marks them binary. Assistant CANNOT fetch the actual
   binaries (egress proxy blocks downloads) - sysop drops the .dll/.so/.dylib into libs/
   before pushing. Modules already search the working dir/system path; libs/ is the drop spot.
+
+## RIP graphics Phase 1: ripterm engine lifted into the tree (2026-07-08)
+  Sysop delivered the pending drop-in (ripterm_client_v0 + v1 GUI + demos tar).
+  All three archives share ONE identical engine (diffed); v1 is the superset
+  (adds sdl2min/RipWindow/ripview). Landed per docs/RIP-INTEGRATION.md:
+  - mdl/m_term_rip.pas: TTermRip, the TTermAnsi parallel (same public shape:
+    Create/Process/ProcessBuf/SetReplyClient). Char-fed, CR-framed lines with
+    trailing-'\' continuation. Line buffers are AnsiString ON PURPOSE: core is
+    {$LONGSTRINGS OFF} (String=ShortString, 255 max) and joined RIP lines can
+    exceed 255 - do NOT "simplify" to String.
+  - mdl/m_rip_canvas.pas: the graphics seam. DECISION: abstract class
+    (TRipCanvas), NOT the client's COM interface (IRipCanvas/TInterfacedObject).
+    Reasons: plain Create/Free lifetime matches every other MDL class; no
+    refcount-vs-manual-Free footguns; identical semantics under core -Mdelphi
+    and module -Mobjfpc. Same seam, different plumbing; parser logic unchanged.
+  - mystic_sdl/rip_surface.pas (TRipSurface): the software raster. DECISION:
+    lives in the MODULE, not mdl/, so mdl/ stays graphics-implementation-free
+    (only the seam + parser are core). Pure Pascal, no SDL: BMP export is the
+    headless verification path (same idea as TDosScreen's PPM).
+  - mystic_sdl/rip_window.pas (TRipWindow): presenter PORTED off the client's
+    compile-time sdl2min onto the module's runtime-loading sdl_bind (house
+    rule: never link SDL). sdl_bind gained SDL_MOUSEBUTTONDOWN + EventMouseX/Y
+    (decode x/y from the opaque event's padding at offsets 16/20 - stable
+    SDL 2.0.x layout). Window is FIXED size (not resizable like the client's)
+    so the click->640x350 mapping stays exact.
+  - mystic_sdl/rip_render.pas / rip_view.pas / rip_sample.pas: demos + shared
+    sample. Sample generation FIXED vs the client: client built it with
+    TStringList.Text (LF-only on linux, so the whole sample parsed as one
+    mega-line and region text embedded a raw #13 that CR-framing would split);
+    ours emits explicit CRLF lines and drops the raw #13 from region text.
+    rip_render tolerates LF-only .RIP files (converts LF->CR when no CR seen)
+    and feeds ProcessBuf in 16K slices (BufLen is Word, matching TTermAnsi).
+  - build-sdl.sh now builds sdl_demo + rip_render + rip_view (linux + win32)
+    with -Fu../mdl -Fi../mdl for the core RIP units.
+  VERIFIED: core 14/14 linux i386 AND 14/14 win32 (cross-units rebuilt this
+  session, see next entry); mystic_sdl 3/3 both targets; new mdl units compile
+  clean under core flags; anchors RecConfig=5282 RecTheme=768
+  RecEchoMailNode=901 (+RecUser=1536) unchanged; rip_render --sample output is
+  PIXEL-IDENTICAL to the client's reference sample.bmp (PIL ImageChops diff =
+  None) - "built once, used twice" is measured, not asserted. Graceful-off
+  (no SDL) exits 0 with the standard notice.
+  KNOWN ENVIRONMENT ISSUE (pre-existing, NOT a Phase-1 regression): with a
+  modern distro 32-bit SDL (Ubuntu 24 libsdl2 2.30 i386 installed in-container)
+  BOTH rip_view AND the pre-existing sdl_demo crash inside SDL_Init - FPC
+  2.6.2 keeps the old 4-byte i386 stack alignment while modern SDL builds
+  assume the 16-byte-aligned i386 ABI. Windows SDL2.dll and period Linux SDL
+  builds are fine. Filed in TODO item 4 as an environment note.
+
+## Container toolchain rebuilt; egress is OPEN this session (2026-07-08)
+  Container reset had wiped FPC. Rebuilt: FPC 2.6.2 i386-linux release tarball
+  (SourceForge) installed to /home/claude/i386root, fpc.cfg at /etc/fpc.cfg,
+  ppc386 symlinked; libc6-dev-i386 for the 32-bit link (the INSTALL-documented
+  x86_64-host quirk; -Fl/usr/lib32 added to fpc.cfg). Win32 cross: built the
+  2.6.2 win32 RTL + packages (hash, fcl-base/-net/-process/-xml/-registry,
+  winunits-base/-jedi) from the 2.6.2 SOURCE tarball with OS_TARGET=win32 -
+  modern GNU make handled the 2.6.2 Makefiles fine; unit dirs appended to
+  fpc.cfg. So the "both platforms" verification is native again.
+  NOTE the earlier "assistant CANNOT fetch binaries (egress proxy blocks
+  downloads)" entry is no longer true THIS session: network egress is open
+  (that's how FPC came in). If it stays open, the libs/ drop-ins (SDL2 2.32.8
+  win32 dll at minimum, from the official libsdl-org GitHub release) are now
+  fetchable in-container - flagged to the sysop rather than done unasked,
+  since libs/ provenance was the sysop's call.
+
+## RIP Phase 1 relocated: mystic_rip/ example module, zero mdl deps (2026-07-08)
+  Sysop direction, same day as the initial landing: RIP does NOT go into mdl/
+  yet - it lives as its own self-contained example folder like the other
+  add-ons, and it must use FPC facilities rather than mdl units ("fpc threads
+  not mdl": any threading is FPC TThread/cthreads, exactly what
+  m_socket_server already uses; no custom layer). Applied:
+  - mdl/m_term_rip.pas   -> mystic_rip/rip_term.pas   (Unit rip_Term)
+  - mdl/m_rip_canvas.pas -> mystic_rip/rip_canvas.pas (Unit rip_Canvas)
+  - mystic_sdl/rip_surface|rip_window|rip_sample|rip_render|rip_view|font8x8
+                         -> mystic_rip/ (mystic_sdl back to sdl_demo only)
+  - Units switched from core style ({$I M_OPS.PAS}, -Mdelphi) to module style
+    ({$MODE OBJFPC}{$H+}, module GPL header). mdl/ is back to pristine - the
+    RIP work now touches ZERO core files (sdl_bind's additive mouse helpers
+    in mystic_sdl are the only change outside mystic_rip/, kept since the
+    viewer builds with -Fu../mystic_sdl and NetRunner-style reuse is the
+    point of that binding).
+  - mdl DEPENDENCY REMOVED from TTermRip: SetReplyClient no longer takes
+    TIOBase (m_io_base would drag mdl into the module). It takes an
+    FPC-native callback, TRipReplyProc = Procedure(Const S: AnsiString) of
+    Object. The PUBLIC SHAPE stays TTermAnsi-identical, so the eventual
+    promotion (Phase 2b hook-up: rip_term.pas -> mdl/m_term_rip.pas,
+    callback -> TIOBase, core header + M_OPS back on) is mechanical.
+    RIP-INTEGRATION.md section 9 records this as the revised placement and
+    keeps mdl/m_term_rip.pas as the PROMOTION TARGET, not the current path.
+  - New mystic_rip/build-rip.sh (linux + win32; -Fu../mystic_sdl for
+    sdl_bind); mystic_rip/README.md; repo README tree bullet;
+    mystic_sdl/README RIP section replaced with a pointer.
+  - whatsnew RESTRUCTURED per sysop: the file's own "oldest first" rule made
+    the rip entry land at the bottom; sysop wants it as a banner "Phase 1"
+    section DIRECTLY UNDER the Phase 0 banner (RIP is the fork's second
+    named phase, not just another line item). Done; entry text updated to
+    the module paths.
+  RE-VERIFIED after the move: core 14/14 linux + 14/14 win32 (mdl now
+  pristine), mystic_sdl sdl_demo both targets, mystic_rip 2/2 both targets,
+  rip_render --sample still PIXEL-IDENTICAL to the ripterm client reference,
+  graceful-off intact. data.zip (live 1.12 board data): set aside unused per
+  sysop ("for now lets delete") - extraction removed from the container;
+  nothing from it was ever committed. The 1.12-vs-fork layout findings from
+  its one-time inspection (fbases 632/640-not-495, groups 206-not-63, scn
+  3-byte-not-2; users/mbases/echonode/security/event/protocol/archive/
+  history all EXACT matches) stay recorded here for whenever migration
+  becomes a topic, but no converter work is planned unless asked.
+
+## build-rip.sh: absolute -FU/-FE, -B (FPC 2.6.2 link-path quirk) (2026-07-08)
+  Found while re-verifying after the mystic_rip/ move: with a RELATIVE -FU,
+  FPC 2.6.2 records a relative object path in the .ppu of a unit it compiled
+  from a -Fu search dir (sdl_bind from ../mystic_sdl), then at LINK time looks
+  for out/out/sdl_bind.o (double-prefixed), misses, and silently falls back to
+  the unit SOURCE dir's out/ - where a sibling build's object for the WRONG
+  TARGET can sit (mystic_sdl's win32 leftovers broke the mystic_rip linux
+  link with kernel32 undefined references). Fix in build-rip.sh: -FU/-FE are
+  now ABSOLUTE (resolved from the script's own dir) and -B forces units to
+  rebuild from source into our out/. Single-dir modules (build-sdl.sh etc.)
+  are unaffected by the quirk; only cross-dir unit reuse trips it.
+
+## Darwin LINKS from Linux: 14/14 Mach-O + rip demos (2026-07-08)
+  Sysop supplied a genuine MacOSX10.6 SDK (extracted from his own Xcode -
+  the one piece that could not be fetched). With egress open, the rest of
+  the chain was built in-container and the fork's Darwin story went from
+  "compile-clean by code review" to "ALL 14 PROGRAMS LINK as Mach-O i386
+  executables on Linux" (plus mystic_rip's rip_render/rip_view). Chain:
+  FPC 2.6.2 ppc386 -> cctools-port as/ld64 (i386-apple-darwin10) -> 10.6 SDK.
+  The full recipe is in INSTALL (Darwin section, rewritten); the hard-won
+  findings, so nobody rediscovers them:
+  - cctools-port needs BlocksRuntime + Apple libdispatch on Linux; apt has
+    libblocksruntime-dev, libdispatch comes from tpoechtrager/apple-libdispatch
+    (cmake). Then configure --target=i386-apple-darwin10.
+  - The SDK tarball had NO usr/lib/crt1.o. Built from Apple open-source Csu
+    (Csu-85, APSL): the v1 (10.4-compat) variant - start.s + crt.c
+    (-DOLD_LIBSYSTEM_SUPPORT -DADD_PROGRAM_VARS) + dyld_glue.s, ld64 -r.
+    dyld_glue MATTERS: FPC 2.6.2 emits old-style stubs that reference
+    dyld_stub_binding_helper; the 10.6-style crt1 (no dyld_glue) leaves it
+    undefined. clang -target i386-apple-darwin10 assembles Csu fine.
+  - FPC's internal Mach-O writer (-Amacho) is fine for COMPILE-only, but its
+    objects are REJECTED by modern ld64: "section __DATA/__nl_symbol_ptr
+    address out of range" (seen on objpas.o). Rebuilding the darwin RTL with
+    the EXTERNAL cctools assembler (drop -Amacho; symlink i386-darwin-as ->
+    i386-apple-darwin10-as for FPC's default cross prefix) links clean.
+  - Darwin packages: hash/fcl-net/fcl-process build; fcl-net's Makefile
+    SKIPS cnetdb for darwin, but Darwin's libc netdb API matches - compiled
+    fcl-net/src/cnetdb.pp by hand and mis/fidopoll/nodespy/qwkpoll linked.
+    fcl-base fails on MacOSAll (univint) - nothing in this tree needs it.
+  - otool sanity: MH_MAGIC I386 EXECUTE, TWOLEVEL/NOUNDEFS, mis links only
+    /usr/lib/libSystem.B.dylib.
+  HONEST CAVEATS: (1) runtime is UNTESTED - needs era hardware; i386 Mach-O
+  runs on OS X 10.4..macOS 10.14 ONLY (32-bit support ended with Mojave) -
+  period-correct for this fork, useless on a modern Mac. (2) crt1.o and the
+  SDK are Apple-licensed (APSL / Xcode agreement): they stay OUT of the repo;
+  the recipe is documented instead. (3) The container-local toolchain
+  (/home/claude/darwin/xtools, SDK, darwin RTL units) dies with the container;
+  DECISIONS+INSTALL are the recipe of record. Darwin-binaries zip handed to
+  the sysop for a vintage-Mac smoke test - that is the real validation gate.
+
+## libs/ populated: SDL2, Hunspell, cryptlib built in-container (2026-07-08)
+  Egress open, so the pending libs/ drop-ins were BUILT this session rather
+  than left for the sysop. Layout changed to platform subdirs libs/win32/ and
+  libs/linux-i386/ (all binaries i386, matching the fork's builds); README
+  rewritten; .gitattributes widened to cover the subdir paths as binary.
+  Provided (names match what each module's TryOpen probes):
+  - SDL2 2.32.8: win32 SDL2.dll = official libsdl-org release binary;
+    linux-i386 libSDL2-2.0.so.0 = built from 2.32.8 source WITH -mstackrealign.
+    This is the FIX for the long-standing "sdl_demo/rip_view crash in SDL_Init"
+    note: FPC 2.6.2 keeps 4-byte i386 stack alignment, modern SDL assumes
+    16-byte; the realign-on-entry build runs clean. VERIFIED: rip_view --sample
+    and sdl_demo both render 201 frames headless (SDL_VIDEODRIVER=dummy) against
+    the staged .so. So the earlier "environment issue, revisit later" is
+    RESOLVED for the shipped linux binary (a stock distro SDL will still crash;
+    ours doesn't).
+  - Hunspell 1.7.2: linux-i386 from source (-m32); win32 via mingw
+    (i686-w64-mingw32) linked -static-libgcc -static-libstdc++ so the DLL needs
+    only KERNEL32+msvcrt (17 Hunspell_* exports confirmed). VERIFIED LIVE:
+    mystic_spell/bin/spelltest loaded the staged .so, opened a dictionary, and
+    returned correct suggestions (recieve->receive, definately->definitely,
+    etc). mystic_spell is proven end-to-end.
+  - cryptlib 3.4.9.1: linux-i386 libcl.so from Peter Gutmann's official source
+    (nearest public source to the sysop's 3.4.9.2 target; binding ABI
+    unchanged). The mystic_crypt binding LOADS it and resolves every symbol
+    (cryptInit/cryptCreateSession/cryptSetAttribute/PushData/PopData/etc all
+    non-nil) - the "first true test vs a real cl32" the docs flagged, PASSED at
+    the binding level. cryptInit() itself returns -15 (CRYPT_ERROR_FAILED) in
+    THIS container: the 32-bit build's randomness slow-poll can't get its
+    entropy quota in a bare container (a native 64-bit build of the SAME source
+    returns 0 here, confirming it's the i386 entropy poll, not the fork). On a
+    real box with normal entropy this clears. NOT a binding defect.
+    win32 cl32.dll NOT built: cryptlib's Windows build wants MSVC + its own
+    entropy plumbing, out of scope for this mingw/gcc cross pass - drop a real
+    cl32.dll into libs/win32 when available.
+  LICENSING: all three keep their own licenses (zlib / GPL-LGPL-MPL /
+  Sleepycat), "mere aggregation" alongside the GPL tree - unchanged policy,
+  just now with binaries present. Provenance above so they're reproducible.
+  NOTE: these binaries live in the repo now; they inflate it ~9MB. If the
+  sysop prefers a lean source repo, they can be git-rm'd and rebuilt from the
+  README recipe - flagged, his call.
+
+## OS/2 target: source ported, COMPILES 14/14 cross; link is native (2026-07-08)
+  Sysop asked to do the OS/2 code update "using FPC calls" - i.e. lean on the
+  portable RTL rather than raw platform APIs. Done, and the whole tree now
+  COMPILES for i386-os2 (14/14, compile-only -s) from Linux. FPC does support
+  OS/2 (target os2 + emx; rtl/os2 has sockets via so32dll, TThread, DosCalls,
+  full PM bindings). Toolchain built this session: binutils 2.30 gas/ld for
+  i386-aout (--enable-obsolete; modern binutils dropped a.out) symlinked to
+  FPC's i386-os2- cross prefix; then rtl + packages (hash, fcl-base, fcl-net,
+  fcl-process) cross-built for os2.
+  SOURCE CHANGES (all FPC-RTL-based, no new external deps; guarded so Linux +
+  win32 stay 14/14 - re-verified both):
+  - mdl/m_fileio.pas: GetProcessID gets an OS2 branch -> System.GetProcessID
+    (the RTL call) instead of fpGetPID (Unix-only).
+  - mdl/m_io_stdio.pas: was Unix-only (BaseUnix/fpRead/fpWrite/fpSelect). Added
+    an OS2 branch using the RTL DosCalls API (DosRead/DosWrite on the standard
+    handles); WaitForData returns "ready" on OS/2 (blocking-handle model) with
+    a TODO to use DosPeekNPipe once exercised natively. Unix path untouched.
+  - The IFNDEF-UNIX idiom in 9 mystic/ units MEANT "Windows" (pulled the
+    Windows unit, TIOSocket sysop-console, status bar). Those are genuinely
+    Win32-only console features, so IFNDEF UNIX -> IFDEF WINDOWS everywhere
+    (bbs_menus/general/core/user/common/filebase/io/cfg_useredit, mystic.pas).
+    OS/2, like Unix, simply doesn't build the Win32 sysop-console extras.
+    Two UNIX/ELSE guards INVERTED to WINDOWS/ELSE so the non-Windows body
+    (portable) covers OS/2 too: bbs_user InitConnection (the Keyboard-based
+    key probe) and bbs_io.InKey (generic Keyboard version). bbs_doors and
+    bbs_filebase %0 door-drop: Windows uses TIOSocket handle, everyone else
+    "1". bbs_filebase drive-letter vars restored to IFNDEF UNIX (DOS-family,
+    incl OS/2). mpl_execute keypress: Windows adds Client.DataWaiting.
+  - mystic/mis_client_telnet.pas: telnet server had DARWIN->USEPROCESS,
+    UNIX->USEFORK, Windows=its own block, OS/2=NOTHING (no Execute body).
+    Added OS2->USEPROCESS: OS/2 spawns per node via TProcess (fcl-process),
+    same as Darwin - no fork(), no Win32 API.
+  - mystic/mis_events.pas: ShellExec gets an OS2 branch via SysUtils
+    ExecuteProcess($COMSPEC '/C' cmd); Unix fpSystem / Windows paths untouched.
+  - mdl/m_pipe_disk.pas (the OS/2 nodespy pipe): added DataWaiting
+    (FilePos<FileSize on the file-backed pipe) that nodespy needs; also fixed
+    its ReadFromPipe bRead param from LongWord to LongInt to MATCH the unix +
+    windows pipe backends (they're all LongInt) and nodespy's caller.
+  LINK BOUNDARY (documented, not a failure): OS/2 does NOT fully link in this
+  Linux container. FPC's os2 linker (compiler/systems/t_os2.pas) is TWO-stage:
+  GNU `ld` makes an intermediate a.out, then `emxbind` converts it to an OS/2
+  LX executable AND binds the DLL-import-by-ordinal symbols
+  ($dll$doscalls$_index_NNN etc). emxbind is an EMX-toolkit tool that runs on
+  OS/2 (or DOS), and the ld step needs the EMX-format OS/2 import libraries.
+  So the intended workflow is confirmed: COMPILE cross (proven here, 14/14),
+  LINK natively on OS/2/eComStation/ArcaOS with the period FPC 2.6.2 OS/2
+  release (which bundles emx + the import libs) - exactly matching the fork's
+  pinned compiler. The native build is the real validation gate (sysop task,
+  he has OS/2 history). This mirrors the Darwin story: cross far, finish on
+  (or with the toolkit of) the target.
+  RUNTIME NOTES for the native build: m_io_stdio's OS/2 WaitForData is a
+  blocking-model stub (see its TODO); sockets ride so32dll (OS/2 TCP/IP must
+  be present); per-node spawning uses TProcess. All expected to need a live
+  shake-out on real OS/2.
+
+## Build scripts for all targets + MIS-DOS WFC example (2026-07-08)
+  Sysop batch. Done this checkpoint:
+  - build-os2.sh (NEW): compile-only cross pass off-OS/2 (14/14 verified),
+    LINK=1 for the native ld+emxbind step on real OS/2. Documents the
+    two-stage OS/2 build in its header.
+  - build-darwin.sh (REWRITTEN): was -Amacho compile-only; now the proven
+    ld64+SDK full-link recipe (SDK=, external cctools assembler via -XP prefix,
+    -XR sdk), with COMPILE_ONLY=1 fallback. Verified it links real Mach-O.
+  - WFC ANSI: reconstructed the uploaded Mystic 1.06 WFC screenshot as an
+    80x25 CP437 ANSI (mystic_modem/gen_wfc.py -> WFCSCRN.ANS), REPLACING the
+    earlier faithful-reconstruction placeholder. Title bar, Node Listing +
+    Modem Info panels, Local Mode tab, System Commands grid, status column,
+    clock/date (@TIME@/@DATE@ tokens the host overwrites). This is now the
+    canonical WFC art shared by the modem and MIS-DOS examples. Rendered +
+    eyeballed against the screenshot; matches.
+  - mystic_misdos/ (NEW example module): a DOS-style MIS "Waiting For Caller"
+    that USES BOTH comms add-ons (mystic_modem + mystic_mailer/binkp) and makes
+    EVERY WFC option functional - editors shell to the config tool (or name
+    themselves if absent), X answers the modem, D drops to a subshell, Q quits,
+    SPACE local login; on CONNECT it sniffs and routes BinkP callers to the
+    mailer seam. DECISION (sysop): this MIS-DOS is SEPARATE from the shipping
+    mis.pas telnet server in mystic/ - it's the teaching front-end, not the
+    daemon. Builds linux (verified); build-misdos.sh has win32/os2/darwin arms.
+    Depends on mdl/ (m_FileIO/m_IniReader) via the modem module, like the
+    modem example itself.
+  Core still 14/14 linux; no core files touched by any of the above.
+
+## 1.12 FILE_ID.DIZ research (for the upcoming file-base upgrade) (2026-07-08)
+  Checked the real 1.12 whatsnew (wiki.mysticbbs.com/whats_new_112). The
+  "file_id" 1.12 feature the sysop wants is about FILE_ID.DIZ import getting
+  RICHER, not a new per-file listing art:
+  - DIZ descriptions import WITH colour translation (ANSI, Pipe, Wildcat,
+    PCBoard, WWIV) instead of being stripped to plain text;
+  - up to 99-line descriptions;
+  - embedded @BEGIN_FILE_ID.DIZ tags inside plain text files are detected and
+    imported (FTP, TIC, mass-upload, online upload all share this);
+  - descriptions can be exported back to create/update an archive's
+    FILE_ID.DIZ.
+  Our A38 TFileBase.ImportDIZ (bbs_filebase.pas) currently does the BASIC
+  thing: extract file_id.diz, read lines, strStripLow() (=> strips ANSI). The
+  upgrade = preserve/translate colour + support the embedded tag form. This is
+  a CORE edit to a file near the on-disk anchors, so it's deferred to its own
+  focused change (not mixed into this checkpoint). Recorded so the plan is on
+  file. NOTE: request also said "file_id.ans" - 1.12's mechanism is
+  FILE_ID.DIZ (ANSI-colour aware), there is no separate file_id.ans in the
+  file base; will confirm interpretation with the sysop before the core edit.
+
+## file_id release metadata + per-target packaging (2026-07-09)
+  Sysop spec: create in the repo ROOT file_id.{os2,drn,win,lnx,mac}; when a
+  target's binaries are built, its file_id goes INTO that target's compressed
+  release renamed FILE_ID.DIZ; binaries are released PER TARGET (separate
+  archives), never one combined file. Implemented:
+  - gen_file_id.sh (root): writes all five, FILE_ID.DIZ-convention (<=45 cols,
+    <=10 lines, CRLF), each naming its platform + the fork/version/node.
+  - make_release.sh (root): make_release.sh <lnx|win|os2|drn|mac> <bin-dir>
+    [out]; stages that bin dir, copies file_id.<t> in as FILE_ID.DIZ, adds
+    COPYING, zips to release/mystic-a38-<t>.zip. One archive per target.
+    Verified: lnx archive embeds the linux FILE_ID.DIZ correctly.
+  - file_id.drn = Darwin/Mach-O build; file_id.mac = "Macintosh" label pointing
+    at the SAME Darwin binary for now (this fork targets only i386-darwin, not
+    classic 68k/PPC Mac OS). OPEN: confirm with sysop whether .mac should mean
+    something distinct; trivially repointed if so.
+
+## cryptlib CAN cross-compile to win32 with a 1-line endian patch (2026-07-09)
+  Answering the sysop's question "can cl32.dll source be modified so it cross
+  compiles?": YES, demonstrated. The ONLY blocker is endian detection order in
+  misc/os_detect.h: it tests __GNUC__ (-> #include <endian.h>, a glibc header)
+  BEFORE noticing Windows, so mingw (__MINGW32__, which IS __GNUC__) wrongly
+  takes the Linux path and dies on the missing endian.h. cryptlib already maps
+  __MINGW32__ -> __WINDOWS__; the fix is to add an "#elif defined(__WINDOWS__)
+  -> #define DATA_LITTLEENDIAN" branch BEFORE the __GNUC__ one. With that,
+  random/win32.c - cryptlib's hardest, most Windows-specific file (the entropy
+  gatherer, needs lm.h/tbs.h/winperf.h/winioctl.h, all present in mingw-w64) -
+  COMPILES clean with i686-w64-mingw32-gcc. Patch saved:
+  docs/patches/cryptlib-mingw-endian.patch (against 3.4.9.1 misc/os_detect.h).
+  REMAINING to actually SHIP a cross-built cl32.dll: wire the makefile's win32
+  target (target-init win32 + WIN32ASMOBJS) to the mingw cross prefix and link
+  the DLL - mechanical but not yet done. So: feasibility PROVEN + patched;
+  full cross-build of the shippable DLL is the follow-up. Until then libs/win32
+  still lacks cl32.dll (drop a real MSVC-built one in, or finish the cross
+  wiring). This is the crypto side the maintainer holds a commercial license
+  for, so a vendor DLL is also fine.
+
+## 1.12 FILE_ID feature analysis (research; port not yet done) (2026-07-09)
+  Sysop wants A38 updated to use file_id.ans + file_id.diz per Mystic 1.12.
+  Read the 1.12 whatsnew (wiki.mysticbbs.com/whats_new_112). FINDING: 1.12's
+  FILE_ID advance is NOT a separate "file_id.ans" file - it's that the DIZ
+  description text may now carry ANSI / pipe / Wildcat / PCBoard / WWIV color
+  codes that are TRANSLATED and PRESERVED into the file description, plus
+  embedded @BEGIN_FILE_ID.DIZ tags scanned out of plain text files, plus up to
+  99 description lines. A38 today (bbs_filebase.pas ~L648 ReadDIZ, and
+  mutil_upload.pas ~L167) runs every DIZ line through strStripLOW - which KILLS
+  the ANSI/pipe codes - and caps lines at bbsCfg.MaxFileDesc with
+  mysMaxFileDescLen=50. So the 1.12 behavior = stop stripping color, translate
+  it instead, raise the line cap, and add the @BEGIN_FILE_ID.DIZ text scanner.
+  PORT NOT YET WRITTEN - it touches two DIZ readers + a color-translation path
+  + the tag scanner and deserves its own focused pass with before/after tests
+  on real .DIZ samples. Tracked in TODO. (The "file_id.ans" in the request is
+  most likely the color-capable DIZ, or the archive-embedded FILE_ID.ANS shown
+  in the full-screen archive viewer - confirm the exact surface with sysop.)
+
+## Darwin toolchain: bootstrap script + auto-discovery; .mac canonical (2026-07-09)
+  Sysop asked whether ld64 can be "included for all targets." Clarified +
+  delivered the sensible form:
+  - ld64 is the LINKER FOR THE DARWIN OUTPUT ONLY. Each target needs its own
+    linker for its own object format: win32 = FPC internal PE linker, os2 =
+    emxbind, linux = GNU ld, darwin = ld64. There is deliberately no single
+    linker shared across targets; "ld64 for all targets" isn't meaningful
+    because ld64 only emits Mach-O.
+  - Literally committing ld64 was rejected: (a) it builds to a HOST-specific
+    ELF (~9MB) that itself needs Apple libdispatch/Blocks .so - not portable
+    across host OS/arch; (b) the macOS SDK is Apple-licensed and ~257MB, can't
+    live in a GPL repo. So instead:
+    * tools/darwin/build-ld64-toolchain.sh - reproducible one-time bootstrap
+      (apple-libdispatch -> cctools/ld64 -> symlink i386-darwin- prefix).
+      Same recipe used all session, now scripted for the sysop.
+    * build-darwin.sh now AUTO-DISCOVERS the toolchain ($DARWIN_XTOOLS,
+      ~/darwin/xtools, /opt/darwin/xtools) and an SDK ($MACOS_SDK,
+      ~/darwin/MacOSX*.sdk, /opt/...), so no manual PATH juggling. VERIFIED:
+      with a clean PATH (darwin tools NOT pre-set), build-darwin.sh finds the
+      toolchain+SDK and links 14/14 Mach-O i386.
+  - .mac is now the CANONICAL Mac target label (sysop standard); file_id.drn
+    is kept as an identical alias of file_id.mac (same i386-darwin binary).
+    gen_file_id.sh updated (emit .mac, cp to .drn); make_release.sh example
+    uses `mac`.
+
+## ld64 now BUNDLED in-repo (SDK still sysop-supplied) (2026-07-09)
+  Sysop: "don't include the SDK, but include ld/ld64." Done.
+  tools/darwin/ld64-linux-x86_64/ holds a prebuilt, RELOCATABLE ld64/cctools
+  cross toolchain (ld64-956.6): the 9 tools FPC's darwin link path invokes
+  (ld, as, ar, ranlib, nm, strip, lipo, libtool, otool), each stripped, plus
+  the i386-darwin-* prefix symlinks FPC expects, plus the two Apple runtime
+  libs ld links against (libBlocksRuntime.so, libdispatch.so). 8.5MB total.
+  RELOCATABLE: patched rpath to $ORIGIN/../lib, so the bundle finds its own
+  runtime libs wherever it's placed - verified by copying to /tmp and running
+  ld there with no reference to the build dir. build-darwin.sh discovers the
+  bundle FIRST (before ~/darwin/xtools etc) and adds its lib to
+  LD_LIBRARY_PATH. VERIFIED: with a clean PATH (no external toolchain), the
+  in-repo bundle links 14/14 Mach-O i386.
+  HOST LIMIT (documented in the bundle README): these are Linux x86-64 ELF
+  binaries - they run on a Linux/amd64 host to make macOS binaries; they do
+  NOT run on Windows/macOS/ARM/32-bit. On any other host, build with
+  tools/darwin/build-ld64-toolchain.sh (native to that host). This is why a
+  single committed binary can't serve every host - kept the bootstrap script
+  too, for non-amd64-linux sysops.
+  SDK still NOT included (Apple-licensed, ~257MB) - sysop supplies via SDK=...,
+  per the request. .gitignore negations added so the bin/ + *.so rules don't
+  drop the bundle (same class of fix as the libs/ subdir negation earlier).
+  LICENSING: ld64/cctools/libdispatch/BlocksRuntime are Apple open source
+  (APSL 2.0), aggregated under their own license - not GPL-covered. Provenance
+  + recipe in the bundle README and build-ld64-toolchain.sh.
+
+## 9a DONE: color-aware FILE_ID.DIZ reader (1.12 behavior) (2026-07-09)
+  Sysop: do 9a now, 9b (full-screen archive viewer) is later + huge. Done.
+  A38 ran every DIZ line through strStripLow, deleting ALL #0..#31 - which
+  kills the ESC in ANSI color, flattening colored DIZ art to monochrome. 1.12
+  preserves color in file descriptions. Implemented the faithful minimum:
+  - New mdl/m_strings.pas strDizColor(): keeps Mystic pipe codes as-is (they're
+    printable, always survived anyway), CONVERTS embedded ANSI SGR color
+    (ESC[..m) to the equivalent Mystic pipe code (native storage format the
+    file listing already renders), and drops other control chars as before.
+    Maps the standard 16 SGR fg (30-37 +bold) / bg (40-47); ESC[0m resets;
+    unknown SGR params skipped. No full ANSI state machine - a DIZ is a
+    description, not a screen - so this stays small and safe.
+  - Swapped the TWO DIZ read sites to it: bbs_filebase.pas ReadDIZ (~L688) and
+    mutil_upload.pas (~L174).
+  - Verified: 14/14 build; standalone test shows |NN pipe preserved,
+    ESC[1;31m -> |12|16, ESC[32m -> |02|16, backspace/bell dropped.
+  NOT in 9a (deferred): the @BEGIN_FILE_ID.DIZ inline-tag scanner and the 99-
+  line desc cap raise - minor, can fold in later; and 9b the full-screen
+  archive viewer (archive_view.ans) which is the big separate UI job. TODO
+  item 6 updated to reflect 9a done, 9b pending.
+
+## libs completion: darwin cryptlib + win32 cl32.dll built; ld64->libs/ (2026-07-09)
+  Finishing items 7/10. Egress open, darwin toolchain + mingw available.
+  - ld64 bundle MOVED tools/darwin/ld64-linux-x86_64 -> libs/ld64-linux-x86_64
+    (sysop: "save the ld files in the libs folder, license also"). Added
+    libs/LD64-CCTOOLS-LICENSE-APSL-2.0.txt + libs/LIBDISPATCH-LICENSE.txt.
+    $ORIGIN/../lib rpath means the move didn't break it; build-darwin.sh +
+    .gitignore + docs updated to the new path; verified 14/14 darwin link
+    still works from the libs/ location. The BUILD script stays in
+    tools/darwin/ (it's tooling, not a shipped binary).
+  - cryptlib DARWIN: libs/darwin-i386/libcl.dylib - cross-built i386-darwin
+    (Mach-O) against the 10.6 SDK via the bundled ld64 + clang shim. Pure C so
+    it builds cleanly; needed a 3-line strnlen compat shim (strnlen is 10.7+,
+    not in the 10.6 SDK) force-included at compile. 62 crypt* exports; install
+    name libcl.dylib (the binding's darwin probe name). Linked by hand from the
+    343 Mach-O objects (cryptlib's makefile hardcodes gcc for the dylib link).
+  - cryptlib WIN32: libs/win32/cl32.dll - the item-10 follow-through, now BUILT
+    (not just feasibility). Applied docs/patches/cryptlib-mingw-endian.patch,
+    built 370 objects + libcl.a with i686-w64-mingw32 in one clean pass (the
+    makefile does an in-place sed in target-init, so a PRISTINE source copy per
+    attempt is required - stale copies fail on EOL/OS detection). Linked the
+    DLL by hand: whole-archive libcl.a + cryptlib's shipped win32 DES asm obj
+    (crypt/d-win32.obj; the C DES in desenc.c is #ifdef'd out under USE_ASM) +
+    a 1-line IsWindowsXPOrGreater stub (versionhelpers inline the 10.6-era
+    headers lack) + system import libs (ws2_32/advapi32/gdi32/user32/crypt32/
+    netapi32/version). -static-libgcc so it needs ONLY standard Windows DLLs
+    (KERNEL32/ADVAPI32/WS2_32/NETAPI32/USER32/msvcrt). Stripped ~1.9MB, 62
+    crypt* exports incl every symbol cl_bind resolves. So item 10 is fully
+    delivered: patch PROVEN and a shippable cl32.dll BUILT.
+  - SDL2 + Hunspell for DARWIN: NOT provided, and this is a real limit not an
+    oversight. Both current versions need a macOS 10.7+ SDK: SDL2's Cocoa/ObjC
+    video backend uses 10.7 AppKit symbols (NSFullScreenWindowMask), Hunspell
+    1.7 uses C++11 (std::all_of) absent from the 10.6 SDK's gcc-4.2 libstdc++,
+    and even SDL 2.0.3 (last easy-10.6 era) hits ObjC ABI mismatches building
+    Cocoa from Linux with modern clang. A video-less SDL would be useless (it
+    couldn't drive the RIP window). Documented in libs/README with the fix
+    path (build on a real Mac / 10.7+ SDK, or drop in official/Homebrew
+    dylibs). These modules are optional + graceful-off so nothing is blocked;
+    rip_render (headless) needs no SDL.
+
+## libs verified across all targets; 2 real bugs fixed (2026-07-09)
+  Sysop: "make sure the 6 platforms link for the libs." Libs are RUNTIME-loaded
+  (dlopen/LoadLibrary/DosLoadModule), so "link" = the module binary builds AND
+  the lib loads + resolves symbols on that target. Ran real load tests (not
+  just file/objdump): linux natively, win32 under WINE 9.0 (installed this
+  pass), darwin by Mach-O+symbol validation (can't run Mac here), os2 by
+  compile. TWO genuine bugs surfaced and were fixed:
+  - cl32.dll STDCALL NAME DECORATION (caught by Wine): the first win32 cl32.dll
+    exported decorated names (cryptInit@0), but the binding does
+    GetProcAddress("cryptInit") - so it LOADED but resolved cryptInit as
+    MISSING (cl_demo said "cryptlib loaded: FALSE"). cryptlib ships crypt32.def
+    exactly for this (its own comment cites Pascal-calling-convention DLLs!).
+    Relinked cl32.dll with the .def -> clean undecorated exports. Now under
+    Wine cl_demo says "Cryptlib detected and initialised - secure sessions
+    available" (win32 randomness polling works where the linux 32-bit entropy
+    poll returned -15). Darwin dylib was already clean (_cryptInit, no @N;
+    dlsym strips the _). RESTAGED libs/win32/cl32.dll.
+  - OS/2 DYNAMIC-LOADING BRANCH MISSING: all three module bindings
+    (cl_bind/sdl_bind/spl_hunspell) only had UNIX (dlopen) and Windows
+    (LoadLibrary/GetProcAddress/FreeLibrary) paths - they FAILED TO COMPILE on
+    OS/2 ("GetProcAddress not found"). Added an OS2 branch using the RTL
+    DosCalls API: DosLoadModule / DosQueryProcAddr / DosFreeModule, with
+    LibHandle as THandle on OS/2. All three now compile clean for i386-os2.
+    (No OS/2 SDL/Hunspell/cryptlib binaries are bundled - those runtimes on
+    OS/2 are out of scope - but the loader is correct so a sysop-supplied
+    OS/2 DLL would load.)
+  VERIFIED NO REGRESSION: after the binding edits, rebuilt every module demo on
+  linux (load-tested), win32 (Wine load-tested), darwin (Mach-O build); core
+  14/14 linux still green.
+  MATRIX (module builds + lib loads):
+    lib       linux        win32          darwin           os2
+    SDL2      loads        loads(Wine)    builds,no-lib*   compiles
+    Hunspell  works        works(Wine)    builds,no-lib*   compiles
+    cryptlib  loads        init(Wine)     dylib+syms ok    compiles
+    * darwin SDL2/Hunspell need a 10.7+ SDK (see prior entry); optional+
+      graceful-off so nothing blocks.
+
+## file_id.diz now built from the sysop's art template (2026-07-09)
+  Sysop supplied a FILE_ID.DIZ art template (classic bordered DIZ, title
+  "Mystic BBS v1.38-IRC Fork  xxx BINARIES", Github + 16 feature lines incl
+  "file desc on FILE_ID.DIZ & FILE_ID.ANS 99lns"). CORRECTION to an earlier
+  misread: the "xxx" is NOT a border-alignment placeholder - it's the TARGET
+  NAME (WIN/MAC/OS2/LNX/DOS). Saved as file_id.diz.template with @@@ as the
+  substitution marker. gen_file_id.sh rewritten to sed @@@ -> the target tag
+  and emit file_id.{win,lnx,os2,mac,drn} (CRLF); .drn = MAC (darwin alias).
+  make_release.sh unchanged - still one archive PER TARGET embedding that
+  target's DIZ as FILE_ID.DIZ. Verified: win zip says "WIN BINARIES", mac zip
+  says "MAC BINARIES", separate archives.
+  NOTE: template version text is "v1.38-IRC Fork" (newer branding than the
+  repo's internal "1.10 A38"); using the sysop's wording verbatim in the DIZ.
+  OPEN: the DIZ lists "Native DOS, Windows, OS/2, Linux" - if a real DOS
+  release target is wanted, add file_id.dos (DOS) + a dos build; the fork
+  currently builds win32/linux/os2/darwin, so no .dos emitted yet.
+
+## file_id.diz simplified to a single hand-edited example (2026-07-09)
+  Sysop clarified: the file_id.diz is JUST an example DIZ he edits by hand -
+  it's NOT auto-generated and applies ONLY to the DIZ, nowhere else in the
+  source. Reverted the over-engineering: removed gen_file_id.sh and the 5
+  generated file_id.{win,os2,mac,lnx,drn} files; renamed the template to plain
+  file_id.diz (keeps his original literal "xxx BINARIES" slot). Workflow now:
+  edit xxx -> target (os2/win/mac/lnx) by hand, then
+  make_release.sh <tag> <bin-dir> copies file_id.diz into the per-target
+  archive as FILE_ID.DIZ. make_release.sh reworked to take the single DIZ
+  (optional 4th arg overrides the path). One archive per target, never
+  combined - unchanged. (Earlier gen_file_id.sh entries above are the dated
+  record of the approach that was backed out.)
+
+## file_id.diz: back to 6 per-target files + the master example (2026-07-09)
+  Sysop: keep per-target file_id.<t> files - "6 file_id.diz files", each
+  renamed to FILE_ID.DIZ at release. So:
+  - file_id.diz = master example (literal "xxx BINARIES" slot).
+  - 6 per-target files, tag matching the extension:
+    file_id.win/lnx/os2/mac/drn/dos -> "<tag> BINARIES". (dos included per the
+    DIZ feature text; no dos BUILD target yet - the DIZ exists, the binary
+    doesn't, come back to it.)
+  - make_release.sh <tag> <bin-dir> copies file_id.<tag> into the per-target
+    archive RENAMED to FILE_ID.DIZ. One archive per target. Verified os2.
+  These are hand-maintained static files (no generator; gen_file_id.sh stays
+  removed). Applies ONLY to the DIZ, nowhere else in the source.
+
+## Darwin SDL2 + Hunspell DO build on the 10.6 SDK after all (2026-07-09)
+  Sysop pushed back on "needs a 10.7+ SDK" - correctly. Retried and I was
+  wrong: the CURRENT 10.6 SDK is sufficient, you just need version-appropriate
+  library releases (the LATEST SDL2/Hunspell dropped 10.6, not the SDK's fault).
+  - SDL2: 2.32.8 and even 2.0.3 hard-#error without a 10.7 SDK (Cocoa fullscreen
+    symbols). SDL2 2.0.1 / 2.0.0 have NO 10.7 requirement -> built 2.0.1 for
+    i386-darwin against the 10.6 SDK: libs/darwin-i386/libSDL2-2.0.0.dylib
+    (516 SDL_ symbols, install_name libSDL2-2.0.0.dylib = the name sdl_bind
+    probes first). The trailing libSDL2main.a static-helper fails to link but
+    that's irrelevant - our modules runtime-load the dylib, which is valid.
+  - Hunspell: 1.7.2 uses C++11 std::all_of (absent from 10.6's gcc-4.2
+    libstdc++). 1.6.2 does NOT -> built it for i386-darwin:
+    libs/darwin-i386/libhunspell-1.6.0.dylib. (autoreconf needed a 1-line
+    configure.ac fix: AM_GNU_GETTEXT -> AM_GNU_GETTEXT([external]); and
+    hunvisapi.h needed @HAVE_VISIBILITY@ -> 1.) Added the versioned probe name
+    to spl_hunspell.pas's darwin branch (then falls back to libhunspell.dylib).
+  RESULT: all THREE darwin runtime libs now present + built with the existing
+  10.6 SDK; all three darwin module demos build Mach-O; linux unaffected.
+  Supersedes the earlier "darwin SDL2/Hunspell need 10.7+" entry - that was
+  about the LATEST versions; older-but-API-compatible releases build fine.
+  No newer SDK required.
+
+## Removed file_id.drn (dupe of file_id.mac) (2026-07-09)
+  Sysop: .drn is a dupe. Deleted file_id.drn (it was byte-identical to
+  file_id.mac). Mac releases use file_id.mac directly. make_release.sh + fwd-
+  looking docs scrubbed of drn. Per-target DIZ set is now 5: win/lnx/os2/mac/
+  dos (+ the file_id.diz master example). (Earlier .drn-alias entries above are
+  the dated record.)
+
+## DOS/go32v2 target: buildable with our OWN 2.6.2 (not the 3.2.2 upload) (2026-07-09)
+  Sysop uploaded a prebuilt DOS toolchain (openolms-dos-toolchain: FPC 3.2.2
+  ppcross386 + go32v2 RTL). Asked: can we build the DOS extender with 2.6.2
+  instead (version-consistent)? YES - proven:
+  - FPC 2.6.2 already supports -Tgo32v2 (ppc386 -i lists "GO32 V2 DOS
+    extender"); the go32v2 RTL SOURCE ships in the 2.6.2 tree
+    (rtl/go32v2). go32v2 = 32-bit protected-mode DOS via a DPMI extender
+    (CWSDPMI/GO32), COFF object format.
+  - Built the go32v2 RTL with 2.6.2 (51 units) after supplying an assembler.
+  - Toolchain: binutils 2.30 configured --target=i386-msdosdjgpp (the triplet
+    ld actually supports; emulation i386go32). i386-go32v2 canonicalises to
+    i386-pc-go32v2 which ld REJECTS - use msdosdjgpp then symlink the tools to
+    the i386-go32v2-* names FPC calls (as/ld/ar/nm/strip/ranlib/objcopy).
+    Tools staged at /home/claude/dostools/xbin (ephemeral, rebuild per the
+    recipe here).
+  - RESULT: `ppc386 -Tgo32v2 -XPi386-go32v2- -Fu<rtl>/units/go32v2 x.pas`
+    produces a real "MZ for MS-DOS, COFF, DJGPP go32 DOS extender" .exe.
+    So DOS is a genuine 5th FPC target, version-matched to the other 4 -
+    its .dat record layouts will match win32/linux/darwin/os2.
+  DECISION: build DOS with 2.6.2 (data-file compatibility with all other
+  targets). The uploaded 3.2.2 toolchain is saved in tools/dos/ anyway
+  (sysop's call, like the ld64 bundle) as a known-good reference/fallback -
+  NOT used by any build script. See tools/dos/README.md.
+  STILL TODO for a real Mystic DOS build (beyond hello-world): cross-build the
+  go32v2 packages (not just RTL), then port Mystic's platform layer - DOS has
+  no BSD sockets like the other targets (historically FOSSIL driver / door
+  mode), so the telnet-server model needs rethinking for DOS. This proves the
+  TOOLCHAIN; the full BBS DOS port is a separate effort.
+
+## Release layout: whatsnew/upgrade in every archive; Mac SDK NOT shippable; toolchains -> libs/ (2026-07-09)
+  Sysop screenshot showed the target release layout: a flat folder with
+  file_id.diz, install.exe, install_data.mys, upgrade.txt, whatsnew.txt.
+  - upgrade.txt: uploaded, saved to mystic/upgrade.txt (CRLF, 580 lines).
+    Sits alongside mystic/whatsnew.txt.
+  - make_release.sh now stages install_data.mys + whatsnew.txt + upgrade.txt
+    (all from mystic/) into EVERY per-target archive, next to the binaries,
+    FILE_ID.DIZ and COPYING. Verified os2 archive contents.
+  - MAC SDK: can we ship it? NO. The MacOSX10.6.sdk is Apple's proprietary
+    property under the Xcode/Apple SDK Agreement - NO redistribution right,
+    and it's non-free so incompatible with GPLv3 anyway. It stays a local
+    sysop-supplied build prerequisite (build-darwin.sh takes it as an external
+    SDK= path), NEVER committed, NEVER in a distro. Contrast: the ld64/cctools
+    toolchain IS shippable (APSL open source) - that's why ld64 is bundled but
+    the SDK is not.
+  - Toolchain location: both cross-build toolchains now live in libs/ (sysop
+    call): libs/ld64-linux-x86_64/ (Darwin linker) and
+    libs/openolms-dos-toolchain.tar.gz (DOS 3.2.2 reference, see
+    libs/DOS-TOOLCHAIN-README.md). Removed the tools/ tree.

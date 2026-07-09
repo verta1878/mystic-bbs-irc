@@ -1626,10 +1626,10 @@ Begin
             Store (TempLong, 4);
           End;
     18  : Begin
-            {$IFDEF UNIX}
-              TempBool := Keyboard.KeyPressed;
-            {$ELSE}
+            {$IFDEF WINDOWS}
               TempBool := Keyboard.KeyPressed OR Session.Client.DataWaiting;
+            {$ELSE}
+              TempBool := Keyboard.KeyPressed;
             {$ENDIF}
             Store (TempBool, 1);
             Session.io.BufFlush;

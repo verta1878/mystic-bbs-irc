@@ -55,7 +55,7 @@ Procedure AddRecord       (var dFile; RecNum: LongInt; RecSize: Word);
 Function  Bool_Search     (Mask: String; Str: String) : Boolean;
 Function  ShellDOS        (ExecPath: String; Command: String) : LongInt;
 
-{$IFNDEF UNIX}
+{$IFDEF WINDOWS}
 Procedure UpdateStatusLine    (Mode: Byte; Str: String);
 Procedure ProcessSysopCommand (Cmd: Char);
 {$ENDIF}
@@ -66,7 +66,7 @@ Uses
   DOS,
   bbs_Core,
   BBS_DataBase,
-  {$IFNDEF UNIX}
+  {$IFDEF WINDOWS}
     bbs_SysOpChat,
   {$ENDIF}
   bbs_cfg_UserEdit,
@@ -162,7 +162,7 @@ Begin
     Close (Session.User.UserFile);
   End;
 
-  {$IFNDEF UNIX}
+  {$IFDEF WINDOWS}
     Console.SetWindow (1, 1, 80, 25, False);
     Console.TextAttr := 7;
     Console.ClearScreen;
@@ -216,7 +216,7 @@ Begin
 
 //  Reset (Session.PromptFile);
 
-  {$IFNDEF UNIX}
+  {$IFDEF WINDOWS}
     If Console.Active Then
       Session.io.LocalScreenEnable
     Else
@@ -226,7 +226,7 @@ Begin
   Session.TimeOut := TimerSeconds;
 End;
 
-{$IFNDEF UNIX}
+{$IFDEF WINDOWS}
 Procedure UpdateStatusLine (Mode: Byte; Str: String);
 Begin
   If Not bbsCfg.UseStatusBar Then Exit;

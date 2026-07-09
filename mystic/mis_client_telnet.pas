@@ -28,6 +28,10 @@ Interface
 {$IFDEF DARWIN}
   {$DEFINE USEPROCESS}
 {$ELSE}
+  {$IFDEF OS2}
+    {$DEFINE USEPROCESS}   // OS/2: spawn per-node via TProcess (fcl-process),
+                           // same model as Darwin - no fork(), no Win32 API
+  {$ENDIF}
   {$IFDEF UNIX}
     {$DEFINE USEFORK}
   {$ENDIF}

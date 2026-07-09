@@ -23,6 +23,7 @@ Interface
 
 Uses
   {$IFDEF WINDOWS} Windows, {$ENDIF}
+  {$IFDEF OS2} DosCalls, {$ENDIF}
   SysUtils;
 
 {$IFDEF UNIX}
@@ -73,7 +74,11 @@ Var
   {$IFDEF UNIX}
   LibHandle : Pointer = Nil;
   {$ELSE}
+  {$IFDEF OS2}
+  LibHandle : THandle = 0;
+  {$ELSE}
   LibHandle : HModule = 0;
+  {$ENDIF}
   {$ENDIF}
   Loaded    : Boolean = False;
 
@@ -91,16 +96,29 @@ Begin
   {$IFDEF UNIX}
     Sym := dlsym(LibHandle, PChar(Name));
   {$ELSE}
-    Sym := GetProcAddress(LibHandle, PChar(Name));
+    {$IFDEF OS2}
+      If DosQueryProcAddr(LibHandle, 0, PChar(Name), Sym) <> 0 Then Sym := Nil;
+    {$ELSE}
+      Sym := GetProcAddress(LibHandle, PChar(Name));
+    {$ENDIF}
   {$ENDIF}
 End;
 
 Function TryOpen (Const N: String): Boolean;
+{$IFDEF OS2}
+Var
+  FailName : Array[0..259] of Char;
+{$ENDIF}
 Begin
   {$IFDEF UNIX}
     LibHandle := dlopen(PChar(N), RTLD_NOW);
   {$ELSE}
-    LibHandle := LoadLibrary(PChar(N));
+    {$IFDEF OS2}
+      If DosLoadModule(FailName, SizeOf(FailName), PChar(N), LibHandle) <> 0 Then
+        LibHandle := 0;
+    {$ELSE}
+      LibHandle := LoadLibrary(PChar(N));
+    {$ENDIF}
   {$ENDIF}
   TryOpen := LibOpen;
 End;
@@ -112,7 +130,9 @@ Function LoadHunspell (Const LibName: String): Boolean;
     Result := True;
     {$IFDEF UNIX}
       {$IFDEF DARWIN}
-        // macOS: Mystic looks for libhunspell.dylib (sysop symlinks the real one).
+        // macOS: try the versioned name we ship, then the plain one
+        // (sysop can symlink libhunspell.dylib -> the real one too).
+        If TryOpen('libhunspell-1.6.0.dylib') Then Exit;
         If TryOpen('libhunspell.dylib')    Then Exit;
       {$ELSE}
         // Linux: Mystic looks for libhunspell.so (sysop symlinks the real one).
@@ -171,7 +191,7 @@ Begin
       dlclose(LibHandle);
       LibHandle := Nil;
     {$ELSE}
-      FreeLibrary(LibHandle);
+      {$IFDEF OS2} DosFreeModule(LibHandle); {$ELSE} FreeLibrary(LibHandle); {$ENDIF}
       LibHandle := 0;
     {$ENDIF}
   End;

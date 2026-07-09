@@ -319,10 +319,10 @@ Begin
   While A <= Length(Cmd) Do Begin
     If Cmd[A] = '%' Then Begin
       Inc(A);
-      {$IFDEF UNIX}
-      If Cmd[A] = '0' Then Temp := Temp + '1' Else
-      {$ELSE}
+      {$IFDEF WINDOWS}
       If Cmd[A] = '0' Then Temp := Temp + strI2S(TIOSocket(Session.Client).FSocketHandle) Else
+      {$ELSE}
+      If Cmd[A] = '0' Then Temp := Temp + '1' Else
       {$ENDIF}
       If Cmd[A] = '1' Then Temp := Temp + '1' Else
       If Cmd[A] = '2' Then Temp := Temp + strI2S(Session.Baud) Else

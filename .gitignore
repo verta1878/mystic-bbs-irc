@@ -45,8 +45,20 @@ mystic_*/bin64/
 mystic_*/outwin/
 mystic_*/binwin/
 
-# but DO keep the runtime libraries placed under libs/
+# but DO keep the runtime libraries placed under libs/ (any depth, incl.
+# the win32/ and linux-i386/ platform subdirs)
+!libs/**/*.dll
+!libs/**/*.so
+!libs/**/*.so.*
+!libs/**/*.dylib
 !libs/*.dll
 !libs/*.so
 !libs/*.so.*
 !libs/*.dylib
+
+# but DO keep the bundled Darwin ld64 cross-toolchain (see tools/darwin/)
+!libs/ld64-linux-x86_64/
+!libs/ld64-linux-x86_64/bin/
+!libs/ld64-linux-x86_64/bin/*
+!libs/ld64-linux-x86_64/lib/
+!libs/ld64-linux-x86_64/lib/*

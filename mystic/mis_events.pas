@@ -12,6 +12,9 @@ Uses
     BaseUnix,
     Unix,
   {$ENDIF}
+  {$IFDEF OS2}
+    SysUtils,   // ExecuteProcess / GetEnvironmentVariable for ShellExec
+  {$ENDIF}
 //  m_Threads,
   Classes,
   m_Strings,
@@ -121,6 +124,19 @@ Begin
     DirChange (PPath);
 
   Result := wExitStatus(fpSystem(PCmd));
+
+  DirChange (bbsConfig.SystemPath);
+End;
+{$ENDIF}
+{$IFDEF OS2}
+// OS/2: run the command through the RTL's ExecuteProcess (via the command
+// interpreter, so redirection / built-ins work as in the shell paths above).
+Function TEventEngine.ShellExec (PPath, PCmd: String; PFlags: LongInt) : LongInt;
+Begin
+  If PPath <> '' Then
+    DirChange (PPath);
+
+  Result := ExecuteProcess (GetEnvironmentVariable('COMSPEC'), '/C ' + PCmd);
 
   DirChange (bbsConfig.SystemPath);
 End;

@@ -31,8 +31,8 @@ Uses
   {$IFDEF WINDOWS}
     m_io_Sockets,
   {$ENDIF}
-  {$IFDEF UNIX}
-    m_io_STDIO,
+  {$IFNDEF WINDOWS}
+    m_io_STDIO,   // non-Windows session I/O rides stdio (Unix, OS/2)
   {$ENDIF}
   DOS,
   mkCrap,
@@ -228,7 +228,7 @@ Begin
 End;
 
 {$IFNDEF USEALTPROT}
-{$IFNDEF UNIX}
+{$IFDEF WINDOWS}
 Procedure ProtocolStatus (Start, Finish: Boolean; Status: RecProtocolStatus);
 Var
   KBRate : LongInt;
@@ -249,7 +249,7 @@ End;
 {$ENDIF}
 
 {$IFDEF USEALTPROT}
-{$IFNDEF UNIX}
+{$IFDEF WINDOWS}
 Procedure XferStatus (P: AbstractProtocolPtr; First, Last: Boolean);
 Var
   KBRate : LongInt;
@@ -302,7 +302,7 @@ Var
   T       : Text;
   Res     : String;
 
-  {$IFNDEF UNIX}
+  {$IFDEF WINDOWS}
     Box    : TAnsiMenuBox;
     SavedL : Boolean;
     SavedA : Boolean;
@@ -315,10 +315,10 @@ Var
     Client   : TIOBase;
     FileList : FileListPTR;
   Begin
-    {$IFDEF UNIX}
-      Client := TSTDIO.Create;
-    {$ELSE}
+    {$IFDEF WINDOWS}
       Client := Session.Client;
+    {$ELSE}
+      Client := TSTDIO.Create;
     {$ENDIF}
 
     Command := strStripB(strUpper(Command), ' ');
@@ -372,7 +372,7 @@ Var
     Protocol^.SetFileList(FileList);
     Protocol^.SetLogFileProc(@XferResult);
 
-    {$IFNDEF UNIX}
+    {$IFDEF WINDOWS}
       Protocol^.SetShowStatusProc(@XferStatus);
 
       SavedL            := Session.LocalMode;
@@ -402,7 +402,7 @@ Var
       2..3 : Protocol^.ProtocolTransmit;
     End;
 
-    {$IFNDEF UNIX}
+    {$IFDEF WINDOWS}
       Box.Free;
 
       Session.io.BufFlush;
@@ -429,10 +429,10 @@ Var
     Count    : Word;
     Client   : TIOBase;
   Begin
-    {$IFDEF UNIX}
-      Client := TSTDIO.Create;
-    {$ELSE}
+    {$IFDEF WINDOWS}
       Client := Session.Client;
+    {$ELSE}
+      Client := TSTDIO.Create;
     {$ENDIF}
 
     Command := strStripB(strUpper(Command), ' ');
@@ -472,7 +472,7 @@ Var
 
     Session.io.BufFlush;
 
-    {$IFNDEF UNIX}
+    {$IFDEF WINDOWS}
       SavedL              := Session.LocalMode;
       SavedA              := Console.Active;
       Session.LocalMode   := True;
@@ -501,7 +501,7 @@ Var
       2..3 : Protocol.QueueSend;
     End;
 
-    {$IFNDEF UNIX}
+    {$IFDEF WINDOWS}
       Box.Free;
 
       Session.io.BufFlush;
@@ -547,7 +547,7 @@ Var
     While Count <= Length(Command) Do Begin
       If Command[Count] = '%' Then Begin
         Inc(Count);
-        {$IFNDEF UNIX}
+        {$IFDEF WINDOWS}
         If Command[Count] = '0' Then Res := Res + strI2S(TIOSocket(Session.Client).FSocketHandle) Else
         {$ENDIF}
         If Command[Count] = '1' Then Res := Res + '1' Else
@@ -684,7 +684,8 @@ Begin
       Inc    (FDir.DescLines);
       ReadLn (DizFile, Session.Msgs.MsgText[FDir.DescLines]);
 
-      Session.Msgs.MsgText[FDir.DescLines] := strStripLOW(Session.Msgs.MsgText[FDir.DescLines]);
+      // 1.12: preserve DIZ color (pipe kept, ANSI SGR -> pipe) instead of stripping
+      Session.Msgs.MsgText[FDir.DescLines] := strDizColor(Session.Msgs.MsgText[FDir.DescLines]);
 
       If Length(Session.Msgs.MsgText[FDir.DescLines]) > mysMaxFileDescLen Then Session.Msgs.MsgText[FDir.DescLines][0] := Chr(mysMaxFileDescLen);
 
@@ -3031,7 +3032,7 @@ Var
   FileStatus  : Boolean;
   SavedIgnore : Boolean;
 
-  {$IFNDEF UNIX}
+  {$IFNDEF UNIX}  // drive-letter path vars: all DOS-family OSes (Windows, OS/2)
   D          : DirStr;
   N          : NameStr;
   E          : ExtStr;
@@ -3198,10 +3199,10 @@ Begin
           While A <= Length(bbsCfg.TestCmdLine) Do Begin
             If bbsCfg.TestCmdLine[A] = '%' Then Begin
               Inc(A);
-              {$IFDEF UNIX}
-              If bbsCfg.TestCmdLine[A] = '0' Then Temp := Temp + '1' Else
-              {$ELSE}
+              {$IFDEF WINDOWS}
               If bbsCfg.TestCmdLine[A] = '0' Then Temp := Temp + strI2S(TIOSocket(Session.Client).FSocketHandle) Else
+              {$ELSE}
+              If bbsCfg.TestCmdLine[A] = '0' Then Temp := Temp + '1' Else
               {$ENDIF}
               If bbsCfg.TestCmdLine[A] = '1' Then Temp := Temp + '1' Else
               If bbsCfg.TestCmdLine[A] = '2' Then Temp := Temp + '38400' Else

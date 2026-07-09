@@ -23,6 +23,7 @@ Interface
 
 Uses
   {$IFDEF WINDOWS} Windows, {$ENDIF}
+  {$IFDEF OS2} DosCalls, {$ENDIF}
   SysUtils;
 
 {$IFDEF UNIX}
@@ -39,6 +40,7 @@ Const
   SDL_WINDOW_SHOWN = $00000004;
   SDL_QUIT_EVENT   = $100;
   SDL_KEYDOWN      = $300;
+  SDL_MOUSEBUTTONDOWN = $401;
   SDL_TEXTUREACCESS_STREAMING = 1;
   SDL_PIXELFORMAT_ARGB8888 = $16362004;
 
@@ -91,10 +93,21 @@ Function LoadSDL (Const LibName: String = ''): Boolean;
 Procedure UnloadSDL;
 Function SDLLoaded: Boolean;
 
+// Decode window-space mouse coordinates from an SDL_MOUSEBUTTONDOWN
+// event.  TSDL_Event is kept opaque (type + padding); these read the
+// SDL_MouseButtonEvent layout out of the padding: after the 4-byte
+// type come timestamp(4) windowID(4) which(4) button(1) state(1)
+// clicks(1) pad(1), then x and y as signed 32-bit ints (offsets 16
+// and 20 into the padding).  Stable across SDL 2.0.x.
+Function EventMouseX (Const Ev: TSDL_Event): LongInt;
+Function EventMouseY (Const Ev: TSDL_Event): LongInt;
+
 Implementation
 
 Var
-  {$IFDEF UNIX} LibHandle : Pointer = Nil; {$ELSE} LibHandle : HModule = 0; {$ENDIF}
+  {$IFDEF UNIX} LibHandle : Pointer = Nil;
+  {$ELSE} {$IFDEF OS2} LibHandle : THandle = 0;
+  {$ELSE} LibHandle : HModule = 0; {$ENDIF} {$ENDIF}
   Loaded : Boolean = False;
 
 Function LibOpen: Boolean;
@@ -105,13 +118,31 @@ End;
 Function Sym (Const Name: String): Pointer;
 Begin
   {$IFDEF UNIX} Sym := dlsym(LibHandle, PChar(Name));
-  {$ELSE}       Sym := GetProcAddress(LibHandle, PChar(Name)); {$ENDIF}
+  {$ELSE}
+    {$IFDEF OS2}
+      If DosQueryProcAddr(LibHandle, 0, PChar(Name), Sym) <> 0 Then Sym := Nil;
+    {$ELSE}
+      Sym := GetProcAddress(LibHandle, PChar(Name));
+    {$ENDIF}
+  {$ENDIF}
 End;
 
 Function TryOpen (Const N: String): Boolean;
+{$IFDEF OS2}
+Var
+  FailName : Array[0..259] of Char;
+{$ENDIF}
 Begin
-  {$IFDEF UNIX} LibHandle := dlopen(PChar(N), RTLD_NOW);
-  {$ELSE}       LibHandle := LoadLibrary(PChar(N)); {$ENDIF}
+  {$IFDEF UNIX}
+    LibHandle := dlopen(PChar(N), RTLD_NOW);
+  {$ELSE}
+    {$IFDEF OS2}
+      If DosLoadModule(FailName, SizeOf(FailName), PChar(N), LibHandle) <> 0 Then
+        LibHandle := 0;
+    {$ELSE}
+      LibHandle := LoadLibrary(PChar(N));
+    {$ENDIF}
+  {$ENDIF}
   TryOpen := LibOpen;
 End;
 
@@ -174,7 +205,10 @@ Procedure UnloadSDL;
 Begin
   If LibOpen Then Begin
     {$IFDEF UNIX} dlclose(LibHandle); LibHandle := Nil;
-    {$ELSE}       FreeLibrary(LibHandle); LibHandle := 0; {$ENDIF}
+    {$ELSE}
+      {$IFDEF OS2} DosFreeModule(LibHandle); {$ELSE} FreeLibrary(LibHandle); {$ENDIF}
+      LibHandle := 0;
+    {$ENDIF}
   End;
   SDL_Init := Nil; SDL_Quit := Nil;
   SDL_CreateWindow := Nil; SDL_DestroyWindow := Nil;
@@ -188,5 +222,15 @@ End;
 
 Function SDLLoaded: Boolean;
 Begin SDLLoaded := Loaded; End;
+
+Function EventMouseX (Const Ev: TSDL_Event): LongInt;
+Begin
+  Move (Ev.Pad[16], Result, 4);
+End;
+
+Function EventMouseY (Const Ev: TSDL_Event): LongInt;
+Begin
+  Move (Ev.Pad[20], Result, 4);
+End;
 
 End.

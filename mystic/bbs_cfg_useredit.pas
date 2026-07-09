@@ -380,7 +380,7 @@ Begin
 
   Session.SetTimeLeft(Session.User.ThisUser.TimeLeft);
 
-  {$IFNDEF UNIX}
+  {$IFDEF WINDOWS}
     UpdateStatusLine(Session.StatusPtr, '');
   {$ENDIF}
 End;

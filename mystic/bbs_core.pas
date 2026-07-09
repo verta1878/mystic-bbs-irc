@@ -27,7 +27,7 @@ Interface
 
 Uses
   m_io_Base,
-  {$IFNDEF UNIX}
+  {$IFDEF WINDOWS}
   m_io_Sockets,
   {$ENDIF}
   m_FileIO,
@@ -56,7 +56,7 @@ Type
 
 Type
   TBBSCore = Class
-    {$IFNDEF UNIX}
+    {$IFDEF WINDOWS}
       Client      : TIOBase;
     {$ENDIF}
     User           : TBBSUser;
@@ -196,7 +196,7 @@ Begin
   MessageCheck  := mysMessageThreshold;
   StatusPtr     := 1;
 
-  {$IFNDEF UNIX}
+  {$IFDEF WINDOWS}
     Client := TIOSocket.Create;
     TIOSocket(Client).FTelnetServer := True;
   {$ENDIF}
@@ -220,7 +220,7 @@ Begin
   User.Free;
   IO.Free;
 
-  {$IFNDEF UNIX}
+  {$IFDEF WINDOWS}
     Client.Free;
   {$ENDIF}
 

@@ -516,7 +516,11 @@ Begin
   {$IFDEF WINDOWS}
     Result := Windows.GetCurrentProcessID;
   {$ELSE}
-    Result := fpGetPID;
+    {$IFDEF OS2}
+      Result := System.GetProcessID;  // OS/2: FPC RTL (System unit)
+    {$ELSE}
+      Result := fpGetPID;
+    {$ENDIF}
   {$ENDIF}
 End;
 

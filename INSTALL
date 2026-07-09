@@ -72,6 +72,10 @@ Darwin has two modes because the compile and link steps have different needs.
   cd <fpcsrc>/rtl/darwin
   make OS_TARGET=darwin CPU_TARGET=i386 FPC=<path>/ppc386 OPT="-Amacho"
   ```
+  `-Amacho` objects are fine for compile-only verification, but see the
+  cross-LINK recipe below: for linking, build the RTL with the external
+  cctools assembler instead (modern ld64 rejects the internal writer's
+  objects).
   Then point the build at them with `DARWINUNITS=<...>/units/i386-darwin`.
 
 Run compile-only:
@@ -92,20 +96,45 @@ box by default. Two ways to get a runnable binary:
    has Apple's linker (`ld64`) and the SDK. Just run `./build-darwin.sh` and it
    links normally.
 
-2. **From Linux, with a cross toolchain** - no Mac needed at build time, but you
-   must supply two things Apple owns:
-   - **`ld64` / cctools built for Linux.** Apple open-sourced the linker
-     (apple-opensource/ld64); the practical Linux ports are
-     `tpoechtrager/cctools-port` or `osxcross`. Build it, then tell FPC where the
-     linker lives with `-FD<path-to-cctools>/bin`.
-   - **The macOS SDK libraries** (`crt1.o`, `libSystem`, frameworks). These are
-     **Apple's** and must be copied from a Mac / an OS X install medium - they
-     cannot be obtained on Linux alone. Point FPC's linker at the SDK root with
-     `-XR<sdk-root>` (and `-Fl<sdk>/usr/lib`) so it links the correct startup
-     objects instead of the host's.
+2. **From Linux, with a cross toolchain** - no Mac needed at build time, but
+   you must supply the SDK, which is Apple's. This path is PROVEN for this
+   tree: on 2026-07-08 all 14 programs (and the mystic_rip demos) linked as
+   Mach-O i386 executables on Linux this way. The working recipe:
 
-   With both present, FPC drives the Darwin linker and produces a real Mac
-   binary from Linux. This is the classic FPC "cross-compile to Darwin" setup.
+   a. **Build cctools/ld64 for Linux** (`tpoechtrager/cctools-port`). It
+      needs Apple's blocks + libdispatch runtimes first: apt
+      `libblocksruntime-dev`, then build `tpoechtrager/apple-libdispatch`
+      (cmake), then
+      `./configure --target=i386-apple-darwin10 --prefix=<xtools> && make`.
+      Symlink the tools to FPC's default cross prefix:
+      `i386-darwin-as -> i386-apple-darwin10-as` (same for ld, ar, ...).
+   b. **A macOS SDK** (10.6 fits the FPC 2.6.2 era), extracted from your own
+      Mac/Xcode. If the SDK lacks `usr/lib/crt1.o` (many extractions do),
+      build it from Apple's open-source Csu (APSL) - the 10.4-compat "v1"
+      variant, because FPC 2.6.2 emits old-style stubs that need
+      `dyld_stub_binding_helper` from `dyld_glue.s`:
+      ```
+      clang -target i386-apple-darwin10 -isysroot <sdk> \
+            -mmacosx-version-min=10.4 -Os -c start.s crt.c dyld_glue.s
+      i386-apple-darwin10-ld -r -keep_private_externs \
+            start.o crt.o dyld_glue.o -o <sdk>/usr/lib/crt1.o
+      ```
+      (crt.c with `-DOLD_LIBSYSTEM_SUPPORT -DADD_PROGRAM_VARS`.)
+   c. **Cross-build the i386-darwin RTL with the EXTERNAL assembler** (just
+      omit `OPT="-Amacho"` once the cctools `as` is on PATH). This matters:
+      objects from FPC's internal Mach-O writer are rejected by modern ld64
+      ("section __DATA/__nl_symbol_ptr address out of range"); cctools-as
+      output links clean. Also build packages `hash`, `fcl-net`,
+      `fcl-process` for darwin, and compile `fcl-net/src/cnetdb.pp` by hand
+      (the darwin package Makefile skips it, but Darwin's libc netdb API is
+      the same and Mystic's resolver needs it). `fcl-base` fails on
+      `MacOSAll` (univint) - not needed by this tree.
+   d. Link with:
+      `ppc386 -Tdarwin -XPi386-darwin- -XR<sdk-root> ...`
+
+   The result targets vintage Macs: i386 binaries run on Mac OS X 10.4
+   through macOS 10.14 (Mojave) only - later macOS dropped 32-bit. Runtime
+   testing still needs era hardware; the Linux side proves the link.
 
 **Why the split:** compilation is pure FPC (portable), but linking binds against
 a specific OS's runtime. Mach-O compilation works anywhere; a *runnable* Mac

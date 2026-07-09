@@ -1465,7 +1465,7 @@ Begin
   BufFlush;
 End;
 
-{$IFDEF UNIX}
+{$IFNDEF WINDOWS}  // generic (Keyboard-abstraction) version: Unix, OS/2
 Function TBBSIO.InKey (Wait: LongInt) : Char;
 Begin
   Result  := #255;
@@ -1631,7 +1631,7 @@ Begin
   If TimeCount <> Session.LastTimeLeft Then Begin
     Session.LastTimeLeft := TimeCount;
 
-    {$IFNDEF UNIX}
+    {$IFDEF WINDOWS}
       UpdateStatusLine(Session.StatusPtr, '');
     {$ENDIF}
 

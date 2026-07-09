@@ -148,7 +148,7 @@ Begin
   FileErase (bbsCfg.DataPath + 'chat' + strI2S(Session.NodeNum) + '.dat');
 
   {$IFNDEF LOGGING}
-    {$IFNDEF UNIX}
+    {$IFDEF WINDOWS}
       Console.TextAttr := 14;
 
       Console.SetWindow (1, 1, 80, 25, False);
@@ -566,7 +566,7 @@ Begin
 
   CheckPathsAndDataFiles;
 
-  {$IFNDEF UNIX}
+  {$IFDEF WINDOWS}
     Session.LocalMode := Session.CommHandle = -1;
 
     If Not Session.LocalMode Then Begin
@@ -605,13 +605,13 @@ Begin
     Session.SetTimeLeft(bbsCfg.LoginTime);
 
 (*
-  {$IFNDEF UNIX}
+  {$IFDEF WINDOWS}
     Screen.TextAttr := 7;
     Screen.ClearScreen;
   {$ENDIF}
 *)
 
-  {$IFNDEF UNIX}
+  {$IFDEF WINDOWS}
     UpdateStatusLine(0, '');
   {$ENDIF}
 

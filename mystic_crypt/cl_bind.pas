@@ -23,6 +23,7 @@ Interface
 
 Uses
   {$IFDEF WINDOWS} Windows, {$ENDIF}
+  {$IFDEF OS2} DosCalls, {$ENDIF}
   SysUtils;
 
 {$IFDEF UNIX}
@@ -75,7 +76,9 @@ Function CryptlibLoaded: Boolean;
 Implementation
 
 Var
-  {$IFDEF UNIX} LibHandle : Pointer = Nil; {$ELSE} LibHandle : HModule = 0; {$ENDIF}
+  {$IFDEF UNIX} LibHandle : Pointer = Nil;
+  {$ELSE} {$IFDEF OS2} LibHandle : THandle = 0;
+  {$ELSE} LibHandle : HModule = 0; {$ENDIF} {$ENDIF}
   Loaded : Boolean = False;
 
 Function LibOpen: Boolean;
@@ -86,13 +89,31 @@ End;
 Function Sym (Const Name: String): Pointer;
 Begin
   {$IFDEF UNIX} Sym := dlsym(LibHandle, PChar(Name));
-  {$ELSE}       Sym := GetProcAddress(LibHandle, PChar(Name)); {$ENDIF}
+  {$ELSE}
+    {$IFDEF OS2}
+      If DosQueryProcAddr(LibHandle, 0, PChar(Name), Sym) <> 0 Then Sym := Nil;
+    {$ELSE}
+      Sym := GetProcAddress(LibHandle, PChar(Name));
+    {$ENDIF}
+  {$ENDIF}
 End;
 
 Function TryOpen (Const N: String): Boolean;
+{$IFDEF OS2}
+Var
+  FailName : Array[0..259] of Char;
+{$ENDIF}
 Begin
-  {$IFDEF UNIX} LibHandle := dlopen(PChar(N), RTLD_NOW);
-  {$ELSE}       LibHandle := LoadLibrary(PChar(N)); {$ENDIF}
+  {$IFDEF UNIX}
+    LibHandle := dlopen(PChar(N), RTLD_NOW);
+  {$ELSE}
+    {$IFDEF OS2}
+      If DosLoadModule(FailName, SizeOf(FailName), PChar(N), LibHandle) <> 0 Then
+        LibHandle := 0;
+    {$ELSE}
+      LibHandle := LoadLibrary(PChar(N));
+    {$ENDIF}
+  {$ENDIF}
   TryOpen := LibOpen;
 End;
 
@@ -149,7 +170,10 @@ Procedure UnloadCryptlib;
 Begin
   If LibOpen Then Begin
     {$IFDEF UNIX} dlclose(LibHandle); LibHandle := Nil;
-    {$ELSE}       FreeLibrary(LibHandle); LibHandle := 0; {$ENDIF}
+    {$ELSE}
+      {$IFDEF OS2} DosFreeModule(LibHandle); {$ELSE} FreeLibrary(LibHandle); {$ENDIF}
+      LibHandle := 0;
+    {$ENDIF}
   End;
   cryptInit := Nil; cryptEnd := Nil;
   cryptCreateSession := Nil; cryptDestroySession := Nil;
