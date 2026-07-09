@@ -78,6 +78,11 @@
   {$DEFINE FS_IGNORE}
 {$ENDIF}
 
+{$IFDEF GO32V2}
+  {$DEFINE DOS}
+  {$DEFINE FS_IGNORE}
+{$ENDIF}
+
 { ------------------------------------------------------------------------- }
 
 {$MODE DELPHI}

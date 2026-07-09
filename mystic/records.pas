@@ -77,6 +77,13 @@ Const
     OSType   = 4;
   {$ENDIF}
 
+  {$IFDEF GO32V2}
+    PathChar = '\';
+    LineTerm = #13#10;
+    OSID     = 'DOS';
+    OSType   = 5;
+  {$ENDIF}
+
   mysMaxAcsSize      = 30;                                      // Max ACS string size
   mysMaxPathSize     = 80;
   mysMaxMsgLines     = 1000;                                    // Max message base lines

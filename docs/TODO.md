@@ -141,7 +141,7 @@ Whatever surfaces here IS the next real work.
 
 --------------------------------------------------------------------------
 
-## 6. 1.12 FILE_ID / DIZ color support (9a DONE; 9b + extras pending)
+## 6. 1.12 FILE_ID / DIZ support (9a + 9b DONE)
 
   9a DONE (2026-07-09): color-aware DIZ. mdl/m_strings.pas strDizColor()
   preserves pipe codes + converts ANSI SGR color to pipe; wired into
@@ -150,9 +150,13 @@ Whatever surfaces here IS the next real work.
   - @BEGIN_FILE_ID.DIZ inline-tag scanner (description embedded in a text file).
   - Raise the desc line cap toward 99 (mind mysMaxFileDescLen=50 + MsgText).
   - Wildcat/PCBoard/WWIV color notations (only ANSI+pipe handled so far).
-  9b LATER + HUGE (sysop): the 1.12 full-screen ARCHIVE VIEWER
-  (archive_view.ans/.ini) - browse inside a ZIP, show embedded FILE_ID.ANS.
-  Separate UI subsystem, its own project.
+  9b DONE (2026-07-09): full-screen FILE_ID.ANS archive viewer.
+  TFileBase.ShowFileIDAns extracts FILE_ID.ANS (same ExecuteArchive path as
+  the DIZ reader) and shows it via OutFile; hooked into ArchiveView (auto-
+  shows cover on open) + an 'A' key to redisplay. Reused existing PArchive/
+  ExecuteArchive/OutFile infra. 14/14 build.
+  Intentionally skipped (niche): @BEGIN_FILE_ID.DIZ inline scanner,
+  Wildcat/PCBoard/WWIV color notations, desc-width 50->79 (all-desc change).
 
 ## 7. cryptlib win32 cross-build (feasibility proven; finish the wiring)
 
@@ -193,3 +197,31 @@ Everything done is in whatsnew.txt; every decision + rationale is in DECISIONS.m
 and SizeOf anchors). A fresh session picks up from item 1.
 
 o7
+
+## DOS port - networking (on hold, sysop 2026-07-09)
+The 7 non-networked DOS utilities build (from libs/dos-toolchain.zip). The 5
+networked programs (mystic/mis/fidopoll/nodespy/qwkpoll) need a socket layer
+the pinned FPC 2.6.2 go32v2 RTL does not provide (verified: no Sockets/netdb
+unit in rtl/units/go32v2).
+
+SYSOP DIRECTION (2026-07-09): prefer a FPC-native path over hand-written C -
+i.e. use "the last FPC version whose go32v2 target supports sockets" so the
+DOS network layer comes from the Pascal RTL, not a C shim. WHEN DOS RESUMES,
+first VERIFY this exists:
+  - Check which FPC go32v2 releases actually ship a usable Sockets unit /
+    netdb for DOS (candidates to test: 3.0.4, 3.2.2 - the current DOS builds;
+    2.6.2, our pin, does NOT). If a native FPC Sockets unit exists for go32v2,
+    build the DOS network programs with THAT FPC for the socket units while
+    keeping data-record compatibility (watch SizeOf anchors if the compiler
+    version changes on-disk layouts - that's the reason 2.6.2 is pinned).
+  - NOTE/caveat to confirm: DOS TCP/IP on DJGPP is normally provided by
+    Watt-32, which is itself C (it just exposes a BSD-sockets API + a DOS
+    packet driver underneath). So "FPC-native sockets on go32v2" likely still
+    depends on a Watt-32 (or equivalent) TCP stack + packet driver at runtime,
+    even if the Pascal side is just a Sockets unit. Verify whether FPC's
+    go32v2 Sockets unit links Watt-32 or another stack before committing.
+  - Fallbacks if no clean FPC-native go32v2 sockets: Watt-32 BSD-sockets
+    binding (maps onto m_io_sockets), or a FOSSIL/telnet gateway (separate
+    m_io_fossil I/O path; eleBBS-style).
+Preferred order: FPC-native go32v2 Sockets unit  >  Watt-32 binding  >  FOSSIL.
+HOLD for now - continue other targets.

@@ -1,3 +1,16 @@
 *.mys binary
 *.tar.gz binary
 *.zip binary
+*.linux-x86_64 binary
+*.exe binary
+
+# BBS/DOS text artifacts must stay CRLF regardless of host OS (cross-compile
+# safe): file listings, release docs, and door/ANSI text the BBS serves.
+file_id.* text eol=crlf
+*.diz text eol=crlf
+*.DIZ text eol=crlf
+whatsnew.txt text eol=crlf
+upgrade.txt text eol=crlf
+*.ans -text
+*.asc text eol=crlf
+*.mnu text eol=crlf

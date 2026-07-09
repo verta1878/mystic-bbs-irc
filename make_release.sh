@@ -1,53 +1,83 @@
 #!/usr/bin/env bash
 # ============================================================
-#  make_release.sh - build a PER-TARGET release archive.
-#  Usage:  ./make_release.sh <tag> <bin-dir> [out-dir]
-#          tag = win | lnx | os2 | mac | dos
+#  make_release.sh - build a PER-TARGET release into its platform directory.
 #
-#  There are 6 per-target DIZ files in the repo root, each with its
-#  target name already in the "xxx BINARIES" slot:
-#    file_id.win  file_id.lnx  file_id.os2
-#    file_id.mac  file_id.dos
+#  Usage:  ./make_release.sh <tag> <bin-dir> [full|upgrade|both] [out-dir]
+#          tag  = win | lnx | os2 | mac | dos    (the target platform)
+#          mode = both (default) | full | upgrade
 #
-#  This script copies file_id.<tag> into the archive RENAMED to
-#  FILE_ID.DIZ - the name a Mystic file base reads.
+#  LAYOUT - each target gets its own directory under <out-dir> (default
+#  "release"), named by the platform tag, holding its FULL install and its
+#  UPGRADE bundle:
 #
-#  Per sysop: one archive PER TARGET (never a combined file); each
-#  archive carries only its own target's DIZ.
+#     release/<tag>/mystic<tag>full.zip   FULL  - install + install_data.mys + docs
+#     release/<tag>/mystic<tag>upd.zip   UPGRADE - binaries + docs, no payload
 #
-#  Example:
-#    ./build-os2.sh                      # produces out/bin-os2/*
-#    ./make_release.sh os2 out/bin-os2   # -> release/mystic-a38-os2.zip
+#     e.g. release/os2/mysticos2full.zip + release/os2/mysticos2upd.zip
+#
+#  FULL     : all 14 binaries + install_data.mys + docs + FILE_ID.DIZ "<tag> FULL"
+#  UPGRADE  : all 14 binaries + docs + FILE_ID.DIZ "<tag> UPGRADE" (no payload) -
+#             a drop-in over an existing install.
+#
+#  FILE_ID.DIZ is generated from file_id.<tag> with the title's "<tag> BINARIES"
+#  replaced by "<tag> FULL"/"<tag> UPGRADE", written CRLF (BBS/DOS convention).
+#
+#  Examples:
+#     ./make_release.sh os2 out/bin-os2            # both -> release/os2/
+#     ./make_release.sh win out/bin-win full       # FULL only -> release/win/
+#     ./make_release.sh mac out_darwin/bin both dist
 # ============================================================
 set -e
 cd "$(dirname "$0")"
 
-T="$1"; BIN="$2"; OUT="${3:-release}"
-[ -z "$T" ] || [ -z "$BIN" ] && { echo "usage: $0 <win|lnx|os2|mac|dos> <bin-dir> [out-dir]"; exit 1; }
+T="$1"; BIN="$2"; MODE="${3:-both}"; OUTROOT="${4:-release}"
+[ -z "$T" ] || [ -z "$BIN" ] && {
+  echo "usage: $0 <win|lnx|os2|mac|dos> <bin-dir> [full|upgrade|both] [out-dir]"; exit 1; }
+case "$MODE" in full|upgrade|both) ;; *) echo "mode = full|upgrade|both"; exit 1;; esac
 
 FID="file_id.$T"
-[ -f "$FID" ] || { echo "missing $FID (per-target DIZ)"; exit 1; }
+[ -f "$FID" ] || { echo "missing $FID (per-target DIZ template)"; exit 1; }
 [ -d "$BIN" ] || { echo "no such bin dir: $BIN"; exit 1; }
 
-mkdir -p "$OUT"
-STAGE="$(mktemp -d)"
-cp -r "$BIN"/. "$STAGE"/
-cp "$FID" "$STAGE/FILE_ID.DIZ"          # file_id.<tag> -> FILE_ID.DIZ
+# per-target output directory, named by platform tag
+TARGDIR="$OUTROOT/$T"
+mkdir -p "$TARGDIR"
+TARGABS="$(cd "$TARGDIR" && pwd)"
 
-# Installer content + release docs that ship with every target (see the
-# release layout: install.exe, install_data.mys, file_id.diz, whatsnew.txt,
-# upgrade.txt).  These live in mystic/ and travel with all targets.
-for extra in install_data.mys whatsnew.txt upgrade.txt; do
-  [ -f "mystic/$extra" ] && cp "mystic/$extra" "$STAGE"/
-done
+# ---- helper: build one archive in a given mode ----
+build_one () {
+  local mode="$1" label zipname
+  case "$mode" in
+    full)    label="FULL";    zipname="mystic${T}full.zip" ;;
+    upgrade) label="UPGRADE"; zipname="mystic${T}upd.zip" ;;
+  esac
 
-[ -f COPYING ] && cp COPYING "$STAGE"/  # GPL text travels with binaries
+  local STAGE; STAGE="$(mktemp -d)"
+  cp -r "$BIN"/. "$STAGE"/
+  # strip build intermediates - only runnable binaries + content ship
+  find "$STAGE" \( -name '*.o' -o -name '*.ppu' -o -name '*.a' \
+                   -o -name '*.s' -o -name '*.out' \) -delete 2>/dev/null || true
 
-ARCABS="$(cd "$OUT" && pwd)/mystic-a38-$T.zip"
-rm -f "$ARCABS"
-( cd "$STAGE" && zip -qr "$ARCABS" . )
-rm -rf "$STAGE"
+  # FILE_ID.DIZ: relabel + force CRLF
+  sed "s/$T BINARIES/$T $label/" "$FID" \
+    | sed 's/\r$//' | sed 's/$/\r/' > "$STAGE/FILE_ID.DIZ"
 
-echo "Release: $ARCABS"
-echo "  (FILE_ID.DIZ from $FID)"
-unzip -l "$ARCABS" | awk 'NR>3 && $4 {print "  "$4}' | grep -v '^  ----' | head
+  # release docs (already CRLF in repo)
+  for extra in whatsnew.txt upgrade.txt; do
+    [ -f "mystic/$extra" ] && cp "mystic/$extra" "$STAGE"/
+  done
+  # payload only in FULL
+  [ "$mode" = full ] && [ -f "mystic/install_data.mys" ] && \
+    cp "mystic/install_data.mys" "$STAGE"/
+  [ -f COPYING ] && cp COPYING "$STAGE"/
+
+  local ARC="$TARGABS/$zipname"
+  rm -f "$ARC"
+  ( cd "$STAGE" && zip -qr "$ARC" . )
+  rm -rf "$STAGE"
+  echo "  $mode -> $TARGDIR/$zipname  (DIZ \"$T $label\", payload=$([ $mode = full ] && echo yes || echo no))"
+}
+
+echo "Release: $T -> $TARGDIR/"
+[ "$MODE" = both ] || [ "$MODE" = full ]    && build_one full
+[ "$MODE" = both ] || [ "$MODE" = upgrade ] && build_one upgrade

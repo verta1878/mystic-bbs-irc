@@ -77,3 +77,25 @@ uses cryptlib's shipped win32 asm object; 62 crypt* exports.  Stripped, ~1.9MB.
 These libraries are NOT covered by this project's GPL; each is used under its
 own license above.  Their inclusion here is "mere aggregation" in the GPL sense.
 Match the library BITNESS to the Mystic build (all provided binaries are i386).
+
+--------------------------------------------------------------------------------
+## Build toolchains (target cross-compilers, bundled)
+
+Two self-contained cross-build toolchains ship as zips here:
+
+### dos-toolchain.zip (~25 MB)
+FPC 2.6.2 compiler (bin/ppcross386, bin/ppc386) + binutils (i386-go32v2-*) +
+the go32v2 RTL units.  Self-contained: unzip, add bin/ to PATH, build a DOS
+(MZ/COFF/DJGPP go32) executable with no separately-installed FPC.  See
+DOS-TOOLCHAIN-README.md.
+
+### os2-linux-toolchain.zip (~2 MB)
+Everything to build OS/2 (LX) executables ON LINUX: the emxbind Linux port
+(sources + shim + 32-bit binary + emxl.exe loader), the binutils 2.30 emx
+patches + the a.out-emx BFD target (i386os2.c), the data-alignment ld wrapper,
+the pristine emx upstream source zips, and full docs (TECHNICAL-REFERENCE.md +
+BUILD-ON-UBUNTU-24.04.md).  A pristine binutils 2.30 + these patches builds an
+ld with target `a.out-emx`; FPC's `ppc386 -Tos2` then links a valid OS/2 LX
+.exe on a Linux host.  This is also unpacked in-tree under libs/emxbind-src/ and
+docs/os2-linux-toolchain/ for browsing; the zip is the portable bundle (e.g. to
+attach to an upstream submission).  emx content is GPL (c) Eberhard Mattes.

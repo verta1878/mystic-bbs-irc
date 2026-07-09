@@ -1,29 +1,30 @@
 #!/usr/bin/env bash
 # ============================================================
 #  Mystic 1.10 A38 fork - OS/2 build  (FPC 2.6.2, i386-os2)
-#  Usage:  ./build-os2.sh          build every binary
-#          ./build-os2.sh mis      build a single target
+#  Usage:  ./build-os2.sh            compile every binary (compile-only)
+#          LINK=1 ./build-os2.sh     compile + LINK to LX .exe (full build)
+#          ./build-os2.sh mis        build a single target
 #
-#  TWO-STAGE BUILD (this is how FPC has always built OS/2):
+#  TWO-STAGE BUILD:
 #    1. COMPILE for i386-os2  - fully cross-platform, done anywhere.
-#    2. LINK                  - NATIVE step on OS/2 / eComStation / ArcaOS.
-#       FPC's os2 linker is  ld  then  emxbind  (emxbind converts the
-#       intermediate a.out to an OS/2 LX .exe and binds the OS/2 DLL
-#       imports).  emxbind runs on OS/2 (or DOS), so the final .exe is
-#       produced there, not on a Linux host.
+#    2. LINK                  - ld then emxbind (emxbind converts the
+#       intermediate a.out to an OS/2 LX .exe and binds the OS/2 DLL imports).
 #
-#  So on a NON-OS/2 host this script does a COMPILE-ONLY pass (-s) to
-#  prove the sources are OS/2-clean (14/14).  Run WITHOUT -s on real
-#  OS/2 (with the FPC 2.6.2 OS/2 release, which bundles emx + the import
-#  libraries) to get runnable .exe files.  See docs/DECISIONS.md
-#  (OS/2 target, 2026-07-08) and INSTALL.
+#  This link step NOW RUNS ON LINUX using the self-hosted emx cross-toolchain
+#  (patched binutils with the a.out-emx target + emxbind Linux port + emxl.exe
+#  + the i386-os2-ld data-alignment wrapper).  Build that toolchain from
+#  libs/os2-linux-toolchain.zip and put its bin/ on PATH; then LINK=1 produces
+#  runnable OS/2 LX .exe files on Linux.  Full details + reproduction recipe:
+#  docs/os2-linux-toolchain/ (TECHNICAL-REFERENCE.md, BUILD-ON-UBUNTU-24.04.md).
+#
+#  Default (no LINK=1) is a COMPILE-ONLY pass (-s), so the script is safe on a
+#  host without the toolchain and still proves the sources are OS/2-clean.
+#  It also works natively on OS/2 (FPC 2.6.2 OS/2 release bundles emx).
 #
 #  Env:
 #    FPC=/path/to/ppc386          the FPC 2.6.2 compiler
-#    OS2UNITS="-Fu... -Fu..."     extra unit paths (the cross RTL + packages
-#                                 built for os2, if not on the default path)
-#    LINK=1                       attempt the real link (only on OS/2, or if
-#                                 you have emxbind + import libs on PATH)
+#    OS2UNITS="-Fu... -Fu..."     extra unit paths (cross RTL + packages for os2)
+#    LINK=1                       do the real ld+emxbind link (Linux or OS/2)
 # ============================================================
 set -u
 ROOT="$(cd "$(dirname "$0")" && pwd)"; cd "$ROOT"
@@ -33,13 +34,18 @@ mkdir -p "$BIN" "$UNITS"
 FPC="${FPC:-ppc386}"
 OS2UNITS="${OS2UNITS:-}"
 
-# -s = compile only, do not call the linker (the default off-OS/2 mode).
-# Set LINK=1 to attempt the real ld+emxbind link (native OS/2).
+# -s = compile only, do not call the linker.
+# Set LINK=1 to do the real ld+emxbind link.  This now works ON LINUX using the
+# self-hosted emx cross-toolchain (patched i386-aout-ld with the a.out-emx
+# target + i386-os2-ld wrapper + i386-os2-emxbind + emxl.exe), built from
+# libs/os2-linux-toolchain.zip - see docs/os2-linux-toolchain/.  It also works
+# natively on OS/2.  Default remains compile-only so the script is safe without
+# the toolchain installed.
 COMPILE_ONLY="-s"
 [ "${LINK:-0}" = "1" ] && COMPILE_ONLY=""
 
-# XP prefix points the compiler at the i386-os2- cross tools (as/ld); on
-# native OS/2 leave the tools as their plain names (FPC finds them).
+# XP prefix points the compiler at the i386-os2- cross tools (as/ld/emxbind);
+# on native OS/2 leave the tools as their plain names (FPC finds them).
 XP="-XPi386-os2-"
 [ "${LINK:-0}" = "1" ] && [ "$(uname -s 2>/dev/null)" = "OS/2" ] && XP=""
 

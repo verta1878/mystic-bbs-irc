@@ -1,10 +1,13 @@
 # Mystic BBS 1.10 A38 - Community Fork
 
-> **Release: 2026-07-07** - base **Mystic 1.10 A38**, brought up to roughly
+> **Release: 2026-07-09** - base **Mystic 1.10 A38**, brought up to roughly
 > **1.10 A39 feature level** (FidoNet tosser, JAM compatibility, ANSI draw mode,
 > themed message boxes, and the full message base index reader). Builds with
-> **Free Pascal 2.6.2** for Windows (XP+, 32-bit) and Linux (i386); macOS/Darwin
-> compiles to objects (link with an Apple SDK you supply).
+> **Free Pascal 2.6.2** for Windows (XP+, 32-bit), Linux (i386), macOS/Darwin
+> (compiles + links with an Apple SDK you supply), and **OS/2** - now built
+> **entirely on Linux** to native LX executables via a self-hosted emx
+> toolchain (see docs/os2-linux-toolchain/). DOS/go32v2 partially builds (the
+> non-networked utilities; the networked programs await a DOS socket layer).
 
 A community fork of the **Mystic BBS 1.10 alpha 38** source, released under the
 **GNU General Public License v3**. The goal is a clean, buildable, well-documented
@@ -14,6 +17,10 @@ that matter to it - **Windows XP (32-bit)**, **Debian/Linux (i386)**, and
 
 Mystic BBS is Copyright 1997-2013 by James Coyle (g00r00). This fork preserves
 that attribution and all GPL notices; see [COPYING](COPYING).
+
+> **Full release documentation: [RELEASE-NOTES.md](RELEASE-NOTES.md)** — the
+> complete reference (platforms, the OS/2-on-Linux toolchain, modules, libs,
+> installer/release process, source, and licensing).
 
 *Maintained by Antonio Rico — Ecstasy BBS (aric2746@aim.com). It's been a long
 time since 1999; just trying to give back.*
@@ -50,6 +57,8 @@ Linux -> Darwin cross-compile recipe.
 | Windows (XP+)  | `build-win32.bat` | Windows / cmd.exe                    |
 | Linux (Debian) | `build.sh`        | Linux / bash                         |
 | macOS (Darwin) | `build-darwin.sh` | macOS, or Linux with a cross toolchain |
+| OS/2           | `build-os2.sh`    | Linux (full: compile + LX link)      |
+| DOS (go32v2)   | see INSTALL       | Linux with a cross toolchain         |
 
 ```
 ./build.sh            # build everything (Linux)

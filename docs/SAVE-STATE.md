@@ -101,3 +101,22 @@ win32 cl32.dll (needs MSVC).  Provenance: libs/README.md + DECISIONS 2026-07-08.
   relocatable, Linux-amd64 host only) - build-darwin.sh finds it, links
   14/14 with no setup. SDK still sysop-supplied (SDK=...). Non-amd64-linux
   hosts: build-ld64-toolchain.sh. .mac is the Mac/Darwin target.
+
+## Release snapshot (2026-07-09)
+
+- **OS/2 link on Linux SOLVED.** Full 14/14 LX build on Linux via the
+  self-hosted emx toolchain (libs/os2-linux-toolchain.zip). Build:
+  `LINK=1 ./build-os2.sh` with the toolchain bin/ on PATH. Docs:
+  docs/os2-linux-toolchain/. Patches: libs/emxbind-src/binutils-patch/.
+- **Build matrix now:** Linux 14/14 ELF, Win32 14/14 PE32, Darwin 14/14
+  Mach-O, OS/2 14/14 LX (all on Linux); DOS 7/14 (non-networked only,
+  needs a socket layer - Watt-32/FOSSIL, on hold).
+- **DOS platform branches added** (m_ops, records, m_fileio, m_output,
+  m_input) - real source gaps that blocked go32v2; Linux reverified.
+- Combined binaries archive naming: mystica38bin<YYYYMMDD>.zip.
+  Per-platform installer archives: mystic-a38-<plat>.zip.
+- Toolchains (dos-toolchain.zip, os2-linux-toolchain.zip) are in libs/
+  and proven to build binaries; the built cross-tools themselves are
+  container-ephemeral (rebuild from the zips per the docs).
+- UPSTREAM-EMX.md is paste-ready for bitwiseworks/ArcaOS + FPC + emx SF;
+  sysop must do the actual posting (AI can't open issues/PRs).

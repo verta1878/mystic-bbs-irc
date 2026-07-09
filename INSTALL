@@ -1,17 +1,25 @@
 # Building Mystic 1.10 A38 (fork)
 
-This fork targets three platforms, each with its own build script and its own
+This fork targets **five** platforms, each with its own build script and its own
 set of prerequisites you must install first. Compiler: **Free Pascal (FPC) 2.6.2**
-(the original A38 toolchain), CPU target **i386** (32-bit) on all three.
+(the original A38 toolchain), CPU target **i386** (32-bit) on all five.
 
-| Target            | Script             | Runs on           |
-|-------------------|--------------------|-------------------|
-| Windows (XP+)     | `build-win32.bat`  | Windows / cmd.exe |
-| Linux (Debian)    | `build.sh`         | Linux / bash      |
-| macOS (Darwin)    | `build-darwin.sh`  | macOS, or Linux w/ cross toolchain |
+| Target            | Script             | Runs on           | Status |
+|-------------------|--------------------|-------------------|--------|
+| Windows (XP+)     | `build-win32.bat`  | Windows / cmd.exe | compile + link |
+| Linux (Debian)    | `build.sh`         | Linux / bash      | compile + link |
+| macOS (Darwin)    | `build-darwin.sh`  | macOS, or Linux w/ cross toolchain | compile + link |
+| OS/2              | `build-os2.sh`     | Linux (full, w/ emx toolchain) or OS/2 | compile + LX link |
+| DOS (go32v2)      | see DOS section    | Linux w/ cross toolchain | 7/14 (non-networked) |
 
 Run a script with no arguments to build every binary, or pass one target name
 to build just that one (e.g. `./build.sh mis`).
+
+All five targets build the same 14 core programs (mystic, mis, mutil, mplc,
+mide, mbbsutil, fidopoll, nodespy, qwkpoll, mystpack, install, install_make,
+maketheme, 109to110) from one shared source tree, with the same FPC 2.6.2, so
+their on-disk record layouts stay byte-compatible (a node on one OS can share
+data files with a node on another).
 
 > **macOS note:** the Darwin target is **i386 (32-bit Intel)** - a vintage target.
 > This has real consequences for which Macs can run it and which SDK you need to
@@ -139,6 +147,85 @@ box by default. Two ways to get a runnable binary:
 **Why the split:** compilation is pure FPC (portable), but linking binds against
 a specific OS's runtime. Mach-O compilation works anywhere; a *runnable* Mac
 binary requires Apple's linker + SDK, by design.
+
+---
+
+## OS/2 - `build-os2.sh`
+
+The OS/2 target is **i386-os2** (LX executables).  FPC has always built OS/2
+in **two stages**, and only the first is cross-platform:
+
+1. **Compile** for `i386-os2` - fully cross-platform; done on any host.
+2. **Link** - a **native OS/2 step**.  FPC's OS/2 back-end links with `ld`
+   then `emxbind`, which converts the intermediate a.out into an OS/2 LX
+   `.exe` and binds the OS/2 DLL imports.
+
+This link step now runs **on Linux** via a self-hosted emx cross-toolchain
+(patched binutils with an `a.out-emx` target, the emxbind Linux port,
+`emxl.exe`, and a data-alignment `ld` wrapper).  Build that toolchain from
+`libs/os2-linux-toolchain.zip` (recipe: `docs/os2-linux-toolchain/`), put its
+`bin/` on PATH, then `LINK=1 ./build-os2.sh` produces runnable OS/2 LX `.exe`
+files - all 14, verified "LX for OS/2 ... emx 0.9d".  Without the toolchain the
+script defaults to a **compile-only** pass (`-s`) that proves the sources are
+OS/2-clean (14/14).  It also links natively on **OS/2 / eComStation / ArcaOS**
+with the FPC 2.6.2 OS/2 release (which bundles emx).
+
+### Prerequisites
+- **FPC 2.6.2** with an `i386-os2` RTL + packages on the unit path.  On a Linux
+  host you cross-build the RTL once; on OS/2 use the official FPC 2.6.2 OS/2
+  release (it ships the RTL, emx, and import libraries).
+- For the compile-only pass on Linux you also need an `i386-aout` assembler
+  (binutils `gas` built for `i386-aout`, `--enable-obsolete`), exposed under
+  the `i386-os2-*` names FPC calls.
+
+### Build
+```
+./build-os2.sh            # compile-only pass (14/14), no toolchain needed
+LINK=1 ./build-os2.sh     # full compile + LX link (Linux w/ emx toolchain,
+                          #   or native OS/2) -> runnable .exe files
+```
+Env: `FPC=/path/to/ppc386`, `OS2UNITS="-Fu... -Fu..."` for extra unit paths.
+For `LINK=1` on Linux, put the emx cross-toolchain (from
+libs/os2-linux-toolchain.zip) on PATH first - see docs/os2-linux-toolchain/.
+
+### Runtime libraries on OS/2
+No SDL2 / Hunspell / cryptlib binaries are bundled for OS/2 (those runtimes
+aren't provided for it), but the optional module bindings **compile** for OS/2
+(they use `DosLoadModule` / `DosQueryProcAddr` / `DosFreeModule`), so a
+sysop-supplied OS/2 DLL would load at runtime.
+
+---
+
+## DOS (go32v2) - cross-build
+
+The DOS target is **i386-go32v2**: 32-bit protected-mode DOS via a DPMI
+extender (CWSDPMI / GO32).  It is built with the **same FPC 2.6.2** as every
+other target (so its `.dat` record layouts stay compatible), NOT with the
+3.2.2 upstream toolchain.
+
+### Prerequisites
+- **FPC 2.6.2** - it already supports `-Tgo32v2` (`ppc386 -i` lists "GO32 V2
+  DOS extender") and its `go32v2` RTL source ships in the FPC tree
+  (`rtl/go32v2`); build the RTL once with `ppc386 -Tgo32v2`.
+- A DOS assembler + linker: **binutils 2.30** configured
+  `--target=i386-msdosdjgpp` (emulation `i386go32` - the triplet `ld` actually
+  supports; `i386-pc-go32v2` is rejected), symlinked to the `i386-go32v2-*`
+  names FPC calls (`as`, `ld`, `ar`, `nm`, `strip`, `ranlib`).
+- The prebuilt pieces (go32v2 RTL units + these binutils) are bundled in
+  **`libs/dos-toolchain.zip`** (see `libs/DOS-TOOLCHAIN-README.md`).  `ppc386`
+  itself is your pinned system compiler, not in that zip.
+
+### Build a DOS binary
+```
+ppc386 -Tgo32v2 -XPi386-go32v2- -Fu<fpc262>/rtl/units/go32v2 prog.pas
+```
+This produces an "MZ for MS-DOS, COFF, DJGPP go32 DOS extender" executable.
+
+> **Scope note:** the DOS *toolchain* is proven (a program compiles + links to
+> a real DOS `.exe`).  A full Mystic DOS *port* is a separate effort: DOS has no
+> BSD sockets like the other targets (historically a FOSSIL driver or door
+> mode), so the telnet-server model needs rethinking for DOS.  `file_id.dos`
+> exists for when that lands.
 
 ---
 
@@ -346,6 +433,43 @@ If you build against a minimal/partial Darwin unit set and hit
 then place `cnetdb.ppu`/`cnetdb.o` in your i386-darwin units directory. This
 affects every socket-using unit (nodespy_term, mis_client_smtp, mis_client_binkp,
 fidopoll), not just one.
+
+## Building release installers (`make_release.sh`)
+
+> For the full picture - how the `install` program + `install_data.mys` payload
+> work, the exact MYS archive format (stored, not compressed), how to rebuild
+> the payload, and the release artifact naming - see
+> **docs/CREATING-THE-INSTALLER.md**.
+
+Each platform ships as its **own** installer archive - never one combined
+archive.  `make_release.sh <tag> <bin-dir> [out-dir]` stages one target's
+binaries together with the installer content and release docs:
+
+```
+./make_release.sh lnx out/bin releases     # -> mystic-a38-lnx.zip
+./make_release.sh win <win-bin> releases    # -> mystic-a38-win.zip
+./make_release.sh mac <mac-bin> releases    # -> mystic-a38-mac.zip
+```
+
+Every archive contains: the 14 target binaries (including the `install`
+installer and `install_make`), `install_data.mys` (the stock content the
+installer lays down), `FILE_ID.DIZ` (naming the target), `whatsnew.txt`,
+`upgrade.txt`, and `COPYING` (GPLv3 - required with any binary distribution).
+
+### Which installers can be built, and where
+- **Linux / Win32 / macOS - full installers build from a Linux host.**
+  Linux is native; Win32 uses FPC's internal PE linker (no external tools);
+  macOS cross-links via the bundled ld64 + your SDK.  Each produces a runnable
+  `install` binary and a complete installer archive.
+- **OS/2 - full installer builds on Linux** with the emx cross-toolchain (from
+  libs/os2-linux-toolchain.zip): `LINK=1 ./build-os2.sh` then
+  `make_release.sh os2` produces all 14 LX binaries incl. a runnable `install`.
+  Also links natively on OS/2 with the stock FPC OS/2 release.
+- **DOS - partial (no installer yet).**  The 7 non-networked utilities build
+  from libs/dos-toolchain.zip; the networked programs (incl. `install`'s deps)
+  await a DOS socket layer (Watt-32 or FOSSIL - see docs/TODO.md).
+
+---
 
 ## Cross-platform text file convention
 

@@ -72,12 +72,22 @@ pushes.
   Recipe: INSTALL (Darwin section) + DECISIONS entry. Runtime untested
   (needs a 10.4–10.14 era Mac — i386 died with Mojave). The container
   toolchain is ephemeral; rebuild per INSTALL if needed.
-- **OS/2 target added (2026-07-08)**: platform layer ported on FPC's
-  own RTL (DosCalls, TProcess, so32dll, generic Keyboard path).
-  Compiles 14/14 for i386-os2 cross; FINAL LINK is native on OS/2 (FPC
-  os2 build is ld+emxbind — emxbind runs on OS/2). Build with the FPC
-  2.6.2 OS/2 release on eComStation/ArcaOS; live shake-out is the gate
-  (TODO item 5). Linux + win32 stay 14/14 (edits are guarded).
+- **OS/2 LINK ON LINUX — SOLVED (2026-07-09)**: the final link now runs
+  entirely on Linux. Self-hosted emx cross-toolchain — patched GNU
+  binutils (new `a.out-emx` BFD target + emx IMPORT# symbol patch), a
+  Linux port of emxbind, the emxl.exe loader, and a data-alignment ld
+  wrapper — turns FPC's a.out into a native OS/2 LX .exe. ALL 14 build +
+  verify "LX for OS/2 ... emx 0.9d". Build via `LINK=1 ./build-os2.sh`
+  with the toolchain (from libs/os2-linux-toolchain.zip) on PATH. FULL
+  docs: **docs/os2-linux-toolchain/** (TECHNICAL-REFERENCE.md +
+  BUILD-ON-UBUNTU-24.04.md); patches in libs/emxbind-src/binutils-patch/.
+  This is the step ArcaOS/bitwiseworks track as unsolved. Also links
+  natively on OS/2 with the stock FPC 2.6.2 OS/2 release. (Platform layer:
+  DosCalls, TProcess, so32dll, generic Keyboard path.)
+- **DOS/go32v2 (2026-07-09)**: added the missing DOS platform branches
+  (m_ops, records, m_fileio, m_output, m_input); the 7 non-networked
+  utilities build from libs/dos-toolchain.zip. Networked programs await a
+  DOS socket layer (Watt-32 or FOSSIL — see TODO). On hold.
 - **libs/ now POPULATED (2026-07-08)**: SDL2 2.32.8, Hunspell 1.7.2,
   cryptlib 3.4.9.1 built in-container, i386, under libs/win32 and
   libs/linux-i386. Linux SDL2 built with -mstackrealign — the long-

@@ -19,14 +19,16 @@ with the other targets (RecConfig=5282, RecUser=1536, etc.).
                      actually supports; i386-pc-go32v2 is rejected), then
                      symlinked to i386-go32v2-{as,ld,ar,nm,strip,ranlib,...}.
     PROVENANCE.md    build provenance + licenses (inside the zip).
+    bin/ppcross386   FPC 2.6.2 compiler (i386 host ELF, static, stripped) -
+    bin/ppc386       same binary under both names.  INCLUDED, so the toolchain
+                     is self-contained: no separately-installed FPC is needed
+                     to build DOS binaries.
 
-## NOT included
-    `ppc386` itself - that's the fork's pinned system compiler (FPC 2.6.2),
-    which lives on the build host, not in the repo.  These are the DOS TARGET
-    pieces that plug into it.
-
-## Build a DOS binary
-    ppc386 -Tgo32v2 -XPi386-go32v2- -Fu<fpc262>/rtl/units/go32v2 prog.pas
+## Build a DOS binary (self-contained - uses only this zip)
+    unzip dos-toolchain.zip
+    export PATH=$PWD/dos-toolchain-262/bin:$PATH
+    ppcross386 -Tgo32v2 -XPi386-go32v2- \
+      -Fudos-toolchain-262/units/go32v2 prog.pas
     -> "MZ for MS-DOS, COFF, DJGPP go32 DOS extender" executable.
 
 Extract with: `cd libs && unzip dos-toolchain.zip`

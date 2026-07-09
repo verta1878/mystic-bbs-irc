@@ -519,7 +519,11 @@ Begin
     {$IFDEF OS2}
       Result := System.GetProcessID;  // OS/2: FPC RTL (System unit)
     {$ELSE}
-      Result := fpGetPID;
+      {$IFDEF GO32V2}
+        Result := System.GetProcessID;  // DOS/go32v2: FPC RTL (System unit)
+      {$ELSE}
+        Result := fpGetPID;
+      {$ENDIF}
     {$ENDIF}
   {$ENDIF}
 End;

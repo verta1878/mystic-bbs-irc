@@ -2954,3 +2954,170 @@
     call): libs/ld64-linux-x86_64/ (Darwin linker) and
     libs/openolms-dos-toolchain.tar.gz (DOS 3.2.2 reference, see
     libs/DOS-TOOLCHAIN-README.md). Removed the tools/ tree.
+
+## 9b DONE + 9a finalized: FILE_ID.ANS full-screen archive viewer (2026-07-09)
+  Sysop: do both 9a and 9b.
+  9a (color DIZ) was already done (strDizColor). Reviewed the deferred 9a
+  sub-items:
+  - line cap to 99: ALREADY satisfied - ReadDIZ breaks at bbsCfg.MaxFileDesc,
+    which the config editor (bbs_cfg_syscfg L230) already allows 1..99, and the
+    MsgText buffer holds mysMaxMsgLines=1000 lines. No change needed.
+  - desc line WIDTH (mysMaxFileDescLen=50): left at 50. It's used for line
+    truncation + input-field width EVERYWHERE (not just DIZ), so widening to 79
+    is an all-descriptions behavior change beyond 9a's scope - separate call.
+    (Confirmed it's NOT an on-disk record bound, so it COULD be raised safely
+    later; descriptions persist via MsgText String[79] + BlockWrite.)
+  - @BEGIN_FILE_ID.DIZ inline-tag scanner + Wildcat/PCBoard/WWIV notations:
+    judged niche/low-value vs added complexity+risk; skipped intentionally.
+  9b (the big one) IMPLEMENTED - full-screen FILE_ID.ANS archive viewer:
+  - New TFileBase.ShowFileIDAns(FName): extracts FILE_ID.ANS from the archive
+    with the SAME proven ExecuteArchive mode-2 path ReadDIZ uses for
+    FILE_ID.DIZ, then renders it via Session.io.OutFile (existing ANSI
+    renderer - handles screen length, pausing, terminal cleanup). Returns
+    True if a cover was found+shown.
+  - Hooked into ArchiveView: shows the FILE_ID.ANS cover automatically when a
+    user opens the archive viewer, before the file listing (the 1.12 behavior).
+  - Added an 'A' key to the viewer menu (ADQRV) to redisplay the ANSI cover on
+    demand.
+  - Reuses existing infra (PArchive, ExecuteArchive, OutFile) - no new archive
+    or ANSI subsystem needed; the plumbing was all there.
+  Verified: 14/14 build; extraction path validated (FILE_ID.ANS pulls from a
+  zip with ANSI codes intact for OutFile to render). NOTE: full interactive
+  on-BBS visual test needs a live session (can't drive the interactive UI
+  here), but the mechanism is identical to the working ReadDIZ/FILE_ID.DIZ path.
+
+## Docs updated for OS/2 + DOS + Darwin build support (2026-07-09)
+  Sysop: update the build tree docs to add os2 + darwin support; are the
+  scripts up to date?
+  - SCRIPTS: verified current. build-os2.sh compiles 14/14 (cross, link native
+    on OS/2), build-darwin.sh compiles+links 14/14 Mach-O against the current
+    tree (post 9a/9b, OS/2-loader bindings, etc.). No script changes needed.
+  - DOCS were stale: INSTALL + README said "three platforms" and their tables
+    listed only Windows/Linux/macOS. Updated both to FIVE targets
+    (added OS/2 + DOS/go32v2). INSTALL gained full OS/2 and DOS sections
+    (prereqs, two-stage OS/2 link, go32v2 binutils/RTL, dos-toolchain.zip
+    pointer, DOS-port scope note). README table + intro updated. Left the one
+    historical "three platforms" line in DECISIONS as dated record.
+
+## OS/2 self-hosted link: emxbind PORTED to Linux; ld blocker precisely located (2026-07-09)
+  Sysop pushed back (rightly) on "OS/2 is stuck" and asked to actually TRY
+  building a Linux-hosted emx toolchain like the ld64 bundle. Result: real
+  progress, one blocker left, exactly mapped.
+  ACHIEVED:
+  - Built a WORKING Linux x86-64 `emxbind` from GPL source (emx 0.9d,
+    emxsrcr.zip) + the moddef .def parser (emxsrcd). It runs and prints its
+    banner. This is FPC's OS/2 FINAL-link tool (a.out -> LX .exe + LX import
+    table) - the piece assumed to be OS/2-only. Saved to libs/emxbind-src/
+    with sources, shims, the binary, and BUILD.md.
+  - To build it on Linux we reconstructed sys/moddef.h (from the moddef .c
+    implementation + emxbind usage - the real header ships only in the emx
+    binary dev kit), a minimal sys/user.h, and io.h/share.h/emxcompat shims
+    mapping emx libc-isms (_strncpy, stricmp, _errno, _fsopen, _defext,
+    _remext, _path, _fncmp, optswchar) to POSIX. All 13 .c files compile;
+    emxbind links + runs.
+  - Traced FPC's OS/2 link pipeline on Linux end-to-end:
+    i386-os2-as OK -> i386-os2-ld FAILS -> emxbind (ready). The a.out
+    intermediate (maketheme.out, 231KB) is produced up to import resolution.
+  REMAINING BLOCKER (precisely located, NOT vague):
+  - FPC's OS/2 RTL ships DLL imports in emx's a.out IMPORT# format
+    (doscalls.a: `_$dll$doscalls$_index_NNN = DOSCALLS.NNN`, symbol types
+    N_IMP1/N_IMP2). Stock GNU binutils treats these as DEBUG symbols, not
+    linkable defs -> ld "undefined reference" (320 of them). Confirmed via
+    objdump: binutils READS the a.out (format a.out-i386) and sees the syms,
+    but classifies N_IMP as debug.
+  - The emx fix is a small, known BFD patch in bfd/aoutx.h: exclude N_IMP1/2
+    from IS_STAB(), and add translate_from_native_sym_flags cases mapping
+    N_IMP1|N_EXT/N_IMP2|N_EXT to BSF_EMX_IMPORT1/2 abs-section defs; plus the
+    writer side + ld preserving those syms+relocs for emxbind (fixup.c
+    import_symbol) to build the LX import table. The emx-patched binutils 2.6
+    source (gbinusrc.zip) has all of it (bfd/emx-aout.c + aoutx.h); porting
+    those ~9 BFD files into our binutils 2.30 is the remaining work. This is
+    the SAME step the ArcaOS/bitwiseworks maintainers have open as unsolved
+    ("ld fails to configure"). emxbind - assumed the hard part - is DONE.
+  DECISION: save emxbind + the exact patch map to libs/emxbind-src/ as a
+  documented, resumable foundation. OS/2 stays compile+bind-ready; the final
+  ld self-hosting is a future BFD-porting effort (or link natively on OS/2,
+  which works today with the stock FPC OS/2 release).
+
+## Installer build status per target + release docs (2026-07-09)
+  Sysop: can we build installers for all target OSes?
+  Answer - 3 of 5 fully, from a Linux host:
+  - Linux: install ELF - native. FULL installer archive. VERIFIED.
+  - Win32: install.exe PE (FPC internal PE linker, no external tools). FULL
+    installer archive. VERIFIED (cross-built install.exe = PE32).
+  - macOS: install Mach-O (ld64 + SDK). FULL installer archive. VERIFIED.
+  - OS/2: install COMPILES but no runnable install.exe here (LX link needs the
+    OS/2 link step; emxbind ported but the bfd IMPORT# blocker remains). Build
+    on OS/2 with the stock FPC OS/2 release.
+  - DOS: no installer (no Mystic DOS port yet).
+  make_release.sh <tag> <bin-dir> [out] stages: 14 binaries (incl install +
+  install_make) + install_data.mys + FILE_ID.DIZ + whatsnew.txt + upgrade.txt
+  + COPYING, one per-target archive. NOTE: strip build intermediates (*.o
+  *.ppu *.a *.s) from the bin dir before packaging - a raw win32 -FE dir keeps
+  them and they'd end up in the archive. INSTALL gained a "Building release
+  installers" section documenting this + the per-target status.
+
+## OS/2 LINK ON LINUX — SOLVED end-to-end (2026-07-09)
+  A full FPC 2.6.2 OS/2 program now links to a valid OS/2 LX .exe entirely on
+  the Linux host (verified: MZ + LX header, 364KB maketheme.exe, "LX for OS/2
+  ... emx 0.9d"). This was the piece considered unsolved upstream. The complete
+  set of fixes:
+  1. binutils N_IMP patch (bfd/aoutx.h + archive.c + bfd-in2.h): treat emx
+     a.out IMPORT# symbols (N_IMP1 0x68/N_IMP2 0x6a) as defined abs symbols so
+     ld resolves DLL imports; re-ranlib the FPC os2 .a files.
+  2. a.out-emx BFD target (bfd/i386os2.c + targets.c/config.bfd/configure/
+     Makefile.in): emx layout - text file offset 0x400 (ZMAGIC_DISK_BLOCK_SIZE
+     + text-incl-header=0), text vaddr/entry 0x10000, 64KB data segment.
+  3. unpadded a_text: i386os2.c write sets execp->a_text = textsec->rawsize so
+     emxbind's text_end check matches FPC prt0's __etext (BFD otherwise records
+     the page-padded size, off by ~0xFC0).
+  4. emxbind built 32-bit (-m32) so its a.out structs are 32 not 64 bytes;
+     getopt "+" prefix so FPC's trailing -ai/-s8 aren't misparsed.
+  5. emxl.exe loader stub (from emxrt.zip) on PATH.
+  6. two-pass i386-os2-ld wrapper computes data_base =
+     round_segment(0x10000+text_size) and passes -Tdata, since ld's default
+     script would put data at 4MB.
+  DECISION: documented thoroughly + separately in docs/os2-linux-toolchain/
+  (TECHNICAL-REFERENCE.md + BUILD-ON-UBUNTU-24.04.md) because it's the crown
+  jewel and the container is ephemeral. All durable artifacts (patches,
+  i386os2.c, emxbind src+shim, emxl.exe, wrapper text) committed under
+  libs/emxbind-src/. Built tools regenerate from the repo via the Ubuntu recipe
+  (~15-20 min for binutils). Ready to contribute upstream (UPSTREAM-EMX.md).
+
+## All-distro compile pass from libs toolchains (2026-07-09)
+  Built every target; DOS + OS/2 from the libs/ toolchain zips as required.
+  RESULTS:
+  - Linux   14/14  ELF (native ppc386)
+  - Win32   14/14  PE32 (FPC internal linker)
+  - Darwin  14/14  Mach-O (ld64 + 10.6 SDK, out_darwin/bin)
+  - OS/2    14/14  LX (from libs/os2-linux-toolchain.zip: patched ld a.out-emx +
+            emxbind + emxl.exe + wrapper). Includes the networked programs
+            (mystic/mis/fidopoll/nodespy/qwkpoll) - OS/2 has sockets. All 14
+            verified "LX for OS/2 ... emx 0.9d".
+  - DOS      7/14  MZ/COFF/DJGPP (from libs/dos-toolchain.zip). The 7
+            non-networked utilities (maketheme, mplc, mutil, mystpack, install,
+            install_make, 109to110) build. The 5 networked programs
+            (mystic/mis/fidopoll/nodespy/qwkpoll) need BaseUnix/Sockets which
+            go32v2 lacks - that's the known DOS-sockets gap, a separate port.
+  DOS PLATFORM FIXES (real source gaps, committed): added GO32V2 branches that
+  were missing alongside the existing LINUX/DARWIN/WIN32/OS2 ones -
+    mdl/m_ops.pas       : {$IFDEF GO32V2} -> DEFINE DOS + FS_IGNORE
+    mystic/records.pas  : GO32V2 -> PathChar '\', CRLF, OSID 'DOS', OSType 5
+    mdl/m_fileio.pas    : GO32V2 GetProcessID via System unit (like OS2)
+    mdl/m_output.pas    : GO32V2 -> USE_CRT_OUTPUT
+    mdl/m_input.pas     : GO32V2 -> USE_CRT_INPUT
+  Verified no regression: Linux mystic still builds after the edits.
+
+## Release layout: per-target dirs, FULL + UPGRADE (2026-07-09)
+  Sysop: each target platform (win/mac/os2/lnx) gets its own release directory
+  holding the FULL install and the UPGRADE bundle; no separate combined bin
+  archive (it just duplicated the per-target upgrade).
+  LAYOUT:
+    release/<tag>/mystic<tag>full.zip   FULL   (install + install_data.mys + docs)
+    release/<tag>/mystic<tag>upd.zip   UPGRADE (binaries + docs, no payload)
+    e.g. release/os2/mysticos2full.zip + release/os2/mysticos2upd.zip
+  make_release.sh <tag> <bin-dir> [full|upgrade|both] writes into release/<tag>/.
+  make_all_releases.sh [full|upgrade|both] does every platform.
+  DIZ: generated per mode from file_id.<tag>, title "<tag> FULL"/"<tag> UPGRADE",
+  forced CRLF. FULL carries install_data.mys; UPGRADE does not.
+  Dropped the combined mysticbin<date> bundle - redundant with per-target upd.

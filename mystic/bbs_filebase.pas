@@ -112,6 +112,7 @@ Type
     Procedure   DownloadFileList      (Data: String);
     Function    ExportFileList        (NewFiles: Boolean; Qwk: Boolean) : Boolean;
     Function    ArchiveView           (FName : String) : Boolean;
+    Function    ShowFileIDAns         (FName : String) : Boolean;
     Procedure   FileGroupChange       (Ops: String; FirstBase, Intro : Boolean);
     Procedure   XferDisconnect;
     Procedure   UploadFile;
@@ -1089,10 +1090,44 @@ Begin
   Result := 0;
 End;
 
+// ----------------------------------------------------------------------
+// ShowFileIDAns - Mystic 1.12 full-screen FILE_ID.ANS archive viewer.
+//
+// When a user views an archive, 1.12 shows a full-screen ANSI "cover"
+// (FILE_ID.ANS, up to 99 lines) that authors embed alongside FILE_ID.DIZ.
+// We extract it with the same proven ExecuteArchive mode-2 path ReadDIZ
+// uses for FILE_ID.DIZ, then render it with OutFile (which already draws
+// ANSI, honours the user's screen length + pausing, and cleans up the
+// terminal).  Returns True if a FILE_ID.ANS was found and shown.
+// ----------------------------------------------------------------------
+Function TFileBase.ShowFileIDAns (FName : String) : Boolean;
+Var
+  AnsName : String;
+Begin
+  Result := False;
+
+  If Not FileExist(FName) Then Exit;
+
+  // extract FILE_ID.ANS out of the archive into the temp dir
+  ExecuteArchive (FName, '', Session.TempPath + 'file_id.ans', 2);
+
+  AnsName := FileFind(Session.TempPath + 'file_id.ans');
+
+  If AnsName <> '' Then Begin
+    // display the embedded ANSI cover full-screen (pause honoured)
+    Session.io.OutFile (AnsName, True, 0);
+    FileErase (AnsName);
+    Result := True;
+  End;
+End;
+
 Function TFileBase.ArchiveView (FName: String) : Boolean;
 Var
   Mask : String[70];
 Begin
+  // 1.12: show the embedded FILE_ID.ANS cover screen first (if present)
+  ShowFileIDAns (FName);
+
   Result := ArchiveList(FName);
 
   If Not Result Then Exit;
@@ -1100,7 +1135,8 @@ Begin
   Repeat
     Session.io.OutFull (Session.GetPrompt(304));
 
-    Case Session.io.OneKey('DQRV', True) of
+    Case Session.io.OneKey('ADQRV', True) of
+      'A' : ShowFileIDAns (FName);
       'D' : Begin
               Session.io.OutFull (Session.GetPrompt(384));
 

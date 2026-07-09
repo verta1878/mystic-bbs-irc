@@ -60,6 +60,31 @@
 
 
 ================================================================
+ Phase 1 - RIPscrip graphics (mystic_rip/ example module)
+================================================================
+
+ + rip: RIPscrip graphics support, phase 1.  The fork now has a working RIP
+   terminal engine, as a self-contained example module (mystic_rip/) beside
+   the other add-ons.  TTermRip (mystic_rip/rip_term.pas) is the exact
+   parallel of the ANSI class TTermAnsi: feed it a byte stream and it
+   interprets RIPscrip 1.x drawing commands (lines, boxes, bars, circles,
+   ovals, flood fill, text, pixels, and mouse hot-region buttons).  Because
+   RIP is vector graphics, TTermRip renders to a graphics seam (rip_canvas)
+   instead of the text screen; a pure-software EGA surface (rip_surface)
+   implements it, and an SDL2 window presenter (rip_window, runtime-loaded
+   SDL via mystic_sdl's binding) shows it with working clickable buttons.
+   Two demos ship: rip_render turns a .RIP file into a BMP with no display
+   at all, and rip_view shows it in a window where clicking a RIP button
+   prints what it would send to the host.  The engine is the maintainer's
+   clean-room ripterm client lifted into the tree - built once, used twice -
+   and the in-tree renderer's output is pixel-identical to the standalone
+   client's.  The module uses FPC RTL units only (no mdl units); when RIP
+   goes live in the core, rip_term.pas is promoted to mdl/m_term_rip.pas
+   beside m_term_ansi.pas (docs/RIP-INTEGRATION.md maps it).  Fill patterns,
+   fonts, the full button/icon system, and serving RIP screens are the next
+   phases.
+
+================================================================
  DESIGN NOTES (why certain choices were made)
 ================================================================
 
@@ -517,3 +542,84 @@
    Mystic 1.12 uses.  It's a self-contained example (the core is still telnet/
    plaintext); it loads cryptlib at run time and prints the familiar "Cryptlib
    not detected" notice when the library isn't present.
+ + libs: the optional runtime libraries the add-on modules load are now
+   provided pre-built (i386) under libs/win32 and libs/linux-i386: SDL2
+   2.32.8, Hunspell 1.7.2, and (linux) cryptlib.  The linux SDL2 is built
+   with stack realignment so it runs cleanly under the period FPC 2.6.2
+   binaries - the SDL viewer and RIP viewer now work against it out of the
+   box.  Spell checking is proven end-to-end against the bundled Hunspell.
+   Match the library bitness to your Mystic build (all provided are i386).
+   See libs/README.md for provenance and licensing (each keeps its own).
+ + os2: OS/2 target support (source complete; compiles 14/14).  Mystic's
+   platform layer now has an OS/2 branch throughout, written on FPC's own
+   RTL (DosCalls for stdio, TProcess for per-node spawning, System/SysUtils
+   for process id and shelling, so32dll sockets, the generic Keyboard input
+   path) - no raw-API surprises.  All 14 programs compile clean for
+   i386-os2.  Final linking is done natively on OS/2 / eComStation / ArcaOS
+   with the period FPC 2.6.2 OS/2 release (its emxbind binds the OS/2 DLL
+   imports) - the same two-stage build FPC has always used for OS/2.  See
+   docs/DECISIONS.md (2026-07-08) for the porting details and the native-
+   link recipe.
+
+================================================================
+ File descriptions, platform libraries, and more build targets
+================================================================
+
+ + file listings: colour in FILE_ID.DIZ descriptions is now preserved, matching
+   Mystic 1.12.  Older A38 stripped every control character out of a DIZ as it
+   was read, which flattened any colour an author had put in it.  The reader now
+   keeps Mystic pipe colour codes as-is and converts embedded ANSI colour into
+   pipe codes, so a colourful FILE_ID.DIZ shows up in colour in your file
+   listings.  Applies to both normal uploads and the mass-upload utility.
+
+ + file listings: added the Mystic 1.12 full-screen FILE_ID.ANS archive viewer.
+   When a user opens an archive in the file base, the BBS now shows the
+   FILE_ID.ANS "cover screen" that authors embed alongside FILE_ID.DIZ - a full
+   ANSI advertisement for the file, up to 99 lines - before listing the
+   contents.  Press A in the archive viewer to show it again.  It reuses the
+   same extraction path the DIZ reader uses, so any archive type your BBS can
+   already open is supported.
+
+ + platform libraries: the optional add-on modules (SDL2, Hunspell, cryptlib)
+   now ship with prebuilt libraries for all three graphical targets, under
+   libs/ - Windows (SDL2.dll, libhunspell32.dll, cl32.dll), Linux i386, and
+   macOS i386.  Each is loaded at run time and stays off if absent, exactly as
+   in stock Mystic.  The Windows cryptlib (cl32.dll) is cross-built and, under
+   test, reports "Cryptlib detected and initialised - secure sessions
+   available".  The macOS libraries are period-correct builds (SDL2 2.0.1,
+   Hunspell 1.6.2) so they build against the 10.6 SDK that supports the widest
+   range of Macs.
+
+ ! add-on modules on OS/2: the SDL2 / Hunspell / cryptlib bindings now compile
+   for OS/2.  They previously assumed only Unix or Windows for loading a library
+   at run time and failed to build on OS/2; they now use the native OS/2 calls
+   (DosLoadModule / DosQueryProcAddr / DosFreeModule) as well.
+
+ + build targets: OS/2 and DOS join Windows, Linux and macOS.  OS/2 (i386-os2)
+   compiles from the same source with the same FPC 2.6.2; the final link is a
+   native OS/2 step, as it always has been for Free Pascal.  DOS is the classic
+   32-bit protected-mode target (go32v2, DPMI extender) - built with the same
+   2.6.2 as every other target so its data files stay compatible.  A DOS program
+   builds to a real "MZ for MS-DOS, DJGPP go32 DOS extender" executable; a full
+   DOS port of the BBS itself is a later step, since DOS handles connections
+   differently (FOSSIL / door style) than the other platforms.
+
+ + release packaging: each platform's release is built separately and carries
+   its own installer content (install_data.mys), a FILE_ID.DIZ naming the target
+   (win / lnx / os2 / mac / dos BINARIES), the WHATSNEW and UPGRADE text, and
+   the GPL licence - never one combined archive.
+
+ + OS/2: the final link now runs ENTIRELY ON LINUX. A self-hosted emx
+   cross-toolchain (patched GNU binutils with a new "a.out-emx" target + the
+   emx IMPORT# symbol patch, a Linux port of emxbind, the emxl.exe loader, and
+   a data-alignment ld wrapper) turns FPC's a.out into a native OS/2 LX .exe
+   on a Linux host - no OS/2 machine needed. All 14 programs build and verify
+   as "LX for OS/2 ... emx 0.9d". Build the toolchain from
+   libs/os2-linux-toolchain.zip; full docs in docs/os2-linux-toolchain/. This
+   is the step ArcaOS/bitwiseworks track as an open problem.
+ ! OS/2 is now a FULL 14/14 release (incl. the networked programs and a
+   runnable install) built on Linux via LINK=1 ./build-os2.sh.
+ + DOS/go32v2: added the missing DOS platform branches (m_ops, records,
+   m_fileio, m_output, m_input) - the 7 non-networked utilities now build from
+   libs/dos-toolchain.zip. The networked programs await a DOS socket layer
+   (Watt-32 or FOSSIL); DOS port otherwise on hold.
