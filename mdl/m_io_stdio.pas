@@ -28,7 +28,11 @@ Uses
   {$IFDEF OS2}
     DosCalls,   // OS/2: FPC RTL Dos* API (no BaseUnix on OS/2)
   {$ELSE}
-    BaseUnix,
+    {$IFDEF GO32V2}
+      Dos, SysUtils,   // DOS/go32v2: no BaseUnix; FileRead/FileWrite handle I/O
+    {$ELSE}
+      BaseUnix,
+    {$ENDIF}
   {$ENDIF}
   m_io_Base;
 
@@ -71,7 +75,12 @@ Begin
     Else
       Result := -1;
   {$ELSE}
-    Result := fpWrite(STDIO_OUT, Buf, Len);
+    {$IFDEF GO32V2}
+      // DOS: write to stdout handle (1) via the RTL file-handle writer.
+      Result := FileWrite(STDIO_OUT, Buf, Len);
+    {$ELSE}
+      Result := fpWrite(STDIO_OUT, Buf, Len);
+    {$ENDIF}
   {$ENDIF}
 End;
 
@@ -87,7 +96,12 @@ Begin
     Else
       Result := -1;
   {$ELSE}
-    Result := fpRead(STDIO_IN, Buf, Len);
+    {$IFDEF GO32V2}
+      // DOS: read from stdin handle (0) via the RTL file-handle reader.
+      Result := FileRead(STDIO_IN, Buf, Len);
+    {$ELSE}
+      Result := fpRead(STDIO_IN, Buf, Len);
+    {$ENDIF}
   {$ENDIF}
 End;
 
@@ -205,10 +219,10 @@ Begin
 End;
 
 Function TSTDIO.WaitForData (TimeOut: LongInt) : LongInt;
-{$IFNDEF OS2}
+{$IF (not Defined(OS2)) and (not Defined(GO32V2))}
 Var
   FDSIN : TFDSET;
-{$ENDIF}
+{$IFEND}
 Begin
   {$IFDEF OS2}
     // OS/2 phase 1: no select() on file handles.  Report "ready" and let
@@ -217,10 +231,18 @@ Begin
     // exercised on real OS/2 (see docs/TODO.md OS/2 item).
     Result := 1;
   {$ELSE}
-    fpFD_Zero (FDSIN);
-    fpFD_Set  (STDIO_IN, FDSIN);
+    {$IFDEF GO32V2}
+      // DOS: no select() on file handles (single-tasking).  Report "ready"
+      // and let FileRead block - a DOS door/stdio session is inherently
+      // blocking.  (Network sessions use m_io_sockets + Watt-32 select,
+      // not this stdio path.)
+      Result := 1;
+    {$ELSE}
+      fpFD_Zero (FDSIN);
+      fpFD_Set  (STDIO_IN, FDSIN);
 
-    Result := fpSelect (STDIO_IN + 1, @FDSIN, NIL, NIL, TimeOut);
+      Result := fpSelect (STDIO_IN + 1, @FDSIN, NIL, NIL, TimeOut);
+    {$ENDIF}
   {$ENDIF}
 End;
 

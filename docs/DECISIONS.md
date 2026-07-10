@@ -3121,3 +3121,44 @@
   DIZ: generated per mode from file_id.<tag>, title "<tag> FULL"/"<tag> UPGRADE",
   forced CRLF. FULL carries install_data.mys; UPGRADE does not.
   Dropped the combined mysticbin<date> bundle - redundant with per-target upd.
+
+## DOS sockets: prefer backporting FPC's Pascal Sockets unit (2026-07-09)
+  CONTEXT: The fork's socket layer (mdl/m_io_sockets.pas) uses FPC RTL Pascal
+  units on ALL working platforms - WinSock/Winsock2 (Win), BaseUnix+cNetDB
+  (Linux/macOS), WinSock (OS/2) - plus FPC's built-in 'Sockets' unit. NO C
+  compiler is involved in networking on any working target. DOS is the only
+  gap: FPC 2.6.2's go32v2 RTL ships no Sockets unit (verified).
+
+  SYSOP DIRECTION: backport / reuse FPC's Pascal socket code for go32v2 rather
+  than writing or binding C. Rationale: keeps DOS consistent with the other
+  four platforms (same 'Sockets' unit surface), no C compiler added to the
+  fork's own build, and FPC's RTL is actively maintained.
+
+  ACCURACY NOTES (verified 2026-07-09, don't overstate):
+  - FPC RTL 'Sockets' unit: actively maintained (FPC 3.2.2 current). GOOD.
+  - Watt-32: the canonical homepage (watt-32.net) is frozen ~1999, BUT active
+    GitHub forks exist and take PRs (gvanem/Watt-32, sezero/watt32, jwt27's
+    cross-compile fork). So "abandoned" is too strong - the homepage is stale,
+    the community forks are not. State it that way.
+  - CAVEAT: DOS has no OS-level TCP/IP. Even FPC-native go32v2 networking (if
+    a usable Sockets unit exists in 3.0.4/3.2.2) most likely still sits on a
+    C TCP stack (Watt-32 or lwIP) + a DOS packet driver at RUNTIME. So the
+    achievable goal is "the FORK's code stays Pascal (FPC Sockets unit)", NOT
+    "zero C anywhere on DOS". The C stack becomes an external dependency, like
+    a driver - not code in this repo.
+  - LEGAL (bundling Watt-32 source into this GPLv3 repo): Watt-32 is permissive
+    / BSD-style (Waterloo TCP heritage), generally GPL-compatible IF its
+    copyright + license text are preserved. BUT the old Waterloo notice has a
+    non-standard "may not sell" clause that is NOT plain BSD and could
+    complicate GPL redistribution - read the specific fork's LICENSE before
+    bundling. (Not legal advice.) Preferred path avoids bundling Watt-32
+    source at all: use FPC's Sockets unit + treat the TCP stack/packet driver
+    as an external runtime dependency.
+
+  TASKS WHEN DOS RESUMES:
+    1. Check FPC 3.0.4 / 3.2.2 go32v2 RTL for a usable Sockets unit + netdb.
+    2. If present, build the 5 networked DOS programs with that FPC's socket
+       units; keep SizeOf record anchors intact (reason 2.6.2 is pinned).
+    3. Document the runtime stack (Watt-32/lwIP + packet driver) as an external
+       dependency; do NOT bundle its source unless license-cleared.
+  Preference order: FPC-native go32v2 Sockets (Pascal) > Watt-32 binding > FOSSIL.

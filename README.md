@@ -43,7 +43,7 @@ the build documentation is treated as a first-class part of the project.
   on-disk data compatibility (a running board's config/message files stay valid).
 
 This is alpha-era software being carefully modernized; expect rough edges and
-read [docs/whatsnew.txt](docs/whatsnew.txt) for exactly what has changed.
+read [mystic/whatsnew.txt](mystic/whatsnew.txt) for exactly what has changed.
 
 ## Building
 
@@ -58,12 +58,22 @@ Linux -> Darwin cross-compile recipe.
 | Linux (Debian) | `build.sh`        | Linux / bash                         |
 | macOS (Darwin) | `build-darwin.sh` | macOS, or Linux with a cross toolchain |
 | OS/2           | `build-os2.sh`    | Linux (full: compile + LX link)      |
-| DOS (go32v2)   | see INSTALL       | Linux with a cross toolchain         |
+| DOS (go32v2)   | `build-dos.sh`    | Linux with the bundled cross toolchain |
 
 ```
-./build.sh            # build everything (Linux)
-./build.sh mis        # build a single target
+# Linux (native)
+./build.sh                       # build everything
+./build.sh mis                   # build a single target
+
+# Other targets (all cross-compiled from a Linux host):
+LINK=1 ./build-os2.sh            # OS/2  -> LX executables (needs libs/ emx toolchain)
+SDK=/path/to/MacOSX10.6.sdk ./build-darwin.sh   # macOS -> Mach-O
+./build-dos.sh                   # DOS   -> go32v2 (10/14; networked need libwatt.a)
 ```
+
+The OS/2 and DOS cross toolchains ship in `libs/` (`os2-linux-toolchain.zip`,
+`dos-toolchain.zip`) with the binutils patches that let GNU `ld` read FPC's
+object output - see `libs/emxbind-src/` and `libs/dos-binutils-patch/`.
 
 ## What's in the tree
 
@@ -120,7 +130,7 @@ Live use needs real modem hardware (V.42-capable for BinkP).
 
 - **[INSTALL](INSTALL)** - how to build on each platform, prerequisites,
   and the macOS cross-compile recipe.
-- **[docs/whatsnew.txt](docs/whatsnew.txt)** - the changelog: every change in this fork.
+- **[mystic/whatsnew.txt](mystic/whatsnew.txt)** - the changelog: every change in this fork.
 - **[docs/mystic.html](docs/mystic.html)** - the full Mystic manual (HTML): the original
   sysop documentation header plus a consolidated export of the entire Mystic wiki
   (80 pages: configuration, MUTIL, menus/display codes, scripting, changelogs).

@@ -18,7 +18,7 @@ pushes.
 1. **docs/TODO.md** — the ONE canonical roadmap (forward-looking).
 2. **docs/DECISIONS.md** — the deep record: every decision, correction,
    "do NOT revert" note. Skim the last few entries for recent state.
-3. **docs/whatsnew.txt** — user-facing changelog (what's DONE).
+3. **mystic/whatsnew.txt** — user-facing changelog (what's DONE).
 4. **docs/RIP-INTEGRATION.md** — the RIP graphics design + status.
 5. **INSTALL** — build instructions per platform.
 

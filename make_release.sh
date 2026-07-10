@@ -35,7 +35,7 @@ T="$1"; BIN="$2"; MODE="${3:-both}"; OUTROOT="${4:-release}"
   echo "usage: $0 <win|lnx|os2|mac|dos> <bin-dir> [full|upgrade|both] [out-dir]"; exit 1; }
 case "$MODE" in full|upgrade|both) ;; *) echo "mode = full|upgrade|both"; exit 1;; esac
 
-FID="file_id.$T"
+FID="mystic/file_id.$T"
 [ -f "$FID" ] || { echo "missing $FID (per-target DIZ template)"; exit 1; }
 [ -d "$BIN" ] || { echo "no such bin dir: $BIN"; exit 1; }
 

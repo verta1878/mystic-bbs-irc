@@ -41,7 +41,13 @@ Uses
     BaseUnix,
     cNetDB,
   {$ENDIF}
-  Sockets,
+  {$IFDEF GO32V2}
+    // DOS/go32v2 has no RTL Sockets unit; sockets_go32v2 provides the same
+    // fp* API on top of Watt-32 (see mdl/sockets_go32v2.pas + docs/DOS-SOCKETS.md).
+    sockets_go32v2,
+  {$ELSE}
+    Sockets,
+  {$ENDIF}
   m_DateTime,
   m_Strings,
   m_io_Base;

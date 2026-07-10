@@ -26,7 +26,11 @@ Unit MIS_Server;
 Interface
 
 Uses
-  Sockets,
+  {$IFDEF GO32V2}
+    sockets_go32v2,   // DOS: no RTL Sockets unit (see mdl/sockets_go32v2.pas)
+  {$ELSE}
+    Sockets,
+  {$ENDIF}
   Classes,
   m_io_Base,
   m_io_Sockets,

@@ -39,6 +39,11 @@ Interface
   Type TPipe = Class(TPipeDisk);
 {$ENDIF}
 
+{$IFDEF GO32V2}
+  Uses m_Pipe_Disk;   // DOS: disk-based pipe (platform-neutral, like OS/2)
+  Type TPipe = Class(TPipeDisk);
+{$ENDIF}
+
 Implementation
 
 End.

@@ -58,6 +58,9 @@ Uses
   {$IFDEF WINDOWS}
     Windows,
   {$ENDIF}
+  {$IFDEF GO32V2}
+    SysUtils,   // DOS: ExecuteProcess / GetEnvironmentVariable for single-node
+  {$ENDIF}
   m_io_Base,
   m_io_Sockets,
   m_FileIO,
@@ -296,6 +299,48 @@ Begin
   ND.SetNodeInfo(Num, NI);
 
   FileErase (bbsCfg.DataPath + 'chat' + strI2S(NI.Num) + '.dat');
+End;
+{$ENDIF}
+
+{$IFDEF GO32V2}
+// DOS/go32v2 is single-tasking: no fork(), no Win32 API, no fcl-process
+// TProcess to relay a per-node child. So DOS handles ONE TCP connection at a
+// time, inline - the single-node model (cf. the mystic_misdos/ sample and
+// docs/DECISIONS.md). We hand the accepted socket straight to a `mystic`
+// node via -TID<handle> (exactly what the Windows path does with CommHandle),
+// then block until that session ends before the listener accepts again.
+Procedure TTelnetServer.Execute;
+Var
+  Num : LongInt;
+  NI  : TNodeInfoRec;
+Begin
+  Client.FTelnetServer := True;
+
+  Num := ND.GetFreeNode;
+
+  FillChar(NI, SizeOf(NI), 0);
+  NI.Num    := Num;
+  NI.Busy   := True;
+  NI.IP     := Client.FPeerIP;
+  NI.User   := 'Unknown';
+  NI.Action := 'Logging In';
+  ND.SetNodeInfo(Num, NI);
+
+  // Run the single node directly on this socket handle and wait for it to
+  // finish (single-tasking: the listener is idle for the duration of the call).
+  ExecuteProcess(GetEnvironmentVariable('COMSPEC'),
+    '/C mystic -n' + strI2S(Num) +
+    ' -TID' + strI2S(Client.FSocketHandle) +
+    ' -IP'  + Client.FPeerIP +
+    ' -HOST' + Client.FPeerName);
+
+  NI.Busy   := False;
+  NI.IP     := '';
+  NI.User   := '';
+  NI.Action := '';
+  ND.SetNodeInfo(Num, NI);
+
+  FileErase(bbsCfg.DataPath + 'chat' + strI2S(NI.Num) + '.dat');
 End;
 {$ENDIF}
 

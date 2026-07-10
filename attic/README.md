@@ -27,7 +27,7 @@ Original Mystic history/changelog files, kept for reference:
 - `HISTORY_g00r00_v105-v110.txt` - upstream history, Mystic v1.05 through v1.10
 - `fullhistory_g00r00.txt` - upstream full changelog from v1.05
 - `whatsnew_g00r00_upto_A38.txt` - g00r00's whatsnew ending at `<ALPHA 38 RELEASED>`
-  (our exact base version). This fork's own whatsnew now lives in `mystic/whatsnew.txt`
-  and `docs/whatsnew.txt`.
+  (our exact base version). This fork's own whatsnew now lives only in `mystic/whatsnew.txt`
+  (the single canonical copy).
 - `README_ORIGINAL_SOURCE_DIST.txt` - the original Mystic source-distribution README
   (superseded by this fork's root `INSTALL` + `build.sh`/`build-win32.bat`).

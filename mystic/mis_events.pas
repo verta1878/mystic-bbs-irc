@@ -15,6 +15,9 @@ Uses
   {$IFDEF OS2}
     SysUtils,   // ExecuteProcess / GetEnvironmentVariable for ShellExec
   {$ENDIF}
+  {$IFDEF GO32V2}
+    SysUtils,   // DOS: ExecuteProcess / GetEnvironmentVariable for ShellExec
+  {$ENDIF}
 //  m_Threads,
   Classes,
   m_Strings,
@@ -131,6 +134,21 @@ End;
 {$IFDEF OS2}
 // OS/2: run the command through the RTL's ExecuteProcess (via the command
 // interpreter, so redirection / built-ins work as in the shell paths above).
+Function TEventEngine.ShellExec (PPath, PCmd: String; PFlags: LongInt) : LongInt;
+Begin
+  If PPath <> '' Then
+    DirChange (PPath);
+
+  Result := ExecuteProcess (GetEnvironmentVariable('COMSPEC'), '/C ' + PCmd);
+
+  DirChange (bbsConfig.SystemPath);
+End;
+{$ENDIF}
+
+{$IFDEF GO32V2}
+// DOS: run the command through COMMAND.COM (COMSPEC) with /C, same model as
+// OS/2. Single-tasking, so this blocks until the child exits - which is the
+// correct behaviour for a DOS event shell-out.
 Function TEventEngine.ShellExec (PPath, PCmd: String; PFlags: LongInt) : LongInt;
 Begin
   If PPath <> '' Then

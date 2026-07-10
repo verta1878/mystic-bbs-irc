@@ -127,8 +127,8 @@ FULL mode, and zips one archive per target.
 
 ### 4a. FILE_ID.DIZ and CRLF
 Each release carries a `FILE_ID.DIZ` - the description a BBS shows in a file
-listing.  It is generated from the per-target template `file_id.<tag>` in the
-repo root, with the title line's "`<tag> BINARIES`" replaced by
+listing.  It is generated from the per-target template `mystic/file_id.<tag>`,
+with the title line's "`<tag> BINARIES`" replaced by
 "`<tag> FULL`" or "`<tag> UPGRADE`", and written with **CRLF** line endings.
 
 CRLF matters: FILE_ID.DIZ (like all BBS text artifacts) must be CRLF regardless
@@ -144,21 +144,26 @@ per platform via `LineTerm` in records.pas (CRLF for DOS/OS2/Win, LF for
 Linux/Mac) - that's compiled in by target and needs no cross-compile handling.
 
 ### 4b. Build every platform at once
-`make_all_releases.sh [full|upgrade] [out-dir]` compiles all targets and calls
-`make_release.sh` for each:
+`make_all_releases.sh [full|upgrade] [out-dir]` compiles all five targets and
+calls `make_release.sh` for each.  Each target is independent: if a target's
+toolchain is missing it is skipped with a note and the others still build.
 
     ./make_all_releases.sh full                    # all FULL installers
     ./make_all_releases.sh upgrade                 # all UPGRADE bundles
     SDK=/path/to/MacOSX10.6.sdk ./make_all_releases.sh full   # incl. macOS
 
-(macOS needs `SDK=`; OS/2 needs the emx toolchain on PATH - see INSTALL.)
+Toolchain env knobs: `WIN32RTL=` (Win32 RTL units), `SDK=` (macOS), the emx
+toolchain on PATH (OS/2), and for DOS the bundled `libs/dos-toolchain.zip`
+(auto-unpacked by `build-dos.sh`) plus optional `WATT32LIB=` for the networked
+utilities.  See INSTALL and docs/DOS-SOCKETS.md.
 
 ### 4c. Where compiled binaries land (repo-root output dirs)
     Linux    out/bin/           (build.sh)
     Win32    out/bin-win/       (make_all_releases.sh; or the .bat's -FE dir)
     macOS    out_darwin/bin/    (build-darwin.sh)
     OS/2     out/bin-os2/       (build-os2.sh)
-    DOS      out/bin-dos/       (manual; 7/14 utilities)
+    DOS      out/bin-dos/       (build-dos.sh; 10/14 - networked utils need
+                                 Watt-32 libwatt.a, see docs/DOS-SOCKETS.md)
 All of `out/` and `out_darwin/` are gitignored - build output never enters the
 repo.  Point `make_release.sh <tag> <bin-dir>` at the matching dir above.
 
