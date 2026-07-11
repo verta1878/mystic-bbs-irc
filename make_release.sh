@@ -109,8 +109,16 @@ build_one () {
     [ -f "$u" ] && cp "$u" "$STAGE"/
   done
   # payload only in FULL
-  [ "$mode" = full ] && [ -f "mystic/install_data.mys" ] && \
+  if [ "$mode" = full ] && [ -f "mystic/install_data.mys" ]; then
     cp "mystic/install_data.mys" "$STAGE"/
+    # The 14 program binaries are ALREADY inside install_data.mys (the installer
+    # unpacks them), so they are redundant loose in the FULL archive.  Remove
+    # them, keeping ONLY install.exe (the installer the user actually runs).
+    for b in mystic mis mutil mplc mide mbbsutil fidopoll nodespy qwkpoll \
+             mystpack install_make maketheme 109to110; do
+      rm -f "$STAGE/$b" "$STAGE/$b.exe"
+    done
+  fi
   [ -f COPYING ] && cp COPYING "$STAGE"/
 
   # Package inside a top-level folder named after the archive, so extracting the
