@@ -623,3 +623,50 @@
    m_fileio, m_output, m_input) - the 7 non-networked utilities now build from
    libs/dos-toolchain.zip. The networked programs await a DOS socket layer
    (Watt-32 or FOSSIL); DOS port otherwise on hold.
+
+ + DOS/go32v2 networking: the DOS build now includes a complete TCP/IP socket
+   layer, so the BBS server itself and the networked tools compile for DOS.
+   The socket code is written in Pascal and speaks the same Sockets API the
+   other platforms use, sitting on the Watt-32 stack + a DOS packet driver at
+   run time (the way DOS networking has always worked).  DOS now builds 10 of
+   14 programs, INCLUDING the mystic server; the four remaining tools
+   (mis / fidopoll / nodespy / qwkpoll) compile and are ready to link once
+   Watt-32 (libwatt.a) is supplied.
+
+ ! DOS/go32v2 linking: fixed the toolchain so GNU ld can read Free Pascal's
+   DOS object files.  FPC marks its program sections with a symbol class that
+   stock binutils rejected ("unrecognized storage class 104"), which blocked
+   linking any DOS program that calls a C library.  A small binutils patch
+   teaches the DOS linker to accept it - shipped in libs/dos-binutils-patch/
+   (patch + the full binutils 2.30 source), and already baked into the bundled
+   libs/dos-toolchain.zip so the repo builds DOS from its own tools.
+
+ + DOS build script: build-dos.sh cross-builds every DOS program from the
+   bundled toolchain on a Linux host (./build-dos.sh, or one target by name).
+   Set WATT32LIB=<dir with libwatt.a> to also link the networked tools.
+
+ + DOS telnet server: on DOS the telnet listener serves one caller at a time,
+   handing the connection straight to a mystic node - the single-tasking model
+   DOS uses (no threads).  Watt-32 itself supports several connections at once;
+   a cooperative multi-node poll loop is planned as a later step.
+
+ + build every release at once: make_all_releases.sh now covers all five
+   targets (Linux, Windows, macOS, OS/2 and DOS).  Each target is independent -
+   if a toolchain is missing that one is skipped and the rest still build - and
+   every target produces the usual FULL and UPGRADE archives.
+
+ + Echomail nodes can now have a maximum PKT size and a maximum ARCmail/bundle
+   size, both configured per node in KB (0 = no limit).  When exporting, Mystic
+   starts a new PKT once the current one reaches the PKT limit, and rolls to a
+   new bundle once the current bundle reaches the ARCmail limit.  The two new
+   fields appear in the Echomail Node editor as "Max PKT KB" and "Max ARC KB".
+
+ + NetMail message bases no longer need to be linked/tagged to an echomail node
+   to be exported.  Netmail now routes purely by destination address, so a
+   NetMail base with no echo tag will still export correctly.
+
+ + When routing NetMail, Mystic now first compares the destination address
+   against all configured echomail nodes.  If there is a direct match it routes
+   the NetMail straight to that node without consulting Route Info; only if
+   there is no direct match does it fall back to matching each node's Route Info
+   in order.

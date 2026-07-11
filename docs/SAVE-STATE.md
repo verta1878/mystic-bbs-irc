@@ -109,8 +109,9 @@ win32 cl32.dll (needs MSVC).  Provenance: libs/README.md + DECISIONS 2026-07-08.
   `LINK=1 ./build-os2.sh` with the toolchain bin/ on PATH. Docs:
   docs/os2-linux-toolchain/. Patches: libs/emxbind-src/binutils-patch/.
 - **Build matrix now:** Linux 14/14 ELF, Win32 14/14 PE32, Darwin 14/14
-  Mach-O, OS/2 14/14 LX (all on Linux); DOS 7/14 (non-networked only,
-  needs a socket layer - Watt-32/FOSSIL, on hold).
+  Mach-O, OS/2 14/14 LX (all on Linux); DOS 10/14 (incl. the mystic server -
+  socket layer + binutils link fix done; the 4 networked utilities need
+  Watt-32 libwatt.a).
 - **DOS platform branches added** (m_ops, records, m_fileio, m_output,
   m_input) - real source gaps that blocked go32v2; Linux reverified.
 - Combined binaries archive naming: mystica38bin<YYYYMMDD>.zip.
@@ -120,3 +121,18 @@ win32 cl32.dll (needs MSVC).  Provenance: libs/README.md + DECISIONS 2026-07-08.
   container-ephemeral (rebuild from the zips per the docs).
 - UPSTREAM-EMX.md is paste-ready for bitwiseworks/ArcaOS + FPC + emx SF;
   sysop must do the actual posting (AI can't open issues/PRs).
+
+## Release naming + DIZ (2026-07-10)
+- Archive names: mystic-<VER>-<tag>-<mode>-<STAMP>.zip
+  VER default 1.10a38irc; STAMP = build date MM-DD-YYYY while importing an
+  alpha, or FINAL when that alpha's import is complete+verified.
+  e.g. mystic-1.10a38irc-win-full-07-10-2026.zip / -win-update-07-10-2026.zip
+- Each archive packages contents inside a top-level folder named after the
+  archive, so extracting FULL and UPDATE side by side does NOT merge them.
+- FILE_ID.DIZ: header renders "Mystic BBS v1.10-IRC Fork  <tag> FULL/UPGRADE"
+  (border re-padded/aligned), last line " Released: <STAMP>" (date or FINAL).
+- make_release.sh globs all update*.txt notes into both archives.
+- A40 work is feature-complete but NOT yet verified as a working whole (no full
+  multi-target build run, tests/a40 never executed, no live toss/mbcico). So by
+  the date->FINAL rule, A40 is NOT FINAL - current builds carry the date.
+- Windows: 14/14 built (first full A40 build - compiles clean as a set).

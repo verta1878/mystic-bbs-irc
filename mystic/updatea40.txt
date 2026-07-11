@@ -1,0 +1,81 @@
+ ,-------------------------.
+ | UPDATE NOTES - ALPHA 40 |----------------------------------------------------
+ `-------------------------'
+
+ This file describes what changed in the Alpha 40 update of this fork and the
+ steps to apply it.  It ships with the release so sysops have the per-version
+ notes alongside the binaries (Mystic's convention is one update file per
+ version).  For the full feature descriptions, see WHATSNEW.TXT.  For the
+ general upgrade procedure and the master list of new prompts, see UPGRADE.TXT.
+
+ ,-----------.
+ | WHAT'S NEW |
+ `-----------'
+
+ + Echomail nodes can now have a maximum PKT size and a maximum ARCmail/bundle
+   size, configured PER NODE in kilobytes.  During export Mystic starts a new
+   PKT once the current one reaches the "Max PKT Size" limit, and rolls to a new
+   bundle once the current bundle reaches the "Max ARC Size" limit.  A value of
+   0 disables that limit for the node.
+
+   New echomail nodes default to 512 KB for PKT and 2048 KB for bundles (the
+   same defaults as upstream Mystic).  The PKT size should be significantly
+   smaller than the bundle size for accurate results, since bundles are just
+   compressed PKTs.
+
+   Where to set it (in the Mystic configuration, run "mystic -CFG"):
+     EchoMail Nodes > (edit a node)
+       Max PKT Size ... maximum PKT size in KB           (0 = None)
+       Max ARC Size ... maximum bundle/arcmail size in KB (0 = None)
+
+ + When routing NetMail, Mystic now first compares the destination address
+   against all configured echomail nodes.  If there is a direct match it routes
+   the NetMail straight to that node without consulting Route Info; only if
+   there is no direct match does it fall back to matching each node's Route Info
+   in order.
+
+ + NetMail message bases no longer need to be linked or tagged to an echomail
+   node in order to be exported.  NetMail now routes purely by destination
+   address, so a NetMail base with no echo tag will still export correctly.
+
+ ,-------------------.
+ | HOW TO APPLY THIS |
+ `-------------------'
+
+ - Stop all Mystic stuff (BBS, MIS, any pollers/tossers).
+ - Back up your BBS directory first (always!).
+ - Replace *ALL executables* (don't forget MUTIL, MIS, and the tools).
+ - IMPORTANT - re-check your echomail nodes after upgrading:
+     The echomail node record (ECHONODE.DAT) has been realigned to match stock
+     Mystic 1.10 A40 exactly.  The record is the same SIZE as before, but some
+     fields now sit in different positions within it, and several new fields were
+     added (PKT Password, Use FileBox, FileBox Dir, TIC Password).  Because the
+     byte layout changed, echomail node entries created by an OLDER build of this
+     fork will NOT read back correctly - the values may appear shifted or wrong.
+
+     After upgrading you should open "mystic -CFG" > EchoMail Nodes and verify
+     (and if needed re-enter) each node's settings - especially Session Type,
+     Route Info, addresses, and passwords.  New "Max PKT Size" / "Max ARC Size"
+     fields default to 512 / 2048 KB on nodes you create from now on.
+
+     If you have only a few nodes, the simplest safe path is to write down their
+     settings before upgrading and re-enter them afterward.
+ - No new prompts are introduced by this update.
+ - Recompile MPL programs only if the general UPGRADE.TXT for your jump calls
+   for it; this update does not add or change any prompts or MPL.
+
+ Optional:
+ - To change a node's limits, edit the echomail node and set "Max PKT Size"
+   and/or "Max ARC Size" (in KB).  Set either to 0 to disable that limit.
+ - If you keep NetMail in a base that was only linked to a node so that it would
+   export, that link is no longer required and can be removed if you like.
+
+ ,-------.
+ | NOTES |
+ `-------'
+
+ - This is a fork of Mystic BBS 1.10 A38.  The A40-level features above were
+   brought forward into the fork; see WHATSNEW.TXT for the complete list of
+   fork changes and the source docs for implementation detail.
+ - Verify a test toss after upgrading if you set size limits, so you can confirm
+   PKTs/bundles roll at the sizes you expect on your system.

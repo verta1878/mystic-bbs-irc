@@ -198,30 +198,36 @@ and SizeOf anchors). A fresh session picks up from item 1.
 
 o7
 
-## DOS port - networking (on hold, sysop 2026-07-09)
-The 7 non-networked DOS utilities build (from libs/dos-toolchain.zip). The 5
-networked programs (mystic/mis/fidopoll/nodespy/qwkpoll) need a socket layer
-the pinned FPC 2.6.2 go32v2 RTL does not provide (verified: no Sockets/netdb
-unit in rtl/units/go32v2).
+## DOS port - networking (socket layer DONE; needs Watt-32 libwatt.a)
 
-SYSOP DIRECTION (2026-07-09): prefer a FPC-native path over hand-written C -
-i.e. use "the last FPC version whose go32v2 target supports sockets" so the
-DOS network layer comes from the Pascal RTL, not a C shim. WHEN DOS RESUMES,
-first VERIFY this exists:
-  - Check which FPC go32v2 releases actually ship a usable Sockets unit /
-    netdb for DOS (candidates to test: 3.0.4, 3.2.2 - the current DOS builds;
-    2.6.2, our pin, does NOT). If a native FPC Sockets unit exists for go32v2,
-    build the DOS network programs with THAT FPC for the socket units while
-    keeping data-record compatibility (watch SizeOf anchors if the compiler
-    version changes on-disk layouts - that's the reason 2.6.2 is pinned).
-  - NOTE/caveat to confirm: DOS TCP/IP on DJGPP is normally provided by
-    Watt-32, which is itself C (it just exposes a BSD-sockets API + a DOS
-    packet driver underneath). So "FPC-native sockets on go32v2" likely still
-    depends on a Watt-32 (or equivalent) TCP stack + packet driver at runtime,
-    even if the Pascal side is just a Sockets unit. Verify whether FPC's
-    go32v2 Sockets unit links Watt-32 or another stack before committing.
-  - Fallbacks if no clean FPC-native go32v2 sockets: Watt-32 BSD-sockets
-    binding (maps onto m_io_sockets), or a FOSSIL/telnet gateway (separate
-    m_io_fossil I/O path; eleBBS-style).
-Preferred order: FPC-native go32v2 Sockets unit  >  Watt-32 binding  >  FOSSIL.
-HOLD for now - continue other targets.
+DONE (2026-07-09): DOS builds 10/14, including the mystic server. The socket
+layer is written and the binutils link blocker is solved - both in the repo.
+
+  - mdl/sockets_go32v2.pas: a complete FPC-Sockets-compatible BSD API (TCP+UDP,
+    DNS, select, sockopts, address helpers) bound to Watt-32. The fork's code
+    is unchanged; go32v2 `Uses sockets_go32v2` in place of the RTL Sockets unit
+    (which FPC 2.6.2's go32v2 target does not ship). This keeps the fork's code
+    Pascal on our PINNED 2.6.2 - no risky re-pin to 3.0.4/3.2.2, so the SizeOf
+    record anchors stay intact.
+  - libs/dos-binutils-patch/: the C_SECTION(0x68) fix so GNU ld reads FPC
+    objects (stock binutils 2.30 rejected them, breaking any C-library link).
+    Includes the pristine binutils-2.30 source tarball (GPL source travels with
+    the repo). The patched ld/nm/objdump are in libs/dos-toolchain.zip.
+  - DOS code gaps closed: m_io_stdio, m_pipe, mis_events ShellExec, go32v2 MD5.
+
+REMAINING - build Watt-32 (libwatt.a) for djgpp/go32v2:
+  - build-dos.sh already wires the link: set WATT32LIB=<dir-with-libwatt.a> and
+    it adds -Fl<dir> -k-lwatt. With libwatt.a present the 4 networked programs
+    (mis/fidopoll/nodespy/qwkpoll) link.
+  - Watt-32 is external C (a real TCP/IP stack + a runtime packet driver), NOT
+    bundled - it is a build/runtime dependency like a driver. Candidate sources:
+    the jwt27/watt32 djgpp cross-compile fork, gvanem/Watt-32, sezero/watt32.
+    Check the specific fork's LICENSE before bundling any Watt-32 SOURCE (the
+    old Waterloo "may not sell" clause is non-standard; not legal advice).
+  - Then: link-test, and runtime shake-out with a packet driver + WATTCP.CFG.
+
+CONCURRENCY: Watt-32 handles multiple concurrent sockets (it has select_s). The
+DOS constraint is no preemptive threads, not "one connection". The DOS mis
+Execute currently serves one caller at a time (bring-up simplification); a
+cooperative select() accept-loop for multiple concurrent nodes is the planned
+upgrade. See docs/DOS-SOCKETS.md.

@@ -83,6 +83,24 @@ Match the library BITNESS to the Mystic build (all provided binaries are i386).
 
 Two self-contained cross-build toolchains ship as zips here:
 
+### fpc264irc.tar.gz (~53 MB) — the 2.6.4irc compiler fork
+A complete built distribution of **FPC 2.6.4irc**, a minimal fork of FPC 2.6.4
+that adds a DOS (go32v2) `Sockets` unit over Watt-32, backports FPC 3.0/3.3
+cross-link fixes (so stock `binutils-djgpp` links go32v2 with no C_SECTION
+patch), and fixes OS/2 import-symbol generation.  Contents: `bin/ppc386` +
+`bin/ppcx64` (prebuilt), `bin/units/` (compiled RTL per target incl.
+`i386-go32v2/sockets.ppu`), `src/` (compiler 10 modified files; rtl 1 new + 2
+modified incl. `rtl/go32v2/sockets.pp`), `test/` (per-platform socket tests),
+`patches/os2-cross/`, build scripts, `CHANGELOG-IRC.md`.
+
+Key property: base FPC 2.6.4, `minorpatch='irc'`, **PPU wordversion unchanged**
+— binary-compatible with stock 2.6.4 units, so on-disk record layout stays
+2.6.x (the record anchors are safe by construction).  The payoff: `Uses Sockets`
+works on DOS exactly like every other platform, with **no** app-level `{$IFDEF
+GO32V2}`.  NOTE: the project compiler is still the pinned **2.6.2**; 2.6.4irc is
+captured here and validated but adopting it as the build compiler is a separate,
+deliberate switch (see docs/DECISIONS.md).
+
 ### dos-toolchain.zip (~25 MB)
 FPC 2.6.2 compiler (bin/ppcross386, bin/ppc386) + binutils (i386-go32v2-*) +
 the go32v2 RTL units.  Self-contained: unzip, add bin/ to PATH, build a DOS

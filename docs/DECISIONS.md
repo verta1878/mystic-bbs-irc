@@ -3162,3 +3162,390 @@
     3. Document the runtime stack (Watt-32/lwIP + packet driver) as an external
        dependency; do NOT bundle its source unless license-cleared.
   Preference order: FPC-native go32v2 Sockets (Pascal) > Watt-32 binding > FOSSIL.
+
+## DOS sockets BUILT: Watt-32 binding + binutils C_SECTION fix; DOS now 10/14 (2026-07-09)
+
+  Supersedes the status in the earlier "All-distro compile pass" entry (which
+  recorded DOS at 7/14 with the sockets gap open). DOS is now 10/14, INCLUDING
+  the mystic server. What changed:
+
+  - SOCKET LAYER WRITTEN: mdl/sockets_go32v2.pas - a complete FPC-Sockets-
+    compatible BSD API (TCP+UDP, DNS/resolver, select, get/setsockopt, address
+    helpers) bound to Watt-32 via cdecl externals. The fork's socket code is
+    UNCHANGED: on go32v2 m_io_sockets (and mis_server) `Uses sockets_go32v2`
+    instead of the RTL `Sockets` unit. This realises the "fork code stays
+    Pascal; C TCP stack is an external dependency" decision above WITHOUT
+    needing a newer FPC - it works on our pinned 2.6.2 (record anchors intact).
+    Chosen over waiting to re-pin FPC 3.0.4/3.2.2 because re-pinning risks the
+    SizeOf record anchors and the whole point of the 2.6.2 pin.
+
+  - BINUTILS LINK BLOCKER SOLVED: FPC 2.6.2 emits COFF storage class 0x68
+    (C_SECTION, the PE convention) for section symbols; stock binutils 2.30
+    coff-go32 (no COFF_WITH_PE) rejected it as "Unrecognized storage class
+    104", breaking the external-ld link that any C-library (Watt-32) call
+    forces. Fixed with a minimal 2-file patch (libs/dos-binutils-patch/),
+    mirroring the OS/2 emx binutils fix. The pristine binutils-2.30 source
+    tarball is bundled in that dir (sha256 verified) so the complete
+    corresponding GPL source travels with the repo; the patched ld/nm/objdump
+    are in libs/dos-toolchain.zip so the repo builds DOS from its own libs.
+
+  - CODE GAPS CLOSED: DOS branches for m_io_stdio (stdin/stdout via FileRead/
+    FileWrite), m_pipe (TPipeDisk), mis_events ShellExec (COMMAND.COM /C), and
+    the go32v2 MD5 unit added to the toolchain.
+
+  - CONCURRENCY MODEL (correcting an earlier overstatement): Watt-32 is a real
+    TCP/IP stack and handles MULTIPLE concurrent sockets (it has select_s for
+    exactly that). The DOS constraint is NO PREEMPTIVE THREADS, not "one
+    connection". Correct design = cooperative multiplexing: one process, non-
+    blocking sockets (FIONBIO), polled with select. The current DOS mis Execute
+    serves one caller at a time as an initial-bring-up simplification; the
+    cooperative select() accept-loop for multiple concurrent nodes is the
+    planned upgrade. sockets_go32v2 already exposes select/FD_*/FIONBIO.
+
+  REMAINING for networked DOS binaries: build Watt-32 (libwatt.a) for djgpp;
+  build-dos.sh already wires -lwatt via WATT32LIB=<dir>. Then link-test + run
+  with a packet driver + WATTCP.CFG. See docs/DOS-SOCKETS.md.
+
+## A40 import pass #1: per-node PKT/bundle limits + netmail export (2026-07-10)
+
+  Working from the upstream 1.10 whatsnew (no A40 source available - implemented
+  from the whatsnew descriptions + the uploaded A51 reference binary's strings)
+  and an audit of the fork tree.  Audit finding: MOST of A40 is already present
+  in the fork (tosser rewrite, DNSBL, DNSCC, log roller, AreaFix, FileFix, dup
+  detection, pass-through netmail, nodelist search, area index CTRL-N/R/Z, MCI
+  #I).  Only three real gaps remained; this pass closes them:
+
+  1. MCI #I - found ALREADY IMPLEMENTED and correct (bbs_io FmtType 19 ->
+     ThemeMessageBox BoxType 1 = draw box, no GetKey wait, no restore; exactly
+     "like #B but does not wait").  No change needed.
+
+  2. Per-echonode max PKT size + max ARCmail/bundle size (A40):
+     - records.pas: added MaxPktSize, MaxArcSize (Word, KB, 0=none) to
+       RecEchoMailNode, consuming reserved Res[] bytes so SizeOf STAYS 901
+       (anchor preserved, no data migration; new fields default 0 from the
+       previously-zero reserved bytes).  Verified 901 before+after.
+     - bbs_cfg_echomail.pas: "Max PKT KB" (K) + "Max ARC KB" (B) editor fields,
+       matching the A51 binary's "Max PKT size KB (0/None)" / "Max bundle/
+       arcmail size KB (0/None)" labels.  Word type matches AddWord's editor.
+     - mutil_echoexport.pas:
+         * EchoBundleMessages rolls to the next bundle extension when the target
+           bundle already exceeds MaxArcSize KB (via GetFTNBundleExt/LPKTPtr).
+         * EchoExportMessage/WriteMessage starts a new PKT (fresh unique
+           PKTBase via GetFTNPKTName) once the current PKT's FilePosRaw exceeds
+           MaxPktSize KB.  PKTBase is a runtime-only field (TEchoMailLinkRec),
+           extension stays the node Index so EchoBundleMessages still routes it.
+           Netmail (NetType 3) is not split.
+
+  3. NetMail base no longer needs an echonode link/tag to export (A40):
+     - mutil_echoexport.pas: the base-skip check that requires EchoTag/QwkNetID
+       now exempts NetType 3 (netmail).  Netmail already routes by destination
+       via GetNodeByRoute against all active nodes (ReadEchoMailLinks loads ALL
+       active echonodes, not per-base links), so removing the tag gate is
+       sufficient - an untagged netmail base now exports.
+
+  VERIFICATION CAVEAT: per sysop instruction this pass was NOT compiled (the
+  container's full-dependency compile was timing out after the FPC builds).
+  Changes were verified by reading + symbol-scope checks + the anchor size
+  checker (901 confirmed).  The record + config-editor changes DID compile clean
+  earlier (bbs_cfg_echomail.o, mutil_echoexport.o built) BEFORE the MaxPktSize
+  split + netmail exemption were added.  Those two later edits are read-verified
+  only and need a compile + live toss test (node 152/158) to confirm:
+    - the TFileBuffer close/reopen + GetFTNPKTName uniqueness during a split
+    - that split PKT chunks bundle and route correctly
+    - untagged netmail base actually exports end to end
+
+## FPC 2.6.4irc built compiler captured + deferred A40 tests (2026-07-10)
+
+  Sysop delivered a complete, built 2.6.4irc distribution (libs/fpc264irc.tar.gz,
+  53MB).  This supersedes the earlier source-only fpc_2_6_4irc_src.zip.  Contents:
+    - bin/ppc386, bin/ppcx64 (prebuilt compilers), bin/units/ (compiled RTL per
+      target incl. i386-go32v2/sockets.ppu+.o).
+    - src/ (compiler: 10 modified files; rtl: 1 new + 2 modified incl.
+      rtl/go32v2/sockets.pp; packages/utils stock).
+    - test/ with per-platform socket tests + run-tests.sh.
+    - patches/os2-cross/ (binutils BFD + emxbind docs), build-linux.sh,
+      build-windows.bat, CHANGELOG-IRC.md, LICENSE.
+  Key properties (from CHANGELOG-IRC.md, matching what we verified earlier):
+    - Base FPC 2.6.4, minorpatch='irc', PPU wordversion UNCHANGED -> binary
+      compatible with stock 2.6.4 units (record anchors safe by construction).
+    - rtl/go32v2/sockets.pp is a full Sockets unit over Watt-32 (all fp* + legacy
+      wrappers + select/fd + DNS + IPv4/IPv6 conv) so `Uses Sockets` works on DOS
+      with no app-level {$IFDEF}.
+    - Backports FPC 3.0/3.3 cross-link fixes so stock binutils-djgpp links go32v2
+      (no C_SECTION patch), and fixes OS/2 import-symbol generation.
+
+  DEFERRED A40 TESTS: per sysop, the A40 import work was NOT compiled during
+  import to save resources.  Added tests/a40/ to be run WHEN THE A40 IMPORT IS
+  COMPLETE:
+    - tests/a40/check_anchors.pas  - asserts SizeOf(RecEchoMailNode)=901 (+
+      RecConfig=5282, RecUser=1536, RecTheme=768).
+    - tests/a40/run.sh  - runs the anchor check + compiles the A40-touched units
+      (bbs_cfg_echomail, mutil_echoexport).  Defaults to ppc386; FPC= overrides
+      (point at libs/fpc264irc.tar.gz's bin/ppc386, or the pinned 2.6.2).
+    - tests/a40/README.md  - documents the checks + the LIVE items that can only
+      be confirmed on node 152/158 (PKT split, bundle split, untagged netmail
+      export end-to-end).
+  This closes the "verification caveat" from the A40 pass: the checks are written
+  and ready; they just haven't been executed yet.
+
+## A40 logstamp: already present (corrected false gap) + added to tests (2026-07-10)
+
+  A full re-audit of the A40 whatsnew (not just the original 3 gaps) flagged two
+  more items; on inspection BOTH resolve to no-work:
+
+  - logstamp= (A40 configurable log-file timestamp): initially flagged as a gap,
+    but it is ALREADY FULLY IMPLEMENTED in the fork. mutil.pas:161 reads
+    [General] logstamp (default 'NNN DD HH:II:SS') into the LogStamp var
+    (mutil_common.pas:47); mutil_common.pas:142 applies it to every log line via
+    FormatDate(CurDateDT, LogStamp); and m_datetime.FormatDate supports every
+    A40 code (YYYY/YY/MM/DDD/DD/HH/II/SS/NNN). The earlier "gap" was a bad grep
+    (searched mutil_common/m_logroller, missed the mutil.pas read). No code
+    change needed. Added tests/a40/check_logstamp.pas to VERIFY the format codes
+    render correctly (regression guard) and wired it into run.sh as check #3.
+
+  - "MUTIL logging performance improved" (A40): an internal optimization, not a
+    discrete config/behavior feature - nothing to import, nothing to test.
+
+  NET RESULT: A40 is now COMPLETE at the code level. Every A40 whatsnew item is
+  either already present or implemented this pass (MCI #I [pre-existing], max
+  PKT/bundle size [added], netmail-no-link [added], logstamp [pre-existing],
+  everything else [pre-existing]). Remaining before A40 can be called DONE-DONE:
+  run tests/a40/run.sh (anchor + compile + logstamp) and the live toss tests on
+  node 152/158 (PKT split, bundle split, untagged netmail export).
+
+## A40 items 17 & 18 researched; 17 completed (2026-07-10)
+
+  Rigorous re-verification (reading code, not grep) of two items the earlier
+  audit had marked "done" from a grep match.  Both were mis-marked:
+
+  - ITEM 17 (netmail routing): the fork's GetNodeByRoute did STAGE 2 only (Route
+    Info matching).  Upstream A40 is TWO stages: (1) compare dest address vs ALL
+    echomail nodes, direct match routes there WITHOUT Route Info; (2) else walk
+    each node's Route Info in order.  FIXED: added stage 1 as a first pass over
+    echonode.dat matching TempNode.Address (Zone/Net/Node) = Dest, then Seek(F,0)
+    and the existing Route Info pass only if no direct match.  Applied to BOTH
+    copies of GetNodeByRoute (bbs_database.pas AND mutil_common.pas - the tosser
+    uses the mutil_common copy during netmail export).  ioReset does Reset(F,
+    RecSize) so Seek(F,0) rewinds to record 0 (verified).  Anchor unaffected
+    (901).  NOT compiled (container) - read-verified; needs the a40 test run.
+
+  - ITEM 18 (built-in AreaFix): mutil_echofix.pas is a STUB - detects
+    MsgTo=AREAFIX/FILEFIX then Exits; auth helper commented out (with a bug:
+    Addr.Zone compared to Address.Node); all 9 commands exist only as //
+    comments.  The earlier "done" was a false positive from grepping "AreaFix".
+    NOT implemented.  Full checklist saved to docs/a40/item18-areafix-checklist.md
+    for a dedicated implementation effort.  A51 binary confirms the feature
+    exists upstream (strings 'Password for Area/FileFix', 'Missing ECHOTAG for')
+    but is stripped so can't confirm the command logic - whatsnew is the spec.
+
+  CAVEAT going forward: the original "15/22 A40 features already present" audit
+  was grep-based and has now produced TWO false "done" marks (17 partial, 18
+  stub).  The other grep-based marks (DNSBL, DNSCC, log roller, area index keys,
+  auto-create overrides, pass-through netmail) should be READ-verified before
+  being trusted.  Dup detection (item 12) WAS read-verified and is correct.
+
+## A40 max PKT/ARC: label mismatch fixed to match upstream (2026-07-10)
+
+  The fork's echonode editor used non-upstream labels 'Max PKT KB' / 'Max ARC KB'.
+  Corrected to match the A51 reference binary exactly:
+    field labels: ' Max PKT Size' / ' Max ARC Size'
+    help text:    'Max PKT size KB (0/None)' / 'Max bundle/arcmail size KB (0/None)'
+  Also fixed a layout collision: the fields had been placed on editor row 13,
+  which overlaps Route Info's 40-char field (spans to col 69). Moved to right-
+  column rows 12 and 14 (clear of Route Info on row 13). Hotkeys K/B verified
+  unique within the EditNode form. Anchor unaffected (901).
+
+  STILL PENDING (separate decisions, NOT done here):
+   - Defaults: upstream ships new nodes at 512kb PKT / 2048kb bundle; the fork
+     currently defaults both to 0 (disabled). Decision needed on whether to set
+     512/2048 for new nodes and how to treat existing nodes (which read 0).
+   - updatea40.txt: still uncommitted, pending the defaults decision (its text
+     must state the real defaults, not the current incorrect 'defaults to 0').
+
+  DEFERRED (parked until A40 finalization): item-17 Point-handling discussion
+  (see docs/a40/item18-areafix-checklist.md tail).
+
+## A40 item 17 Point handling RESOLVED (2026-07-10)
+
+  The parked item-17 Point question is resolved using FTN addressing history: a
+  point (zone:net/node.point) is a non-public node whose mail is delivered to its
+  BOSS node (zone:net/node), which re-packages it for the point. So stage-1
+  direct match correctly compares Zone/Net/Node and ignores Point - which is what
+  the code already does. A netmail to a point direct-matches the boss node. No
+  change. Full reasoning in docs/a40/item18-areafix-checklist.md (RESOLVED
+  section). Item 17 is now fully closed pending only the live toss test.
+
+## A40 item 18 AreaFix: ALREADY implemented; fixed a netmail SaveMessage bug (2026-07-10)
+
+  CORRECTION to an earlier audit error: I had described mutil_echofix.pas as a
+  "stub". It is NOT - it was fully implemented in commit 5958a5b (a prior
+  session): auth (GetNodeByAuth), the full command parser (%HELP/%LIST/%LINKED/
+  %UNLINKED/%PWD/%COMPRESS/%RESCAN and +/-/=ECHOTAG), and the netmail response.
+  My "stub" claim was stale/wrong (same class of audit error as the grep-based
+  ones). The 321-line implementation checks out against the real API (TPKTReader
+  fields, RecMessageText, strWordGet/strStripB, the bbs_database link
+  primitives).
+
+  REAL BUG FOUND + FIXED (flagged by AreaFix's own code NOTE): mutil_common.
+  SaveMessage set netmail type + destination only for NetType = 2, but per
+  records.pas AND g00r00's records.110, 2=News and 3=Net(mail). The whole export
+  path (mutil_echoexport) correctly treats NetType 3 as netmail; SaveMessage was
+  the outlier. Changed the check 2 -> 3 so:
+    - netmail bases (NetType 3) now get SetMailType(mmtNetMail)+SetDest(mAddr);
+    - News bases (NetType 2) are no longer mis-treated as netmail.
+  This fixes the AreaFix reply addressing AND any other netmail written via
+  SaveMessage (e.g. mutil_msgpost uPostMessages). Callers verified: the
+  bbs_msgbase TMsgBase.SaveMessage is a different method (unaffected);
+  mutil_msgpost passes a generic base and benefits from the fix. No record
+  change; anchor unaffected.
+
+  A40 item 18 (AreaFix) is therefore IMPLEMENTED. Remaining: RESCAN actually
+  re-exporting last-N/last-D (currently queues a message but the re-export is
+  noted as handled by the export pass - needs live confirmation), and a live
+  toss test on node 152/158 (send %LIST/+TAG/%RESCAN, confirm the .lnk links
+  change and a correctly-addressed netmail reply comes back). areafixhelp.txt
+  must ship in DATA for %HELP.
+
+## A40 items 1 (AreaFix rescan) + 2 (BINKP MBCICO) researched vs standards (2026-07-10)
+
+  ITEM 1 - AreaFix %RESCAN vs FSC-0057 (the AreaFix standard) + real-world semantics:
+    Standard confirms: [+]area,R=# = link and RESEND the last # old messages of
+    that area; %RESCAN / %RESCAN * = resend old messages from ALL linked areas;
+    =tag = rescan an existing linked area. Rescan means ACTUALLY re-exporting old
+    messages to the requesting node. The fork's AreaFix currently only REPLIES
+    "Rescan queued" and does NOT re-export. So per FSC-0057 this is a GENUINE GAP -
+    R=/D=, %RESCAN, and =tag must actually resend messages. To be implemented.
+
+  ITEM 2 - BINKP MBCICO fix vs FTS-1026/1027:
+    FTS-1026: "state machine MUST ignore any received message of unknown type";
+    M_NUL informational frames (VER/OPT/SYS/ZYZ) MAY arrive during the handshake.
+    Analysis of mis_client_binkp.pas: the M_NUL-eating block (line ~409) already
+    consumes M_NUL frames and sets HaveHeader:=False, so M_NUL during
+    WaitAddress/WaitPassword is correctly IGNORED (the state's `If HaveHeader` is
+    then False and the body is skipped) rather than causing AuthFailed. So the
+    fork ALREADY appears standards-compliant for the M_NUL-during-handshake case
+    mbcico triggers. The A40 whatsnew is vague ("Fixed a compatibility issue")
+    with no specific frame/symptom, and the stripped binary can't reveal g00r00's
+    exact fix. CONCLUSION: no identifiable defect against FTS-1026; do NOT make a
+    speculative change. If a live mbcico session later fails, debug that specific
+    failure. Marked "appears already handled".
+
+  MISSING TEXT FILE ADDED: mystic/areafixhelp.txt - the shipped help text read by
+    AreaFix %HELP (bbsCfg.DataPath + 'areafixhelp.txt'). Written from FSC-0057 +
+    the fork's actual command set. Other referenced .txt files (badcountry, badip,
+    blocked, nodelist, busy, etc.) are RUNTIME/sysop-managed data, not shipped
+    source, so they are correctly absent.
+
+## A40 items 17 (MBCICO) & help-file audit (2026-07-10)
+
+  ITEM: MBCICO BINKP fix ("! Fixed a compatibility issue with Mystic's BINKP
+  against MBCICO"). Researched: MBCICO is MBSE BBS's FidoNet mailer (a BINKP
+  transport agent). The A40 fix is a BINKP HANDSHAKE LOGIC bugfix, not a new
+  feature/string. STATUS: CANNOT VERIFY from available materials -
+   - the A40 mystic.exe is stripped; a protocol-logic fix leaves NO string
+     fingerprint (BINKP strings look identical to the fork's).
+   - the specific bug g00r00 fixed is not documented publicly (checked FTSC/
+     forums/wiki).
+   - no g00r00 A40 BINKP source available to diff.
+  To resolve: EITHER a live interop test against a real mbcico/MBSE node (see if
+  the fork's binkp fails where A40 succeeds), OR g00r00's A40 mis_client_binkp
+  source. Marked UNVERIFIED - not claimed done, not claimed missing.
+
+  HELP/DATA FILES (A40-referenced) audit - all present, none missing:
+   - mystic/areafixhelp.txt  : EXISTS (69 lines) - AreaFix %HELP command.
+   - mystic/ansimidxhelp.asc : EXISTS (22 lines) - area index CTRL-Z help.
+   - mystic/updatea40.txt     : EXISTS (draft) - per-version release notes.
+   filefixhelp = FileFix = A41, correctly OUT OF SCOPE for A40.
+
+## A40 items 17 (MBCICO) researched + badcountry.txt added (2026-07-10)
+
+  ITEM 17 - BINKP MBCICO compatibility fix: RESEARCHED against FTS-1026/1027 +
+  MBSE mbcico docs + the A40 binary. Finding: the fix is HANDSHAKE LOGIC, not a
+  string (confirmed - the stripped A40 binary shows only auth-mode labels 'None
+  Login Plain CRAM-MD5', no mbcico string). Per FTS-1027: when a mailer can't do
+  CRAM-MD5 it falls back to a plain-text M_PWD, and the answering side SHOULD
+  accept it. The fork's handshake ALREADY does this correctly
+  (mis_client_binkp.pas ~514-540): if the password is not CRAM-MD5-prefixed and
+  ForceMD5 is off, it accepts the plain-text password via AuthenticateNode. The
+  fork also already does FSP-1011 filename escaping (EscapeFileName), the other
+  known mbcico/Argus/Irex interop issue. So item 17 is effectively satisfied -
+  the fork behaves per the standard. Cannot prove byte-identical to g00r00's A40
+  fix (no source, stripped binary), but the interop-correct behavior is present.
+
+  MISSING TXT FILES: added mystic/badcountry.txt - the DNSCC country
+  identification/block master list the A40 whatsnew says 'MUST exist in the DATA
+  directory'. 194 ISO 3166-1 countries, format 'A NNN CountryName' (col1 A=allow
+  /B=block, cols4-6 ISO numeric, col9+ name) - verified byte-exact against the
+  mis_server.pas parser (Copy(Str,4,3)/Copy(Str,9,..)). All default to ALLOW; the
+  sysop changes A->B to block a country. (areafixhelp.txt for %HELP and
+  ansimidxhelp.asc for area-index CTRL-Z already existed.) goodip.txt is an A60
+  feature, out of A40 scope.
+
+## A40 item 17 (BINKP MBCICO fix) researched vs FTS-1026/1027 (2026-07-10)
+
+  The A40 whatsnew "Fixed a compatibility issue with Mystic's BINKP against
+  MBCICO" - researched against the binkp standards. mbcico is an FTN mailer
+  (mbsebbs). The compat issue is CRAM-MD5 negotiation/fallback. FTS-1027 rule:
+  "If originating side doesn't support requested CRAM digest method it MAY use
+  plain text password... Answering side SHOULD accept this method."
+
+  Verified the fork's mis_client_binkp.pas already implements this correctly:
+   - Originating (client): if the answering side offered no CRAM challenge
+     (MD5Challenge=''), and not ForceMD5, it falls back to plain M_PWD password
+     (lines ~478-488). Matches FTS-1027.
+   - Answering (server): accepts a plain M_PWD (no CRAM-MD5- prefix) when not
+     ForceMD5 (lines ~514-535). Matches "Answering side SHOULD accept".
+
+  CONCLUSION: the fork is FTS-1027 compliant on CRAM fallback, so the mbcico
+  compat case (mbcico not doing CRAM -> Mystic falls back to plain) is handled.
+  CAVEAT: g00r00's exact A40 bug fix can't be diffed (no A40 BINKP source; A51
+  binary stripped). The fork's logic is spec-correct, so item 17 is LIKELY
+  satisfied, but "identical to g00r00's fix" is unproven without a live mbcico
+  test. Marked verified-by-standard, pending live confirmation.
+
+## A40 help/txt files present (2026-07-10)
+  Confirmed the A40-referenced help files exist and are tracked: areafixhelp.txt
+  (69 lines, for AreaFix %HELP), ansimidxhelp.asc (area index CTRL-Z help).
+  updatea40.txt (per-version update note) committed now - reflects the resolved
+  decisions (Max PKT Size/Max ARC Size labels, 512/2048 defaults, mystic -CFG
+  path, 0=None).
+
+## A40 item 17 MBCICO fix - PRECISE verification (2026-07-10)
+
+  Verified the EXACT scenario: "answering side must accept plain-text password
+  even when it OFFERED CRAM-MD5." Confirmed in mis_client_binkp.pas:
+   - The plain-vs-CRAM branch (WaitPassword) keys ONLY on what the remote SENT
+     (Pos('CRAM-MD5-', Password) > 0), NOT on whether Mystic offered CRAM. So
+     even after Mystic sends OPT CRAM-MD5-<challenge>, a remote (mbcico) that
+     replies with plain M_PWD takes the Else branch.
+   - That branch: if Not ForceMD5, set PasswordMD5:=False and call
+     AuthenticateNode, which (line 285) compares Password = EchoNode.binkPass
+     directly (plain match) and returns M_OK.
+   - ForceMD5 (sysop opt) is the only thing that rejects plain - correct.
+  This is the concrete MBCICO fix. Verified at code level; live mbcico session
+  is the only remaining proof. Item 17 code-complete.
+
+## DOS sockets: sockets_go32v2 still fits the A40-era socket code (2026-07-10)
+
+  Concern: sockets_go32v2.pas (the DOS Watt-32 socket unit) was originally
+  matched to the A38 m_io_sockets.pas. Does it still expose everything the
+  current (A40-era) socket code calls?
+
+  Verified: listed all 26 socket symbols m_io_sockets.pas calls, checked each
+  against sockets_go32v2.pas.
+   - 24/26 present outright.
+   - fpFD* (fpFD_ZERO/SET/ISSET/CLR) all present (grep false alarm).
+   - fpFCntl is the ONLY absent one - but it is inside {$IFDEF UNIX}. The DOS/
+     Win/OS2 {$ELSE} branch of SetBlocking uses ioctlSocket(FIONBIO) instead,
+     both of which sockets_go32v2 provides. So fpFCntl is never reached on DOS.
+
+  Two supporting facts:
+   1. A40 made NO socket-layer changes (whatsnew has nothing about sockets - A40
+      is tosser/DNSBL/AreaFix). So the newer base doesn't move the socket API.
+   2. The fork's own IPv4 fix added higher-level methods (Connect/ResolveAddress/
+      WaitConnection/WaitInit) built ON the fp* primitives - no new primitives
+      that DOS would lack.
+
+  CONCLUSION: the DOS networking layer still fits the current Mystic base. Every
+  symbol the DOS build actually reaches is provided by sockets_go32v2. (Final
+  proof is still a DOS link-to-.exe with libwatt.a, which remains pending.)

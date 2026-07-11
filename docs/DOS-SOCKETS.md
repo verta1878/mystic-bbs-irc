@@ -91,8 +91,31 @@ REMAINING before a networked DOS binary runs (in build order):
 Complete the socket layer (done), then build ONE service end-to-end - the
 **FTP client** (for QWK-over-FTP / DoveNet dial-out) - to prove the whole
 stack before spreading effort across six half-services. A client (dialing out
-to a hub) is the easy direction on single-tasking DOS; a server (accepting many
-callers) is the hard direction. OpenOLMS/DoveNet dial-out is mostly a client.
+to a hub) is the simplest starting point; a multi-node server is more work on
+DOS not because of a connection limit but because of the threading model (see
+below). OpenOLMS/DoveNet dial-out is mostly a client.
+
+## DOS concurrency model (important - not "one connection")
+
+Watt-32 is a real TCP/IP stack and handles MULTIPLE concurrent sockets. It
+exposes `select_s()` precisely so a single process can watch several
+connections at once. The DOS constraint is **no preemptive threads**, not
+"one connection":
+
+- On Linux/Win32/OS2 the server runs a thread (or process) per caller
+  (`TServerClient = Class(TThread)`). DOS is single-tasking, so that model
+  does not apply.
+- The correct DOS design is **cooperative multiplexing**: one process, sockets
+  put in non-blocking mode (`ioctlSocket`+`FIONBIO`), all polled with
+  `fpSelect` in one accept/service loop. Many connections, one thread.
+- `sockets_go32v2` already provides every primitive this needs: `fpSelect`,
+  `fpFD_Zero/Set/Clr/IsSet`, and non-blocking via `ioctlSocket(FIONBIO)`.
+
+So: **multiple connections yes; multiple threads no.** The current `mis` DOS
+`Execute` serves one caller at a time (hands the socket to a `mystic -n<N>
+-TID<handle>` session and waits) - that is an initial-bring-up simplification,
+NOT a Watt-32 limitation. Multiplexing several concurrent nodes with a
+cooperative `select()` accept-loop is the planned upgrade.
 
 ## Why not pure Pascal all the way down?
 
@@ -148,12 +171,14 @@ the build recipe.
 **mis - CODE issues FIXED (2026-07-09).** mis previously failed to compile on
 go32v2 for three reasons, all now resolved:
   - TTelnetServer.Execute had no DOS body (only WINDOWS/USEFORK/USEPROCESS).
-    DOS is single-tasking - no fork(), no fcl-process TProcess to relay a
-    per-node child - so DOS handles ONE TCP connection at a time, inline. The
-    go32v2 Execute accepts the caller, grabs a free node, and hands the socket
-    straight to a `mystic -n<N> -TID<handle>` session (exactly what the Windows
-    path does with CommHandle), blocking until that call ends before the
-    listener accepts again. This is the single-node model (cf. mystic_misdos/).
+    DOS has no preemptive threads, so the thread-per-client model does not
+    apply. The go32v2 Execute accepts the caller, grabs a free node, and hands
+    the socket straight to a `mystic -n<N> -TID<handle>` session (exactly what
+    the Windows path does with CommHandle), waiting for that call to finish.
+    This serves ONE caller at a time as an initial-bring-up simplification -
+    NOT a Watt-32 limit (Watt-32 does multiple sockets; see "DOS concurrency
+    model" above). A cooperative select() accept-loop multiplexing several
+    concurrent nodes in one process is the planned upgrade.
   - TEventEngine.ShellExec had no DOS body. Added a go32v2 branch mirroring
     OS/2: run via COMMAND.COM (COMSPEC) /C using SysUtils.ExecuteProcess.
   - The MD5 unit (FPC hash package) was missing from the go32v2 toolchain.

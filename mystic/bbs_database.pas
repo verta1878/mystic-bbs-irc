@@ -1037,10 +1037,27 @@ Begin
 
   If Not ioReset(F, SizeOf(RecEchoMailNode), fmRWDN) Then Exit;
 
+  // A40 stage 1: compare the destination address against ALL configured
+  // echomail nodes.  If a node's own address is a direct match, route to that
+  // node WITHOUT reviewing Route Info.
   While Not Eof(F) And Not Result Do Begin
     ioRead(F, TempNode);
 
-    Result := IsMatch(TempNode.RouteInfo);
+    Result := (TempNode.Address.Zone = Dest.Zone) and
+              (TempNode.Address.Net  = Dest.Net)  and
+              (TempNode.Address.Node = Dest.Node);
+  End;
+
+  // A40 stage 2: no direct match - walk each node's Route Info (from the first
+  // entry) until one matches, and redirect netmail through that system.
+  If Not Result Then Begin
+    Seek (F, 0);
+
+    While Not Eof(F) And Not Result Do Begin
+      ioRead(F, TempNode);
+
+      Result := IsMatch(TempNode.RouteInfo);
+    End;
   End;
 
   Close (F);

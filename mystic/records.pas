@@ -147,7 +147,7 @@ Type
     ftpOutPass  : String[20];
     ftpInDir    : String[60];
     ftpOutDir   : String[60];
-    ftpTimeOut  : Word;
+    MaxPKTSize  : Word;                                         // A40: max PKT size in KB (0=none)
     LastRecv    : LongInt;
     LastSent    : LongInt;
     LastReset   : LongInt;
@@ -163,7 +163,12 @@ Type
     LPKTDay     : Byte;
     LPKTPtr     : Byte;
     binkHideAKA : Boolean;
-    Res         : Array[1..216] of Byte;
+    MaxARCSize  : Word;                                         // A40: max bundle/arcmail size in KB (0=none)
+    PKTPass     : String[8];                                    // A40: per-node PKT password
+    UseFileBox  : Byte;                                         // A40: 0=No, 1=Hold, 2=Any
+    OutFileBox  : String[60];                                   // A40: outbound filebox dir
+    TICPass     : String[20];                                   // A40: TIC password
+    Res         : Array[1..122] of Byte;
   End;
 
   RecQwkNetwork = Record

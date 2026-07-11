@@ -127,7 +127,7 @@ Begin
 
   Box.Header := ' Index ' + strI2S(Node.Index) + ' ';
 
-  Box.Open (10, 5, 70, 17);
+  Box.Open (10, 5, 70, 20);
 
   VerticalLine (27,  7, 13);
   VerticalLine (59,  7, 11);
@@ -137,16 +137,22 @@ Begin
   Form.AddStr  ('R', ' Archive Type' , 13,  9, 29,  9, 14,  4, 4, @Node.ArcType, Topic + 'Archive type for packets');
   Form.AddTog  ('Y', ' Export Type'  , 14, 10, 29, 10, 13,  6, 0, 3, 'Normal Crash Direct Hold', @Node.MailType, Topic);
   Form.AddPass ('F', ' AllFix PW'    , 16, 11, 29, 11, 11, 20, 20, @Node.AreaFixPass, Topic + 'Password for Area/FileFix');
-  Form.AddTog  ('T', ' Session Type' , 13, 12, 29, 12, 14,  9, 0, 2, 'BinkP FTP Directory', @Node.ProtType, Topic + 'Transfer using BinkP, FTP, or to a file directory');
-  Form.AddStr  ('U', ' Route Info'   , 15, 13, 29, 13, 12, 40, 128, @Node.RouteInfo, Topic + 'Route info (ie "2:* 3:*")');
-
-  Form.AddNone ('S', ' Session Options', 32, 15, 32, 15, 17, Topic);
+  Form.AddPass ('K', ' PKT Password' , 14, 12, 29, 12, 13,  8,  8, @Node.PKTPass, Topic + 'Session password for PKT packets');
+  Form.AddTog  ('T', ' Session Type' , 13, 13, 29, 13, 14,  9, 0, 2, 'BinkP FTP Directory', @Node.ProtType, Topic + 'Transfer using BinkP, FTP, or to a file directory');
+  Form.AddStr  ('U', ' Route Info'   , 15, 14, 29, 14, 12, 40, 128, @Node.RouteInfo, Topic + 'Route info (ie "2:* 3:*")');
+  Form.AddWord ('M', ' Max PKT Size' , 14, 15, 29, 15, 13,  6,  0, 65535, @Node.MaxPKTSize, Topic + 'Max PKT size KB (0/None)');
+  Form.AddWord ('B', ' Max ARC Size' , 14, 16, 29, 16, 13,  6,  0, 65535, @Node.MaxARCSize, Topic + 'Max bundle/arcmail size KB (0/None)');
+  Form.AddTog  ('X', ' Use FileBox'  , 15, 17, 29, 17, 12,  6, 0, 2, 'No Hold Any', @Node.UseFileBox, Topic + 'Hold outbound files in a FileBox');
+  Form.AddStr  ('E', ' FileBox Dir'  , 15, 18, 29, 18, 12, 28, 60, @Node.OutFileBox, Topic + 'Outbound FileBox directory');
+  Form.AddPass ('C', ' TIC Password' , 14, 19, 29, 19, 13, 20, 20, @Node.TICPass, Topic + 'Password for TIC file processing');
 
   Form.AddWord ('Z', ' Zone'         , 53,  7, 61,  7,  6,  5,  0, 65535, @Node.Address.Zone,  Topic + 'Network Zone');
   Form.AddWord ('N', ' Net'          , 54,  8, 61,  8,  5,  5,  0, 65535, @Node.Address.Net,   Topic + 'Network Net');
   Form.AddWord ('O', ' Node'         , 53,  9, 61,  9,  6,  5,  0, 65535, @Node.Address.Node,  Topic + 'Network Node');
   Form.AddWord ('P', ' Point'        , 52, 10, 61, 10,  7,  5,  0, 65535, @Node.Address.Point, Topic + 'Network Point');
   Form.AddStr  ('I', ' Domain'       , 51, 11, 61, 11,  8,  8,  8, @Node.Domain, Topic + 'Network Domain');
+
+  Form.AddNone ('S', ' Session Options', 47, 15, 47, 15, 17, Topic);
 
   Repeat
     If Form.Execute <> 'S' Then Break;
@@ -304,6 +310,8 @@ Var
       ArcType     := 'ZIP';
       BinkBlock   := 16 * 1024;
       BinkTimeOut := 30;
+      MaxPktSize  := 512;                                       // A40 default
+      MaxArcSize  := 2048;                                      // A40 default
     End;
 
     Write (EchoFile, EchoNode);

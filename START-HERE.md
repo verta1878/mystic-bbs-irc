@@ -84,10 +84,12 @@ pushes.
   This is the step ArcaOS/bitwiseworks track as unsolved. Also links
   natively on OS/2 with the stock FPC 2.6.2 OS/2 release. (Platform layer:
   DosCalls, TProcess, so32dll, generic Keyboard path.)
-- **DOS/go32v2 (2026-07-09)**: added the missing DOS platform branches
-  (m_ops, records, m_fileio, m_output, m_input); the 7 non-networked
-  utilities build from libs/dos-toolchain.zip. Networked programs await a
-  DOS socket layer (Watt-32 or FOSSIL — see TODO). On hold.
+- **DOS/go32v2 (2026-07-09)**: DOS builds 10/14, including the mystic server.
+  The socket layer (mdl/sockets_go32v2.pas, a Watt-32-backed FPC-Sockets API)
+  and the binutils C_SECTION link fix (libs/dos-binutils-patch/) are done and
+  in the repo. The 4 networked utilities compile + are link-ready, needing only
+  Watt-32 (libwatt.a); build-dos.sh wires -lwatt via WATT32LIB=. See
+  docs/DOS-SOCKETS.md.
 - **libs/ now POPULATED (2026-07-08)**: SDL2 2.32.8, Hunspell 1.7.2,
   cryptlib 3.4.9.1 built in-container, i386, under libs/win32 and
   libs/linux-i386. Linux SDL2 built with -mstackrealign — the long-

@@ -148,6 +148,16 @@ Begin
           EchoNode.LPKTPtr := Byte(BundleName[Length(BundleName)]);
         End;
 
+        // A40: if the target bundle already exceeds the node's max ARC/bundle
+        // size (in KB), roll to the next bundle extension so the current one
+        // isn't grown past the limit.  0 = no limit.
+        If (EchoNode.MaxArcSize > 0) And FileExist(BundleName) And
+           ((FileByteSize(BundleName) DIV 1024) >= EchoNode.MaxArcSize) Then Begin
+          BundleName := GetFTNBundleExt(True, BundleName);
+
+          EchoNode.LPKTPtr := Byte(BundleName[Length(BundleName)]);
+        End;
+
         SaveEchoMailNode(EchoNode);
 
         ExecuteArchive (TempPath, BundleName, EchoNode.ArcType, TempPath + PKTName, 1);
@@ -230,6 +240,27 @@ Var
       TempStr1 := TempPath + OneLink.PKTBase + '.' + strI2S(OneLink.Node.Index);
 
       Inc (TotalEcho);
+    End;
+
+    // A40: if this link has a max PKT size (KB) and the current PKT has grown
+    // past it, terminate and close the current PKT, then switch PKTBase to a
+    // new unique name so the next message opens a fresh PKT for the same node
+    // (the extension stays the node Index, so EchoBundleMessages still routes
+    // it correctly).  0 = no limit.  Netmail (NetType 3) is not split.
+    If (MBase.NetType <> 3) And Assigned(OneLink.PKTFile) And
+       (OneLink.Node.MaxPktSize > 0) And
+       ((OneLink.PKTFile.FilePosRaw DIV 1024) >= OneLink.Node.MaxPktSize) Then Begin
+      TempStr1 := #0#0;
+      OneLink.PKTFile.WriteBlock (TempStr1[1], 2);
+      OneLink.PKTFile.Free;
+      OneLink.PKTFile := Nil;
+
+      // new unique base: reuse the codebase's PKT-name generator, which
+      // guarantees a unique 8-char name (it waits 1/100s and hex-encodes the
+      // timestamp), so the fresh chunk never collides with the previous one.
+      OneLink.PKTBase := GetFTNPKTName;
+
+      TempStr1 := TempPath + OneLink.PKTBase + '.' + strI2S(OneLink.Node.Index);
     End;
 
     If Not Assigned(OneLink.PKTFile) Then Begin
@@ -367,6 +398,135 @@ Begin
   Close (ExportFile);
 End;
 
+// A40 AreaFix RESCAN: process the rescan queue (areafix.rsn) written by
+// mutil_echofix.  Each line is NodeIndex|BaseIndex|Count|Days.  For each
+// request we re-export the last <Count> messages (default 250) - or messages
+// from the last <Days> days - of the linked base(s) to ONLY the requesting
+// node, WITHOUT touching each message's Sent flag (so normal export is
+// unaffected).  BaseIndex 0 = every base the node is linked to.
+//
+// Runs inside uEchoExport, before the PKT files are finalized, so rescanned
+// messages bundle and route with the rest of the outbound mail.
+Procedure ProcessRescanQueue (Var DownLinks: TEchoMailLinks; Var TotalNet, TotalEcho: LongInt);
+Var
+  QF        : Text;
+  QLine     : String;
+  NodeIdx   : LongInt;
+  BaseIdx   : LongInt;
+  WantCnt   : LongInt;
+  WantDays  : LongInt;
+  OneLink   : TEchoMailLinks;
+  MBaseFile : File of RecMessageBase;
+  MBase     : RecMessageBase;
+  MsgBase   : PMsgBaseABS;
+  ExpFile   : File of RecEchoMailExport;
+  ExpIdx    : RecEchoMailExport;
+  Node      : RecEchoMailNode;
+  High      : LongInt;
+  StartNum  : LongInt;
+  Cutoff    : LongInt;
+  Linked    : Boolean;
+
+  Procedure RescanOneBase (Var MB: RecMessageBase);
+  Var
+    Total : LongInt;
+  Begin
+    If Not MessageBaseOpen(MsgBase, MB) Then Exit;
+
+    High     := MsgBase^.GetHighMsgNum;
+    StartNum := 1;
+
+    If (WantDays = 0) Then Begin
+      If WantCnt <= 0 Then WantCnt := 250;
+      If High - WantCnt + 1 > StartNum Then StartNum := High - WantCnt + 1;
+    End;
+
+    If WantDays > 0 Then
+      Cutoff := CurDateDos - (LongInt(WantDays) * 86400)
+    Else
+      Cutoff := 0;
+
+    Total := 0;
+
+    MsgBase^.SeekFirst(StartNum);
+
+    While MsgBase^.SeekFound Do Begin
+      MsgBase^.MsgStartUp;
+
+      If MsgBase^.IsLocal Then
+        If (Cutoff = 0) or (DateStr2Dos(MsgBase^.GetDate) >= Cutoff) Then Begin
+          Inc (Total);
+
+          EchoExportMessage (MB, MsgBase, OneLink, TotalNet, TotalEcho);
+        End;
+
+      MsgBase^.SeekNext;
+    End;
+
+    MsgBase^.CloseMsgBase;
+    Dispose (MsgBase, Done);
+
+    If Total > 0 Then
+      Log (2, '-', '  AreaFix rescan: ' + strI2S(Total) + ' msgs from ' +
+                   strStripPipe(MB.Name));
+  End;
+
+Begin
+  Assign (QF, bbsCfg.DataPath + 'areafix.rsn');
+  {$I-} Reset (QF); {$I+}
+  If IOResult <> 0 Then Exit;
+
+  While Not Eof(QF) Do Begin
+    ReadLn (QF, QLine);
+
+    NodeIdx  := strS2I(strWordGet(1, QLine, '|'));
+    BaseIdx  := strS2I(strWordGet(2, QLine, '|'));
+    WantCnt  := strS2I(strWordGet(3, QLine, '|'));
+    WantDays := strS2I(strWordGet(4, QLine, '|'));
+
+    If Not GetNodeByIndex(NodeIdx, Node) Then Continue;
+
+    SetLength (OneLink, 1);
+    OneLink[0].Node    := Node;
+    OneLink[0].PKTFile := Nil;
+    OneLink[0].PKTBase := GetFTNPKTName;
+
+    Assign (MBaseFile, bbsCfg.DataPath + 'mbases.dat');
+    If ioReset(MBaseFile, SizeOf(RecMessageBase), fmRWDN) Then Begin
+      While Not Eof(MBaseFile) Do Begin
+        Read (MBaseFile, MBase);
+
+        If MBase.NetType <> 1 Then Continue;
+        If (BaseIdx <> 0) and (MBase.Index <> BaseIdx) Then Continue;
+
+        Linked := False;
+        Assign (ExpFile, MBase.Path + MBase.FileName + '.lnk');
+        If ioReset(ExpFile, SizeOf(RecEchoMailExport), fmRWDN) Then Begin
+          While Not Eof(ExpFile) And Not Linked Do Begin
+            Read (ExpFile, ExpIdx);
+            If ExpIdx = NodeIdx Then Linked := True;
+          End;
+          Close (ExpFile);
+        End;
+
+        If Linked Then RescanOneBase (MBase);
+      End;
+
+      Close (MBaseFile);
+    End;
+
+    If Assigned(OneLink[0].PKTFile) Then Begin
+      QLine := #0#0;
+      OneLink[0].PKTFile.WriteBlock(QLine[1], 2);
+      OneLink[0].PKTFile.Free;
+    End;
+  End;
+
+  Close (QF);
+
+  FileErase (bbsCfg.DataPath + 'areafix.rsn');
+End;
+
 Procedure uEchoExport;
 Var
   TotalEcho : LongInt;
@@ -406,7 +566,11 @@ Begin
 
       If MBase.NetType = 0 Then Continue;
 
-      If (MBase.EchoTag = '') and (MBase.QwkNetID = 0) Then Begin
+      // A40: NetMail bases (NetType 3) no longer need to be tagged/linked to an
+      // echomail node to be exported - they route by destination address (see
+      // GetNodeByRoute in EchoExportMessage).  Only echomail/QWK bases require a
+      // TAG here.
+      If (MBase.NetType <> 3) and (MBase.EchoTag = '') and (MBase.QwkNetID = 0) Then Begin
         Log (1, '!', '  WARNING: No TAG for ' + strStripPipe(MBase.Name));
 
         Continue;
@@ -446,6 +610,10 @@ Begin
 
     Close (MBaseFile);
   End;
+
+  // A40 AreaFix: perform any queued RESCAN re-exports before the PKT files are
+  // finalized, so rescanned messages bundle and route with the rest.
+  ProcessRescanQueue (DownLinks, TotalNet, TotalEcho);
 
   For Count := 1 to Length(DownLinks) Do
     If Assigned(Downlinks[Count - 1].PKTFile) Then Begin

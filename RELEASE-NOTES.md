@@ -37,14 +37,15 @@ partial. Everything below is built from a single Linux host with FPC 2.6.2.
     Win32      14/14     PE32 i386 (XP+)        FPC internal PE linker
     macOS      14/14     Mach-O i386 (10.6+)    ld64 + Apple SDK (you supply)
     OS/2       14/14     LX (emx 0.9d)          self-hosted emx toolchain ON LINUX
-    DOS        7/14      MZ/COFF/DJGPP go32v2   go32v2 cross toolchain
+    DOS        10/14     MZ/COFF/DJGPP go32v2   go32v2 cross toolchain (patched)
 
 Notes:
   * **OS/2 is the headline.** The final OS/2 link (a.out -> LX .exe) now runs
     entirely on Linux — historically it required an OS/2 machine. See §6.
-  * **DOS is partial (7/14).** The non-networked utilities build; the five
-    networked programs need a DOS socket layer (Watt-32 or FOSSIL) that isn't
-    written yet. See §8.
+  * **DOS is 10/14, including the mystic server.** The socket layer is written
+    and the binutils link blocker is solved (both bundled in the repo); the
+    four networked utilities compile and are link-ready, needing only Watt-32
+    (libwatt.a). See §8.
   * macOS binaries are built and linked but runtime-untested (i386 macOS needs
     a 10.4–10.14-era machine).
 
@@ -149,7 +150,7 @@ docs/os2-linux-toolchain/.
     ./build-win32.bat  (or the loop)   # Win32   -> out/bin-win/      (14/14)
     SDK=... ./build-darwin.sh          # macOS   -> out_darwin/bin/   (14/14)
     LINK=1 ./build-os2.sh              # OS/2    -> out/bin-os2/      (14/14)
-    (DOS: go32v2 cross, 7/14 utilities -> out/bin-dos/)
+    ./build-dos.sh                     # DOS     -> out/bin-dos/      (10/14)
 
 Compiled-binary output directories (all gitignored — build output never enters
 the repo):
@@ -163,26 +164,41 @@ text artifacts (FILE_ID.DIZ, whatsnew, upgrade, .asc, .mnu) are pinned to CRLF
 via `.gitattributes` so a Linux cross-compile still ships correct DOS text.
 
 ================================================================================
-## 8. DOS status (partial — on hold)
+## 8. DOS status (10/14 — socket layer done; needs Watt-32)
 
-The go32v2 DOS toolchain (`libs/dos-toolchain.zip`) is self-contained and
-proven. The 7 non-networked utilities build (maketheme, mplc, mutil, mystpack,
-install, install_make, 109to110). The 5 networked programs (mystic, mis,
-fidopoll, nodespy, qwkpoll) need a socket layer the pinned FPC 2.6.2 go32v2 RTL
-does not provide.
+The go32v2 DOS toolchain (`libs/dos-toolchain.zip`) is self-contained and now
+ships PATCHED binutils. DOS builds **10/14**, including `mystic` (the BBS
+server): the non-networked utilities, mide, mbbsutil, and mystic all compile
+and link. The four networked utilities (mis, fidopoll, nodespy, qwkpoll)
+compile and reach the link stage, failing only on undefined Watt-32 symbols —
+i.e. they need `libwatt.a`.
 
-Preferred direction (sysop): use an **FPC-native** socket path rather than a
-hand-written C shim — i.e. build the DOS network programs with the last FPC
-version whose go32v2 target ships a usable `Sockets` unit, so the networking
-comes from the Pascal RTL. This must be verified when DOS resumes (2.6.2, our
-pin, has no such unit; the current 3.0.4/3.2.2 DOS builds are the ones to
-check), and note that DOS TCP/IP on DJGPP still typically relies on a Watt-32
-stack + packet driver underneath even when the Pascal side is just a Sockets
-unit. Fallbacks: a Watt-32 BSD-sockets binding, or a FOSSIL/telnet gateway
-(separate `m_io_fossil` path).
+What this session added (all in the repo):
+  * **Complete socket layer** — `mdl/sockets_go32v2.pas`, a full FPC-`Sockets`-
+    compatible BSD API (TCP+UDP, DNS, select, sockopts, address helpers) bound
+    to Watt-32. The fork's socket code is unchanged; on go32v2 it simply
+    `Uses sockets_go32v2` instead of the RTL `Sockets` unit (which FPC 2.6.2's
+    go32v2 target does not ship). See docs/DOS-SOCKETS.md.
+  * **binutils link fix** — FPC 2.6.2 emits COFF storage class 0x68 (C_SECTION)
+    for section symbols; stock binutils 2.30 coff-go32 rejected it, which broke
+    linking any FPC DOS program against a C library. `libs/dos-binutils-patch/`
+    carries the fix (patches + full patched-source snapshots + the pristine
+    binutils-2.30 source tarball + build script), and the bundled toolchain zip
+    already contains the patched `ld`/`nm`/`objdump`/etc.
+  * **mis/events/md5 code gaps closed** — DOS branches for stdin/stdout
+    (`m_io_stdio`), disk pipes (`m_pipe`), ShellExec, and the go32v2 MD5 unit.
 
-DOS platform branches (m_ops, records, m_fileio, m_output, m_input) are in the
-tree; the socket layer is the remaining work. On hold per sysop. See docs/TODO.md.
+DOS concurrency model: Watt-32 is a real TCP/IP stack and handles MULTIPLE
+concurrent sockets (it exposes `select_s()` for exactly that). The DOS
+constraint is *no preemptive threads*, not "one connection." The correct design
+is cooperative multiplexing — one process, non-blocking sockets, polled with
+`select` — many connections, one thread. The current DOS `mis` `Execute` serves
+one caller at a time as an initial-bring-up simplification; a cooperative
+`select()` accept-loop is the planned multi-node upgrade.
+
+Remaining for a networked DOS binary: build Watt-32 (libwatt.a) for djgpp;
+`build-dos.sh` already wires `-lwatt` via `WATT32LIB=<dir>`. Then link-test and
+run with a packet driver + WATTCP.CFG. See docs/DOS-SOCKETS.md.
 
 ================================================================================
 ## 9. The installer and the MYS payload
@@ -260,7 +276,8 @@ adds docs, includes install_data.mys only in FULL, and writes into
 ================================================================================
 ## 12. Known limitations / open items
 
-  * DOS: 7/14 (no socket layer yet — Watt-32 or FOSSIL). On hold.
+  * DOS: 10/14 (incl. the mystic server). Socket layer + binutils link fix are
+    done; the 4 networked utilities need Watt-32 (libwatt.a). See §8.
   * macOS: built + linked, runtime-untested (needs an i386-era Mac).
   * OS/2: builds fully on Linux; live shake-out on real OS/2/ArcaOS is the gate.
   * Live FidoNet validation of the tosser on node 152/158 is sysop-side.

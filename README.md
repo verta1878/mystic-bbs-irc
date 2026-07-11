@@ -6,8 +6,9 @@
 > **Free Pascal 2.6.2** for Windows (XP+, 32-bit), Linux (i386), macOS/Darwin
 > (compiles + links with an Apple SDK you supply), and **OS/2** - now built
 > **entirely on Linux** to native LX executables via a self-hosted emx
-> toolchain (see docs/os2-linux-toolchain/). DOS/go32v2 partially builds (the
-> non-networked utilities; the networked programs await a DOS socket layer).
+> toolchain (see docs/os2-linux-toolchain/). DOS/go32v2 builds 10/14 including
+> the BBS server; its socket layer and binutils link fix ship in the repo, and
+> the networked utilities need only Watt-32 (libwatt.a) - see docs/DOS-SOCKETS.md.
 
 A community fork of the **Mystic BBS 1.10 alpha 38** source, released under the
 **GNU General Public License v3**. The goal is a clean, buildable, well-documented

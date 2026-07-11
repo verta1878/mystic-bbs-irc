@@ -32,10 +32,33 @@ to invoke the EXTERNAL GNU `ld`, which is where the rejection bites.
 This mirrors the OS/2 emx binutils patch (import-symbol handling) - both teach
 binutils to read an FPC symbol convention its stock coff/a.out reader rejects.
 
+## Source provenance (GPL)
+
+binutils is GPLv3. This directory ships the **complete corresponding source**:
+
+- `binutils-2.30.tar.gz` - the pristine upstream GNU binutils 2.30 release,
+  bundled here so the full source travels with the repo (no external download
+  needed). Verify with:
+
+      sha256sum binutils-2.30.tar.gz
+      # 8c3850195d1c093d290a716e20ebcaa72eda32abf5e3d8611154b39cff79e9ea
+
+  This is the unmodified release from https://ftp.gnu.org/gnu/binutils/ .
+- `coff-go32.c.patch`, `coffcode.h.patch` - our two-file fix as unified diffs.
+- `coff-go32.c.patched`, `coffcode.h.patched` - full snapshots of the two
+  changed files after patching (for quick reference/review).
+
+Applying the two patches to the bundled tarball reproduces the `.patched`
+files byte-for-byte. Complete corresponding source = bundled binutils-2.30 +
+these patches.
+
 ## Build recipe (Ubuntu 24.04)
 
     apt-get install -y bison flex
-    tar xf binutils-2.30.tar.gz            # pristine
+    # pristine binutils 2.30 is bundled in this directory as
+    # binutils-2.30.tar.gz (verify sha256 above); or re-download from
+    #   https://ftp.gnu.org/gnu/binutils/binutils-2.30.tar.gz
+    tar xf binutils-2.30.tar.gz
     cd binutils-2.30
     patch -p0 < .../coff-go32.c.patch      # applies to bfd/coff-go32.c
     patch -p0 < .../coffcode.h.patch       # applies to bfd/coffcode.h

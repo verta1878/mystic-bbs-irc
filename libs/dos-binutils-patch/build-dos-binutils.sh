@@ -6,9 +6,11 @@
 #
 # Produces i386-go32v2-{ld,nm,objdump,ar,ranlib,strip,as} under <prefix>/bin.
 set -eu
-TARBALL="${1:?usage: $0 <binutils-2.30.tar.gz> [prefix]}"
-PREFIX="${2:-$PWD/dos-binutils-out}"
 HERE="$(cd "$(dirname "$0")" && pwd)"
+# Default to the pristine tarball bundled next to this script; allow override.
+TARBALL="${1:-$HERE/binutils-2.30.tar.gz}"
+PREFIX="${2:-$PWD/dos-binutils-out}"
+[ -f "$TARBALL" ] || { echo "no tarball: $TARBALL (pass one, or keep binutils-2.30.tar.gz beside this script)"; exit 1; }
 
 command -v bison >/dev/null || { echo "install bison (apt-get install -y bison flex)"; exit 1; }
 command -v flex  >/dev/null || { echo "install flex  (apt-get install -y bison flex)"; exit 1; }

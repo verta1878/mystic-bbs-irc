@@ -303,12 +303,24 @@ End;
 {$ENDIF}
 
 {$IFDEF GO32V2}
-// DOS/go32v2 is single-tasking: no fork(), no Win32 API, no fcl-process
-// TProcess to relay a per-node child. So DOS handles ONE TCP connection at a
-// time, inline - the single-node model (cf. the mystic_misdos/ sample and
-// docs/DECISIONS.md). We hand the accepted socket straight to a `mystic`
-// node via -TID<handle> (exactly what the Windows path does with CommHandle),
-// then block until that session ends before the listener accepts again.
+// DOS/go32v2 concurrency model.
+//
+// Watt-32 is a real TCP/IP stack and handles MULTIPLE concurrent sockets - it
+// exposes select_s() precisely so one process can watch several connections.
+// The DOS constraint is NOT "one connection"; it is "no preemptive threads"
+// (DOS is single-tasking, so the thread-per-client model TServerClient uses on
+// other platforms does not apply). The correct multi-node DOS design is
+// cooperative: one process, non-blocking sockets (FIONBIO), polled with
+// fpSelect - many connections, one thread. sockets_go32v2 already provides all
+// of those primitives (fpSelect/fpFD_*/ioctlSocket+FIONBIO).
+//
+// This first implementation is deliberately simpler: it serves ONE caller at a
+// time by handing the accepted socket to a `mystic -n<N> -TID<handle>` session
+// (the same -TID/CommHandle handoff the Windows path uses) and waiting for it
+// to finish. That is an implementation choice for the initial DOS bring-up, not
+// a Watt-32 limitation. A cooperative select() accept-loop that multiplexes
+// several concurrent nodes in-process is the planned upgrade (see
+// docs/DOS-SOCKETS.md).
 Procedure TTelnetServer.Execute;
 Var
   Num : LongInt;

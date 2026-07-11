@@ -28,6 +28,36 @@ So a "release installer" for a platform is simply a directory / zip containing:
 `make_release.sh <tag> <bin-dir>` assembles exactly this (see §4).
 
 --------------------------------------------------------------------------------
+## 1a. The 14 binaries (what each program is)
+
+Every target builds the **same 14 programs** (from `build.sh` `ALL=(...)`; each
+is `mystic/<name>.pas` -> `<name>[.exe]`). On Windows each is `<name>.exe`; on
+Linux/macOS/OS2/DOS the platform-native equivalent. These 14 are what ship in
+BOTH the FULL and UPGRADE archives (the payload `install_data.mys` is the only
+FULL-vs-UPGRADE difference).
+
+| Binary          | What it is                                                        |
+|-----------------|-------------------------------------------------------------------|
+| `mystic`        | the BBS itself; `mystic -CFG` is the configuration editor         |
+| `mis`           | Mystic Internet Server (telnet, BINKP, SMTP, POP3, NNTP, FTP)     |
+| `mutil`         | Mystic Utility - the echomail tosser/importer/exporter + maint.   |
+| `mplc`          | MPL compiler (`.mps` source -> `.mpx` bytecode)                   |
+| `mide`          | Mystic IDE / editor helper                                        |
+| `mbbsutil`      | miscellaneous BBS utilities                                       |
+| `fidopoll`      | FidoNet poller (outbound mailer sessions)                        |
+| `nodespy`       | node monitor / spy (watch active nodes)                          |
+| `qwkpoll`       | QWK network poller                                                |
+| `mystpack`      | packing utility                                                   |
+| `install`       | end-user installer - unpacks `install_data.mys` (see §1)          |
+| `install_make`  | developer tool that BUILDS `.mys` payloads (see §3)              |
+| `maketheme`     | theme builder/compiler                                            |
+| `109to110`      | data converter (upgrades Mystic 1.09 data to 1.10)               |
+
+Platform completeness (from §4c): Linux/Win32/macOS/OS2 build **14/14**; DOS
+builds **10/14** - the 4 networked utilities (mis + the pollers) need Watt-32
+(`libwatt.a`); see `docs/DOS-SOCKETS.md`.
+
+--------------------------------------------------------------------------------
 ## 2. The `install_data.mys` format (MYS archive, version 3)
 
 `install_data.mys` is the fork's own **MYS** archive.  It is **stored, NOT
@@ -103,33 +133,62 @@ IMPORTANT: `install_data.mys` is a binary payload - it is marked `binary` in
     ./make_release.sh <tag> <bin-dir> [full|upgrade|both] [out-dir]
       tag  = lnx | win | mac | os2 | dos     (the target platform)
       mode = both (default) | full | upgrade
-    -> writes into release/<tag>/  (mystic<tag>full.zip and/or mystic<tag>upd.zip)
+    env: VER    = version token   (default 1.10a38irc)
+         STAMP  = date or FINAL   (default today, MM-DD-YYYY)
+
+Archive names carry the version, platform, mode, AND a stamp:
+
+    mystic-<VER>-<tag>-<mode>-<STAMP>.zip
+
+    in-progress:  mystic-1.10a38irc-win-full-07-10-2026.zip
+    completed:    STAMP=FINAL ... -> mystic-1.10a38irc-win-full-FINAL.zip
+
+### The STAMP: dated vs FINAL
+While an alpha's fixes are still being imported, builds carry the **date**
+(easy to tell test builds apart). Once ALL of that alpha's fixes are imported
+and verified, build with `STAMP=FINAL` and the stamp becomes `FINAL`.
+
+### Each archive extracts into its OWN folder
+The contents are packaged inside a top-level folder named after the archive
+(e.g. `mystic-1.10a38irc-win-full-07-10-2026/`). This means extracting the FULL
+and UPGRADE archives side by side does NOT merge their loose files - a mistake
+that previously made it look like the installer files had been replaced by
+upgrade files.
 
 ### FULL vs UPGRADE
-  * **FULL** (`mystic<tag>full.zip`): all 14 binaries + `install_data.mys`
-    + docs + `FILE_ID.DIZ` labelled "`<tag> FULL`".  This is what a NEW sysop
-    installs from - `install` unpacks the payload into an empty dir.
-  * **UPGRADE** (`mystic<tag>upd.zip`): all 14 binaries + docs +
-    `FILE_ID.DIZ` labelled "`<tag> UPGRADE`", but NO `install_data.mys`.  Drop
-    the binaries over an existing install; data/menus/config are untouched.
-    (See upgrade.txt for the per-version upgrade steps.)
+  * **FULL**: all 14 binaries + `install_data.mys` + docs + `FILE_ID.DIZ`
+    labelled "`<tag> FULL`".  This is what a NEW sysop installs from -
+    `install` unpacks the payload into an empty dir.
+  * **UPGRADE**: all 14 binaries + docs + `FILE_ID.DIZ` labelled
+    "`<tag> UPGRADE`", but NO `install_data.mys`.  Drop the binaries over an
+    existing install; data/menus/config are untouched. (See upgrade.txt for the
+    per-version upgrade steps.)
 
 Example (OS/2, built on Linux via the emx toolchain):
 
     LINK=1 ./build-os2.sh                     # -> out/bin-os2/*.exe
-    ./make_release.sh os2 out/bin-os2         # both -> release/os2/mysticos2full.zip
-                                              #        + release/os2/mysticos2upd.zip
+    ./make_release.sh os2 out/bin-os2         # both -> release/os2/
+                                              #   mystic-1.10a38irc-os2-full-<date>.zip
+                                              #   mystic-1.10a38irc-os2-update-<date>.zip
 
 The script: copies the bin dir, strips build intermediates
 (`.o .ppu .a .s .out`), generates `FILE_ID.DIZ` (see §4a), adds
-`whatsnew.txt` + `upgrade.txt` + `COPYING`, adds `install_data.mys` only in
+`whatsnew.txt` + `upgrade.txt` + every `update*.txt` note + `COPYING`, adds
+`install_data.mys` only in
 FULL mode, and zips one archive per target.
 
 ### 4a. FILE_ID.DIZ and CRLF
 Each release carries a `FILE_ID.DIZ` - the description a BBS shows in a file
 listing.  It is generated from the per-target template `mystic/file_id.<tag>`,
 with the title line's "`<tag> BINARIES`" replaced by
-"`<tag> FULL`" or "`<tag> UPGRADE`", and written with **CRLF** line endings.
+"`<tag> FULL`" or "`<tag> UPGRADE`" (re-padded so the box border stays aligned),
+and a release-date line appended as the LAST line:
+
+    | Mystic BBS v1.10-IRC Fork    win FULL     |
+    ...
+     Released: 07-10-2026        <- the build STAMP (or "Released: FINAL")
+
+The whole file is written with **CRLF** line endings.
 
 CRLF matters: FILE_ID.DIZ (like all BBS text artifacts) must be CRLF regardless
 of the build host, or DOS/OS/2 BBS software renders it wrong.  Two safeguards:
@@ -172,33 +231,35 @@ repo.  Point `make_release.sh <tag> <bin-dir>` at the matching dir above.
     Win32   14/14  PE32 (FPC internal linker)
     macOS   14/14  Mach-O (ld64 + SDK)
     OS/2    14/14  LX (built on Linux via libs/os2-linux-toolchain.zip)
-    DOS      7/14  non-networked utilities only - no full installer yet
-                   (networked programs need a DOS socket layer; see docs/TODO.md)
+    DOS     10/14  go32v2 (incl. the mystic server) - the 4 networked
+                   utilities need Watt-32 (libwatt.a); see docs/DOS-SOCKETS.md
 
 --------------------------------------------------------------------------------
 ## 5. Release layout & artifact naming
 
 Each target gets its own directory under `release/`, named by the platform tag,
-holding its FULL install and its UPGRADE bundle:
+holding its FULL install and its UPGRADE bundle (names carry VER + stamp):
 
     release/
-      lnx/  mysticlnxfull.zip     mysticlnxupd.zip
-      win/  mysticwinfull.zip     mysticwinupd.zip
-      mac/  mysticmacfull.zip     mysticmacupd.zip
-      os2/  mysticos2full.zip     mysticos2upd.zip
+      lnx/  mystic-1.10a38irc-lnx-full-<STAMP>.zip   ...-lnx-update-<STAMP>.zip
+      win/  mystic-1.10a38irc-win-full-<STAMP>.zip   ...-win-update-<STAMP>.zip
+      mac/  mystic-1.10a38irc-mac-full-<STAMP>.zip   ...-mac-update-<STAMP>.zip
+      os2/  mystic-1.10a38irc-os2-full-<STAMP>.zip   ...-os2-update-<STAMP>.zip
 
-    mystic<tag>full.zip FULL    - install + install_data.mys + docs + FILE_ID.DIZ
-    mystic<tag>upd.zip  UPGRADE - binaries + docs + FILE_ID.DIZ (no payload)
+    <STAMP> = build date (MM-DD-YYYY) while importing, or FINAL when complete.
 
-    mystica38src<YYYYMMDD>.zip   full source release
+    ...-<tag>-full-<STAMP>.zip   FULL    - install + install_data.mys + docs + DIZ
+    ...-<tag>-update-<STAMP>.zip UPGRADE - binaries + docs + DIZ (no payload)
 
-A NEW sysop installs from `mystic<tag>full.zip` (FULL).  An existing sysop updates
-in place with `mystic<tag>upd.zip` (UPGRADE - drop the binaries over the
+    mystic-bbs-irc-source.zip    full source release (symlinks dereferenced)
+
+A NEW sysop installs from the FULL archive.  An existing sysop updates in place
+with the UPGRADE archive (drop the binaries over the
 install; data/menus/config are untouched; see upgrade.txt for per-version
 steps).
 
 There is deliberately no separate combined "binaries" bundle - the per-target
-`mystic<tag>upd.zip` IS the binaries drop for that platform, so a combined
+UPGRADE archive IS the binaries drop for that platform, so a combined
 cross-platform bin archive would just duplicate it.
 
 --------------------------------------------------------------------------------
