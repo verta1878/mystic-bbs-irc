@@ -50,6 +50,8 @@ Procedure CompileTheme;
 Var
   Count : LongInt;
   Temp  : String;
+  Tried : String;
+  Opened : Boolean;
 Begin
   FSplit (InFN, FDir, FName, FExt);
 
@@ -59,12 +61,48 @@ Begin
     Halt (1);
   End;
 
-  Assign     (TF, FName + FExt);
+  // Resolve the source prompt file.  The user may give a bare theme name
+  // ("default") rather than an exact filename, so try, in order:
+  //   1. the name exactly as typed (current dir)
+  //   2. name + ".txt" (the documented convention) if no extension was given
+  //   3. the same two under the BBS DataPath
+  // Report every path tried if none open, so the user knows where we looked.
+  Tried := '';
+
+  Assign (TF, FName + FExt);
   SetTextBuf (TF, Buffer, SizeOf(Buffer));
   {$I-} Reset (TF); {$I+}
+  Opened := IoResult = 0;
+  If Not Opened Then Tried := Tried + '  ' + FName + FExt + #13#10;
 
-  If IoResult <> 0 Then Begin
-    WriteLn ('ERROR: Theme file (' + FName + FExt + ') not found');
+  If (Not Opened) and (FExt = '') Then Begin
+    Assign (TF, FName + '.txt');
+    SetTextBuf (TF, Buffer, SizeOf(Buffer));
+    {$I-} Reset (TF); {$I+}
+    Opened := IoResult = 0;
+    If Not Opened Then Tried := Tried + '  ' + FName + '.txt' + #13#10;
+  End;
+
+  If Not Opened Then Begin
+    Assign (TF, bbsConfig.DataPath + FName + FExt);
+    SetTextBuf (TF, Buffer, SizeOf(Buffer));
+    {$I-} Reset (TF); {$I+}
+    Opened := IoResult = 0;
+    If Not Opened Then Tried := Tried + '  ' + bbsConfig.DataPath + FName + FExt + #13#10;
+  End;
+
+  If (Not Opened) and (FExt = '') Then Begin
+    Assign (TF, bbsConfig.DataPath + FName + '.txt');
+    SetTextBuf (TF, Buffer, SizeOf(Buffer));
+    {$I-} Reset (TF); {$I+}
+    Opened := IoResult = 0;
+    If Not Opened Then Tried := Tried + '  ' + bbsConfig.DataPath + FName + '.txt' + #13#10;
+  End;
+
+  If Not Opened Then Begin
+    WriteLn ('ERROR: Theme source file for "' + FName + FExt + '" not found.');
+    WriteLn ('Looked in:');
+    Write   (Tried);
     Halt (1);
   End;
 

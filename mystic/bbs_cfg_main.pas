@@ -138,6 +138,34 @@ Var
     Box.Free;
   End;
 
+  Procedure AboutBox;
+  Var
+    AboutImg : TConsoleImageRec;
+    ABox     : TAnsiMenuBox;
+  Begin
+    // Box centered on an 80-col screen, wide enough for the 38-char copyright.
+    // Interior runs col 20..61 (42 wide); text is padded/centered to 42.
+    // Blue popup: white/cyan text on a blue background (fg + 1*16).
+    Console.GetScreenImage (18, 8, 63, 15, AboutImg);
+
+    ABox := TAnsiMenuBox.Create;
+    ABox.BoxAttr  := 15 + 1 * 16;      // bright white on blue (frame)
+    ABox.BoxAttr2 := 7  + 1 * 16;
+    ABox.BoxAttr3 := 7  + 1 * 16;
+    ABox.BoxAttr4 := 7  + 1 * 16;
+    ABox.Open (18, 8, 63, 15);
+
+    WriteXY (20, 10, 15 + 1 * 16, strPadC ('Mystic BBS',   42, ' '));
+    WriteXY (20, 11, 11 + 1 * 16, strPadC (mysVersion,     42, ' '));
+    WriteXY (20, 13, 15 + 1 * 16, strPadC (mysCopyNotice,  42, ' '));
+
+    Session.io.GetKey;
+
+    ABox.Close;
+    ABox.Free;
+    Session.io.RemoteRestore (AboutImg);
+  End;
+
 Begin
   Session.io.OutFile(bbsCfg.DataPath + 'cfgroot', False, 0);
 
@@ -209,7 +237,10 @@ Begin
 
             If Form.WasHiExit Then Begin
               Case Res of
-                #75 : MenuPtr := 4;
+                #75 : Begin              // Left off Configuration -> land on top-bar Exit
+                        MenuPtr    := 0;
+                        MenuPos[0] := 5;
+                      End;
                 #77 : MenuPtr := 2;
               End;
             End Else
@@ -327,10 +358,14 @@ Begin
             If Form.WasHiExit Then Begin
               Case Res of
                 #75 : MenuPtr := 3;
-                #77 : MenuPtr := 1;
+                #77 : Begin              // Right off Info -> land on top-bar Exit
+                        MenuPtr     := 0;
+                        MenuPos[0]  := 5;
+                      End;
               End;
             End Else
               Case Res of
+                'A' : AboutBox;
                 'X' : Break;
               Else
                 MenuPtr := 0;
