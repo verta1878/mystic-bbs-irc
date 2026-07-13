@@ -2,7 +2,7 @@
 
 These tests are **not run during the A40 import work** (to save build resources
 on a loaded container).  Run them once the A40 import is complete, ideally with
-the 2.6.4irc compiler (`libs/fpc264irc.tar.gz`) but the pinned 2.6.2 works too.
+the default 2.6.4irc r3 compiler (`libs/fpc264irc.tar.gz`); 2.6.2 also works.
 
 ## What A40 touched (the code under test)
 
@@ -23,8 +23,8 @@ the 2.6.4irc compiler (`libs/fpc264irc.tar.gz`) but the pinned 2.6.2 works too.
 FPC=/path/to/ppc386 ./tests/a40/run.sh
 ```
 
-Requires the fork source tree at repo root (mdl/, mystic/) and an FPC 2.6.2 or
-2.6.4irc `ppc386` on PATH (or via FPC=).
+Requires the fork source tree at repo root (mdl/, mystic/) and an FPC 2.6.4irc r3 or
+2.6.2 `ppc386` on PATH (or via FPC=).
 
 ## Checks performed
 

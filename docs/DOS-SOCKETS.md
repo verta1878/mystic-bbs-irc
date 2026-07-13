@@ -2,6 +2,10 @@
 
 How the fork gets TCP/IP on DOS without adding C code to its own tree.
 
+> **Scope: 32-bit protected-mode DOS (go32v2/DJGPP) only.** Everything here
+> targets go32v2 - 32-bit, needs a 386+ and a DPMI host (CWSDPMI). There is no
+> 16-bit (i8086 real-mode) DOS support; FPC 2.6.x has no i8086 target.
+
 ## The approach
 
 Every non-DOS target gets sockets from an FPC RTL unit (`Sockets` + platform
@@ -154,15 +158,16 @@ C symbol forces FPC to invoke the EXTERNAL GNU ld (to bind the C library), which
 is where the rejection bit. The 10 non-C-external programs linked fine because
 FPC uses its internal linker for them.
 
-FIXED by libs/dos-binutils-patch/ (coff-go32.c + coffcode.h): define
-COFF_GO32_C_SECTION so coffcode.h handles C_SECTION (0x68) as a section symbol
-for coff-go32, exactly as it does for PE (and excludes the conflicting C_LINE
-case). This mirrors the OS/2 emx binutils patch. VERIFIED: patched objdump/nm
-read FPC objects; a non-networked program still links (no regression); and
-fidopoll now links PAST the class-104 rejection - the ONLY remaining errors are
+FIXED at the compiler/toolchain level by FPC 2.6.4irc r3, which bundles a go32v2
+toolchain (bin/tools/i386-go32v2/) and emits proper COFF section attributes so
+the linker handles C_SECTION (0x68) natively.  (History: this was originally
+solved by a standalone binutils patch that defined COFF_GO32_C_SECTION in
+coffcode.h for coff-go32, mirroring the OS/2 emx binutils patch; that patch was
+removed from libs/ once r3 took over the concern.)  VERIFIED at the time: patched
+objdump/nm read FPC objects; a non-networked program still links (no regression);
+and fidopoll linked PAST the class-104 rejection - the ONLY remaining errors were
 `undefined reference to sock_init/socket/connect/...`, i.e. the Watt-32
-functions that libwatt.a provides. See libs/dos-binutils-patch/README.md for
-the build recipe.
+functions that libwatt.a provides.
 
     REMAINING: build Watt-32 (libwatt.a) for djgpp and add -lwatt to the link.
     The object-reading blocker - which also gated the whole Watt-32 link - is
@@ -190,8 +195,8 @@ undefined Watt-32 symbols as the other networked programs.
 - Source-side: DONE. The socket layer is complete, `mystic` compiles, and all
   the mis/events/md5 code gaps are fixed. There are NO remaining source-level
   blockers for DOS.
-- The binutils<->FPC object-format mismatch is FIXED (libs/dos-binutils-patch/,
-  bundled in dos-toolchain.zip) - the patched ld reads FPC objects.
+- The binutils<->FPC object-format mismatch is FIXED (FPC 2.6.4irc r3's go32v2 toolchain,
+  bin/tools/i386-go32v2/) - r3's ld reads FPC objects natively.
 - All 4 networked programs (mis, fidopoll, nodespy, qwkpoll) now compile and
   reach the link stage, failing ONLY on undefined Watt-32 symbols. The single
   remaining piece is libwatt.a (Watt-32 built for djgpp). build-dos.sh already

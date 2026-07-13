@@ -6,7 +6,7 @@
 > **Free Pascal 2.6.2** for Windows (XP+, 32-bit), Linux (i386), macOS/Darwin
 > (compiles + links with an Apple SDK you supply), and **OS/2** - now built
 > **entirely on Linux** to native LX executables via a self-hosted emx
-> toolchain (see docs/os2-linux-toolchain/). DOS/go32v2 builds 10/14 including
+> toolchain (bundled in libs/fpc264irc.tar.gz: bin/tools/i386-emx + patches/os2-cross). DOS/go32v2 builds 10/14 including
 > the BBS server; its socket layer and binutils link fix ship in the repo, and
 > the networked utilities need only Watt-32 (libwatt.a) - see docs/DOS-SOCKETS.md.
 
@@ -59,7 +59,12 @@ Linux -> Darwin cross-compile recipe.
 | Linux (Debian) | `build.sh`        | Linux / bash                         |
 | macOS (Darwin) | `build-darwin.sh` | macOS, or Linux with a cross toolchain |
 | OS/2           | `build-os2.sh`    | Linux (full: compile + LX link)      |
-| DOS (go32v2)   | `build-dos.sh`    | Linux with the bundled cross toolchain |
+| DOS (go32v2)   | `build-dos.sh`    | Linux cross toolchain → runs on 386+ DOS via DPMI |
+
+> **DOS = 32-bit protected-mode (go32v2/DJGPP).** The DOS binaries are 32-bit
+> and require a 386 or better plus a DPMI host (CWSDPMI). This is **not** a
+> 16-bit real-mode (i8086/8088/286) build — FPC 2.6.x (including 2.6.4irc r3)
+> has no i8086 target, so true 16-bit DOS is out of scope for this compiler.
 
 ```
 # Linux (native)
@@ -72,9 +77,9 @@ SDK=/path/to/MacOSX10.6.sdk ./build-darwin.sh   # macOS -> Mach-O
 ./build-dos.sh                   # DOS   -> go32v2 (10/14; networked need libwatt.a)
 ```
 
-The OS/2 and DOS cross toolchains ship in `libs/` (`os2-linux-toolchain.zip`,
+The OS/2 and DOS cross toolchains ship inside `libs/fpc264irc.tar.gz` (bin/tools/i386-emx,
 `dos-toolchain.zip`) with the binutils patches that let GNU `ld` read FPC's
-object output - see `libs/emxbind-src/` and `libs/dos-binutils-patch/`.
+object output. FPC 2.6.4irc r3 bundles both toolchains (fpc264irc/bin/tools/: i386-emx for OS/2, i386-go32v2 for DOS).
 
 ## What's in the tree
 

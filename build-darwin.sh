@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ============================================================
-#  Mystic 1.10 A38 fork - Darwin / macOS build  (FPC 2.6.2, i386)
+#  Mystic 1.10 fork - Darwin / macOS build  (FPC 2.6.4irc r3, i386)
 #  Usage:  ./build-darwin.sh            build every binary
 #          ./build-darwin.sh mis        build a single target
 #  Linux/Unix: build.sh   Windows: build-win32.bat   OS/2: build-os2.sh
@@ -12,7 +12,7 @@
 #    1. A cctools/ld64 cross toolchain for i386-apple-darwin10, with the
 #       tools ALSO symlinked to FPC's default cross prefix i386-darwin-*
 #       (i386-darwin-as, -ld, -ar, ...).  Put its bin/ on PATH.
-#    2. A macOS SDK (10.6 suits the FPC 2.6.2 era) with usr/lib/crt1.o
+#    2. A macOS SDK (10.6 suits this FPC era) with usr/lib/crt1.o
 #       present.  If the SDK lacks crt1.o, build it from Apple's Csu
 #       (the 10.4-compat "v1" variant, incl. dyld_glue.s) - see INSTALL.
 #    3. The i386-darwin RTL built with the EXTERNAL cctools assembler

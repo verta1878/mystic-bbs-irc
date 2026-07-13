@@ -1,5 +1,11 @@
 # Contributing the Linux-hosted emxbind upstream
 
+> NOTE: the emxbind Linux-port sources + shim referenced below now live in the
+> FPC 2.6.4irc fork (fpc264irc/patches/os2-cross/ and its bin/tools/i386-emx/),
+> not in this repo's libs/. They were moved there once the fork absorbed the
+> OS/2 cross toolchain. Paths below that say `libs/emxbind-src/...` now map to
+> the fork's `patches/os2-cross/`.
+
 We built emx's `emxbind` (the OS/2 a.out -> LX final-link tool) so it compiles
 and runs on a modern Linux x86-64 host.  A Linux-hosted emx toolchain is an
 open request in the OS/2 dev community (e.g. bitwiseworks/gcc-os2 issue

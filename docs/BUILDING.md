@@ -1,12 +1,14 @@
 # Building the fork (all targets)
 
-Compiler: **FPC 2.6.2, i386** (pinned). Every target builds the same 14 binaries
-(see `docs/CREATING-THE-INSTALLER.md` for the binary inventory + how to package a
-release once built).
+Compiler: **FPC 2.6.4irc, release r3, i386** (the default project compiler).
+Every target builds the same 14 binaries (see `docs/CREATING-THE-INSTALLER.md`
+for the binary inventory + how to package a release once built).
 
-> A 2.6.4 compiler release is expected for testing later (the captured
-> `libs/fpc264irc.tar.gz` custom compiler). Until a deliberate switch, the
-> project compiler stays 2.6.2.
+> The compiler is bundled at `libs/fpc264irc.tar.gz` (self-sustaining — it ships
+> its own assembler/linker/archiver via a 3-tier fallback, so a build never
+> dead-ends on a missing tool). Unpack it and point `FPC=` at its `bin/ppc386`.
+> It is PPU-compatible with stock FPC 2.6.4 (wordversion unchanged), so on-disk
+> record layout / anchors are unaffected. (FPC 2.6.2 was the earlier pin.)
 
 --------------------------------------------------------------------------------
 
@@ -36,7 +38,7 @@ LINK=1 ./build-os2.sh
 - `LINK=1`  compile **and** link to `.exe`. Without it: compile-only (safe on
   any Linux host - no OS/2 toolchain required for the compile pass).
 - **Needs:** the emx cross-toolchain on `PATH`, built from
-  `libs/os2-linux-toolchain.zip` (patched binutils with the a.out-emx target +
+  the fork bundle's emx tools (fpc264irc/bin/tools/i386-emx: patched binutils with the a.out-emx target +
   emxbind Linux port + emxl.exe + the i386-os2-ld alignment wrapper).
 - Also builds natively on OS/2 (the FPC 2.6.2 OS/2 release bundles emx).
 

@@ -11,7 +11,7 @@
 #    FPC=/path/to/ppc386 ./tests/a40/run.sh
 #
 #  The compiler defaults to `ppc386` on PATH.  The 2.6.4irc compiler in
-#  libs/fpc264irc.tar.gz also works (unpack and point FPC= at bin/ppc386).
+#  Default compiler: libs/fpc264irc.tar.gz r3 (unpack, point FPC= at bin/ppc386).
 # ==========================================================================
 set -u
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"

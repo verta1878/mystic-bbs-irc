@@ -177,6 +177,42 @@ Whatever surfaces here IS the next real work.
 
 --------------------------------------------------------------------------
 
+## 9. Adopt FPC 2.6.4irc as the default compiler — DONE (verify remains)
+
+  GOAL (met): FPC 2.6.4irc release r3 (libs/fpc264irc.tar.gz) is now the DEFAULT
+  project compiler, replacing 2.6.2.
+
+  Done (2026-07-12):
+   - Bundle upgraded to r3 (self-sustaining: ships its own as/ld/ar via the
+     3-tier fallback; see fpc264irc/docs/tier_fallback_system.md).
+   - Verified r3 COMPILES the Mystic tree: it built all 7 core units +
+     mplc.o clean in-container (only the final link stalled on the container's
+     known slow-ld, which hits 2.6.2 identically - not an r3 issue).
+   - Build-script headers + docs (START-HERE, BUILDING, libs/README, DECISIONS)
+     updated to name r3 as the default. PPU wordversion unchanged vs stock 2.6.4
+     -> record anchors safe by construction.
+
+  Remaining verification (not blockers to it being default):
+   - Full 14/14 build on win32 + linux end-to-end under r3 (link included) once
+     the container link path is unblocked, or on the sysop's machine.
+   - Run tests/a40/run.sh under r3 (FPC= -> fpc264irc/bin/ppc386).
+   - Anchor re-check (5282/768/901/1536) after a full r3 build.
+   - Live smoke test on the board.
+
+## 10. Clean up libs/ + source-code COMMENTS (SYSOP GOAL)
+
+  GOAL: tidy the comment/header cruft across libs/ and the Pascal sources.
+  Known stale items to sweep (cosmetic - none affect builds):
+   - build-*.sh / build-*.bat headers still say "1.10 A38 fork" though the tree
+     now carries A40 work (see docs/BUILDING.md note).
+   - Any remaining "A39"-era comments / version strings in sources and libs/
+     READMEs that no longer match where the fork is.
+   - Normalise/refresh libs/ per-toolchain READMEs where they drifted.
+  Do this as a dedicated pass so a comment sweep never mixes with a code change
+  (keeps diffs reviewable). No behaviour change intended.
+
+--------------------------------------------------------------------------
+
 ## INTENTIONAL DIVERGENCES — do NOT "align" these back to A39/A51
 
   - qwkpoll PrintLog: our qwkpoll logs each poll line to a timestamped
@@ -200,6 +236,9 @@ o7
 
 ## DOS port - networking (socket layer DONE; needs Watt-32 libwatt.a)
 
+Scope: 32-bit protected-mode DOS (go32v2/DJGPP, needs 386+ and CWSDPMI). NOT
+16-bit real-mode - FPC 2.6.x has no i8086 target.
+
 DONE (2026-07-09): DOS builds 10/14, including the mystic server. The socket
 layer is written and the binutils link blocker is solved - both in the repo.
 
@@ -209,10 +248,12 @@ layer is written and the binutils link blocker is solved - both in the repo.
     (which FPC 2.6.2's go32v2 target does not ship). This keeps the fork's code
     Pascal on our PINNED 2.6.2 - no risky re-pin to 3.0.4/3.2.2, so the SizeOf
     record anchors stay intact.
-  - libs/dos-binutils-patch/: the C_SECTION(0x68) fix so GNU ld reads FPC
-    objects (stock binutils 2.30 rejected them, breaking any C-library link).
-    Includes the pristine binutils-2.30 source tarball (GPL source travels with
-    the repo). The patched ld/nm/objdump are in libs/dos-toolchain.zip.
+  - The C_SECTION(0x68) COFF link fix (so ld reads FPC objects) is now handled
+    by FPC 2.6.4irc r3's bundled go32v2 toolchain (bin/tools/i386-go32v2/), which
+    emits/reads the proper COFF section attributes. (The old standalone
+    libs/dos-binutils-patch/ was removed - r3 supersedes it. NOTE: r3 also ships
+    a go32v2 Sockets unit, so whether the fork still needs mdl/sockets_go32v2.pas
+    is an open question to settle during live DOS testing under r3.)
   - DOS code gaps closed: m_io_stdio, m_pipe, mis_events ShellExec, go32v2 MD5.
 
 REMAINING - build Watt-32 (libwatt.a) for djgpp/go32v2:

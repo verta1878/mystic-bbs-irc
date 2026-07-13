@@ -166,7 +166,10 @@ via `.gitattributes` so a Linux cross-compile still ships correct DOS text.
 ================================================================================
 ## 8. DOS status (10/14 — socket layer done; needs Watt-32)
 
-The go32v2 DOS toolchain (`libs/dos-toolchain.zip`) is self-contained and now
+DOS here means **32-bit protected-mode go32v2** (DJGPP; needs a 386+ and a DPMI
+host, CWSDPMI). It is not a 16-bit real-mode (i8086) build — FPC 2.6.x has no
+i8086 target. The go32v2 DOS toolchain (`libs/dos-toolchain.zip`) is
+self-contained and now
 ships PATCHED binutils. DOS builds **10/14**, including `mystic` (the BBS
 server): the non-networked utilities, mide, mbbsutil, and mystic all compile
 and link. The four networked utilities (mis, fidopoll, nodespy, qwkpoll)
@@ -179,12 +182,12 @@ What this session added (all in the repo):
     to Watt-32. The fork's socket code is unchanged; on go32v2 it simply
     `Uses sockets_go32v2` instead of the RTL `Sockets` unit (which FPC 2.6.2's
     go32v2 target does not ship). See docs/DOS-SOCKETS.md.
-  * **binutils link fix** — FPC 2.6.2 emits COFF storage class 0x68 (C_SECTION)
+  * **binutils link fix** — FPC 2.6.x emits COFF storage class 0x68 (C_SECTION)
     for section symbols; stock binutils 2.30 coff-go32 rejected it, which broke
-    linking any FPC DOS program against a C library. `libs/dos-binutils-patch/`
-    carries the fix (patches + full patched-source snapshots + the pristine
-    binutils-2.30 source tarball + build script), and the bundled toolchain zip
-    already contains the patched `ld`/`nm`/`objdump`/etc.
+    linking any FPC DOS program against a C library. FPC 2.6.4irc r3 resolves this
+    at the toolchain level: it bundles a go32v2 toolchain (bin/tools/i386-go32v2/)
+    whose `ld`/`nm`/`objdump` read FPC's COFF output natively. (Earlier builds
+    used a standalone binutils patch in libs/; r3 supersedes it.)
   * **mis/events/md5 code gaps closed** — DOS branches for stdin/stdout
     (`m_io_stdio`), disk pipes (`m_pipe`), ShellExec, and the go32v2 MD5 unit.
 

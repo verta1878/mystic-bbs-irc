@@ -7,7 +7,7 @@ building the linker yourself.  `build-darwin.sh` auto-discovers it.
 ## What's here
 
     bin/i386-apple-darwin10-{ld,as,ar,ranlib,nm,strip,lipo,libtool,otool}
-    bin/i386-darwin-*        symlinks (FPC 2.6.2's default cross prefix)
+    bin/i386-darwin-*        symlinks (FPC 2.6.x default cross prefix)
     lib/libBlocksRuntime.so  Apple runtimes ld64 links against
     lib/libdispatch.so
 

@@ -7,8 +7,8 @@ resume from it alone.**
 ## What this is
 
 The sysop (an original-era BBS operator) runs a live board on this
-Mystic 1.10 A38 fork and works on it here, in a container with FPC
-2.6.2 (i386). The tree is a git repo (github.com/mystic-bbs-irc — push
+Mystic 1.10 fork and works on it here, in a container with FPC
+2.6.4irc r3 (i386, from libs/fpc264irc.tar.gz). The tree is a git repo (github.com/mystic-bbs-irc — push
 from the sysop's side; the container cannot push). Work is delivered
 as a source zip in /mnt/user-data/outputs/ which the sysop applies and
 pushes.
@@ -24,7 +24,7 @@ pushes.
 
 ## Orientation checklist (before any new work)
 
-1. Confirm the tree + FPC 2.6.2 are present; if the container was
+1. Confirm the tree + FPC 2.6.4irc r3 are present; if the container was
    reset, restore from the latest mystic-A38fork-source-*.zip in
    /mnt/user-data/outputs/ (or re-clone) and rebuild the toolchain
    (DECISIONS.md 2026-07-08 "Container toolchain rebuilt" records the
@@ -43,7 +43,10 @@ pushes.
 
 ## House rules (locked decisions — details in DECISIONS.md)
 
-- FPC 2.6.2 stays the project compiler (identity/period-correct call).
+- FPC 2.6.4irc (release r3) is the default project compiler
+  (libs/fpc264irc.tar.gz — self-sustaining, ships its own tools; verified to
+  compile the Mystic tree). PPU wordversion is unchanged vs stock 2.6.4, so the
+  on-disk record layout / anchors are unaffected. (2.6.2 was the earlier pin.)
 - New modules stay SEPARATE from core (mystic_sdl/, mystic_spell/,
   mystic_crypt/, mystic_modem/); optional libraries are RUNTIME-loaded
   (dlopen/LoadLibrary), never linked.
@@ -78,15 +81,15 @@ pushes.
   Linux port of emxbind, the emxl.exe loader, and a data-alignment ld
   wrapper — turns FPC's a.out into a native OS/2 LX .exe. ALL 14 build +
   verify "LX for OS/2 ... emx 0.9d". Build via `LINK=1 ./build-os2.sh`
-  with the toolchain (from libs/os2-linux-toolchain.zip) on PATH. FULL
-  docs: **docs/os2-linux-toolchain/** (TECHNICAL-REFERENCE.md +
-  BUILD-ON-UBUNTU-24.04.md); patches in libs/emxbind-src/binutils-patch/.
+  with the fork's emx toolchain (libs/fpc264irc.tar.gz: bin/tools/i386-emx). FULL
+  docs: **fpc264irc/patches/os2-cross/** (README.md + EMXL-LOADER.md +
+  EMXL-LOADER.md); patches in fpc264irc/patches/os2-cross/.
   This is the step ArcaOS/bitwiseworks track as unsolved. Also links
   natively on OS/2 with the stock FPC 2.6.2 OS/2 release. (Platform layer:
   DosCalls, TProcess, so32dll, generic Keyboard path.)
 - **DOS/go32v2 (2026-07-09)**: DOS builds 10/14, including the mystic server.
   The socket layer (mdl/sockets_go32v2.pas, a Watt-32-backed FPC-Sockets API)
-  and the binutils C_SECTION link fix (libs/dos-binutils-patch/) are done and
+  and the binutils C_SECTION link fix (now handled by FPC 2.6.4irc r3's bundled go32v2 toolchain) are done and
   in the repo. The 4 networked utilities compile + are link-ready, needing only
   Watt-32 (libwatt.a); build-dos.sh wires -lwatt via WATT32LIB=. See
   docs/DOS-SOCKETS.md.

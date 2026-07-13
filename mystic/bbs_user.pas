@@ -1074,6 +1074,15 @@ Begin
   If Not bbsCfg.AskAlias    Then ThisUser.Handle   := ThisUser.RealName;
   {If either handles or realnames are toggled off, fill the gaps}
 
+  // New-user feedback must run BEFORE the newinfo menu.  ExecuteMenu('newinfo')
+  // can hand control to the next menu (main -> onliners) and not return here, in
+  // which case a feedback block placed after it never executes.  PostMessage uses
+  // the in-memory ThisUser, so it does not need the account written to disk first.
+  If bbsCfg.NewUserEmail Then Begin
+    Session.io.OutFile('feedback', True, 0);
+    If Session.Menu.ExecuteCommand ('MW', '/TO:' + strReplace(bbsCfg.FeedbackTo, ' ', '_') + ' /SUBJ:New_User_Feedback /F') Then;
+  End;
+
   Session.Menu.MenuName := 'newinfo';
   Session.Menu.ExecuteMenu (True, False, False, True);
 
@@ -1096,11 +1105,6 @@ Begin
 //  Close (ConfigFile);
 
   Session.SystemLog ('Created Account: ' + ThisUser.Handle);
-
-  If bbsCfg.NewUserEmail Then Begin
-    Session.io.OutFile('feedback', True, 0);
-    If Session.Menu.ExecuteCommand ('MW', '/TO:' + strReplace(bbsCfg.FeedbackTo, ' ', '_') + ' /SUBJ:New_User_Feedback /F') Then;
-  End;
 
   If FileExist(bbsCfg.ScriptPath + 'newuser.mpx') Then
     ExecuteMPL(NIL, 'newuser');

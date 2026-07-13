@@ -1,10 +1,13 @@
 # DOS (go32v2) toolchain - FPC 2.6.2
 
-`dos-toolchain.zip` is the DOS cross-build toolchain for the Mystic IRC fork,
-built with the **same FPC 2.6.2** that produces every other target
-(linux / win32 / darwin / os2).  Because it's version-matched to the fork's
-pinned compiler, DOS binaries built with it have record layouts byte-compatible
-with the other targets (RecConfig=5282, RecUser=1536, etc.).
+`dos-toolchain.zip` is a DOS cross-build toolchain for the Mystic IRC fork,
+built with **FPC 2.6.2**.  It predates the switch to FPC 2.6.4irc r3 (now the
+default project compiler, which ships its own go32v2 socket-capable RTL — see
+libs/fpc264irc.tar.gz).  Both are the 2.6.x i386 ABI, so DOS binaries built with
+either have record layouts byte-compatible with the other targets
+(RecConfig=5282, RecUser=1536, etc.).  Prefer r3's bundled go32v2 units for new
+DOS builds (they add the Sockets unit); this zip remains as a known-good 2.6.2
+fallback.
 
 `go32v2` is FPC's target for **32-bit protected-mode DOS** via a DPMI extender
 (CWSDPMI / GO32) - i.e. the "DOS extender" build that produces the

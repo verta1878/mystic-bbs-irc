@@ -21,8 +21,8 @@
 #     Linux : ppc386 (native FPC 2.6.2) - always available on the build host
 #     Win32 : ppc386 + i386-win32 RTL (WIN32RTL=)
 #     macOS : SDK=/path/to/MacOSX10.6.sdk + the ld64 bundle (libs/)
-#     OS/2  : emx toolchain on PATH (build from libs/os2-linux-toolchain.zip;
-#             see docs/os2-linux-toolchain/)
+#     OS/2  : emx toolchain on PATH (from libs/fpc264irc.tar.gz bin/tools/i386-emx;
+#             see fpc264irc/patches/os2-cross/)
 #     DOS   : the bundled cross toolchain in libs/dos-toolchain.zip (auto-
 #             unpacked by build-dos.sh). DOS builds 10/14; the networked
 #             utilities (mis/fidopoll/nodespy/qwkpoll) additionally need
@@ -89,7 +89,7 @@ echo "--- OS/2 ---"
 if LINK=1 OS2UNITS="${OS2UNITS:-}" bash build-os2.sh >/dev/null 2>&1 && [ -f out/bin-os2/mystic.exe ]; then
   ./make_release.sh os2 out/bin-os2 "$MODE" "$OUT" && DONE="$DONE os2"
 else
-  SKIP="$SKIP os2"; echo "  OS/2 link failed (emx toolchain on PATH? see docs/os2-linux-toolchain/)"
+  SKIP="$SKIP os2"; echo "  OS/2 link failed (emx toolchain on PATH? see fpc264irc/patches/os2-cross/)"
 fi
 
 # ---------- DOS ----------

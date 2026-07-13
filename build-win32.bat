@@ -1,10 +1,12 @@
 @echo off
 REM ============================================================
-REM  Mystic 1.10 A38 fork - native Win32 build  (FPC 2.6.2)
+REM  Mystic 1.10 fork - native Win32 build  (FPC 2.6.4irc r3)
 REM  Usage:  build-win32            build every binary
 REM          build-win32 mis        build a single target
 REM  Keep this file Win32-only (cmd.exe). Linux/Unix: build.sh
 REM  Socket layer is IPv4-only, pure-Pascal resolver (no C glue).
+REM  Default compiler: FPC 2.6.4irc r3 (libs/fpc264irc.tar.gz); set FPC= to
+REM  its bin\ppc386, or leave as 'fpc' to use whatever is on PATH.
 REM ============================================================
 setlocal
 set FPC=fpc

@@ -53,9 +53,15 @@ Var
 Begin
   FSplit (InFN, FDir, FName, FExt);
 
+  // An empty name would make Reset() below open stdin and hang; reject it.
+  If FName + FExt = '' Then Begin
+    WriteLn ('ERROR: No input file specified');
+    Halt (1);
+  End;
+
   Assign     (TF, FName + FExt);
   SetTextBuf (TF, Buffer, SizeOf(Buffer));
-  Reset      (TF);
+  {$I-} Reset (TF); {$I+}
 
   If IoResult <> 0 Then Begin
     WriteLn ('ERROR: Theme file (' + FName + FExt + ') not found');
@@ -142,7 +148,7 @@ Begin
   FSplit (InFN, FDir, FName, FExt);
 
   Assign (ThemeFile, bbsConfig.DataPath + FName + '.thm');
-  Reset  (ThemeFile);
+  {$I-} Reset (ThemeFile); {$I+}
 
   If IoResult <> 0 Then Begin
     WriteLn ('ERROR: Input file (' + bbsConfig.DataPath + FName + '.thm) not found');
@@ -332,7 +338,7 @@ Begin
   FileMode := 2;
 
   Assign (ConfigFile, 'mystic.dat');
-  Reset  (ConfigFile);
+  {$I-} Reset (ConfigFile); {$I+}
 
   If IoResult <> 0 Then Begin
     BasePath := GetENV('mysticbbs');
@@ -340,7 +346,7 @@ Begin
     If BasePath <> '' Then BasePath := DirSlash(BasePath);
 
     Assign (ConfigFile, BasePath + 'mystic.dat');
-    Reset  (ConfigFile);
+    {$I-} Reset (ConfigFile); {$I+}
 
     If IoResult <> 0 Then Begin
       WriteLn ('ERROR: Unable to read MYSTIC.DAT');
@@ -359,6 +365,16 @@ Begin
     WriteLn;
     WriteLn ('MakeTheme or another BBS utility is an older incompatible version.  Make');
     WriteLn ('sure you have upgraded properly!');
+    Halt (1);
+  End;
+
+  // COMPILE and EXTRACT both need an input file.  Without one, InFN is empty and
+  // FPC's Reset() on an empty filename opens STANDARD INPUT instead of failing -
+  // so the tool would silently hang waiting on the console.  Catch it here.
+  If ((Action = 'COMPILE') or (Action = 'EXTRACT')) and (InFN = '') Then Begin
+    WriteLn ('ERROR: No input file specified for ', Action, '.');
+    WriteLn;
+    WriteLn ('Usage: MakeTheme ', Action, ' [Input File]');
     Halt (1);
   End;
 

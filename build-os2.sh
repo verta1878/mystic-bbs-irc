@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ============================================================
-#  Mystic 1.10 A38 fork - OS/2 build  (FPC 2.6.2, i386-os2)
+#  Mystic 1.10 fork - OS/2 build  (FPC 2.6.4irc r3, i386-os2)
 #  Usage:  ./build-os2.sh            compile every binary (compile-only)
 #          LINK=1 ./build-os2.sh     compile + LINK to LX .exe (full build)
 #          ./build-os2.sh mis        build a single target
@@ -10,19 +10,21 @@
 #    2. LINK                  - ld then emxbind (emxbind converts the
 #       intermediate a.out to an OS/2 LX .exe and binds the OS/2 DLL imports).
 #
-#  This link step NOW RUNS ON LINUX using the self-hosted emx cross-toolchain
-#  (patched binutils with the a.out-emx target + emxbind Linux port + emxl.exe
-#  + the i386-os2-ld data-alignment wrapper).  Build that toolchain from
-#  libs/os2-linux-toolchain.zip and put its bin/ on PATH; then LINK=1 produces
-#  runnable OS/2 LX .exe files on Linux.  Full details + reproduction recipe:
-#  docs/os2-linux-toolchain/ (TECHNICAL-REFERENCE.md, BUILD-ON-UBUNTU-24.04.md).
+#  This link step RUNS ON LINUX using the emx cross-toolchain that the
+#  FPC 2.6.4irc fork now provides (patched binutils with the a.out-emx target +
+#  emxbind Linux port + emxl.exe + the i386-os2-ld data-alignment wrapper).
+#  Those tools ship in the fork bundle (libs/fpc264irc.tar.gz):
+#  fpc264irc/bin/tools/i386-emx/ (prebuilt as/ld/ar/emxbind) and
+#  fpc264irc/patches/os2-cross/ (the patches + EMXL-LOADER.md recipe).
+#  The fork also ships a companion build-mystic-os2.sh that wires the exact
+#  compiler + RTL + package paths (incl. fcl-process for mis) automatically.
 #
 #  Default (no LINK=1) is a COMPILE-ONLY pass (-s), so the script is safe on a
 #  host without the toolchain and still proves the sources are OS/2-clean.
-#  It also works natively on OS/2 (FPC 2.6.2 OS/2 release bundles emx).
+#  It also works natively on OS/2 (an FPC OS/2 release that bundles emx).
 #
 #  Env:
-#    FPC=/path/to/ppc386          the FPC 2.6.2 compiler
+#    FPC=/path/to/ppc386          the FPC 2.6.4irc r3 compiler
 #    OS2UNITS="-Fu... -Fu..."     extra unit paths (cross RTL + packages for os2)
 #    LINK=1                       do the real ld+emxbind link (Linux or OS/2)
 # ============================================================
@@ -35,12 +37,12 @@ FPC="${FPC:-ppc386}"
 OS2UNITS="${OS2UNITS:-}"
 
 # -s = compile only, do not call the linker.
-# Set LINK=1 to do the real ld+emxbind link.  This now works ON LINUX using the
-# self-hosted emx cross-toolchain (patched i386-aout-ld with the a.out-emx
-# target + i386-os2-ld wrapper + i386-os2-emxbind + emxl.exe), built from
-# libs/os2-linux-toolchain.zip - see docs/os2-linux-toolchain/.  It also works
-# natively on OS/2.  Default remains compile-only so the script is safe without
-# the toolchain installed.
+# Set LINK=1 to do the real ld+emxbind link.  This works ON LINUX using the emx
+# cross-toolchain the FPC 2.6.4irc fork provides (patched i386-aout-ld with the
+# a.out-emx target + i386-os2-ld wrapper + i386-os2-emxbind + emxl.exe), shipped
+# in the fork bundle at fpc264irc/bin/tools/i386-emx/ + patches/os2-cross/.  It
+# also works natively on OS/2.  Default remains compile-only so the script is
+# safe without the toolchain installed.
 COMPILE_ONLY="-s"
 [ "${LINK:-0}" = "1" ] && COMPILE_ONLY=""
 

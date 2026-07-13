@@ -16,7 +16,7 @@ Drop the file(s) for your platform next to the Mystic executables (or into a
 system library path) and the matching module finds them by name.  If a library
 is absent, its module simply stays disabled — nothing else is affected.
 
-## What's here (built 2026-07-08, matched to the fork's FPC 2.6.2 i386 builds)
+## What's here (built 2026-07-08, matched to the fork's FPC 2.6.x i386 builds)
 
 | Library  | Module        | win32              | linux-i386             | Version  | License   |
 |----------|---------------|--------------------|------------------------|----------|-----------|
@@ -31,7 +31,7 @@ CRYPTLIB-LICENSE.txt (+ CRYPTLIB-COPYING-3.4.9.1.txt shipped with the source).
 
 - **SDL2 2.32.8** — win32 DLL is the official libsdl-org release binary.  The
   linux-i386 .so was built from the 2.32.8 source **with `-mstackrealign`**,
-  which is REQUIRED: FPC 2.6.2 keeps the old 4-byte i386 stack alignment, and a
+  which is REQUIRED: FPC 2.6.x keeps the old 4-byte i386 stack alignment, and a
   stock modern-distro SDL assumes 16-byte alignment — mixing them crashes in
   SDL_Init.  This local build realigns on entry, so `sdl_demo`, `rip_view` and
   the RIP viewer run cleanly against it (verified headless in-container).
@@ -56,7 +56,7 @@ CRYPTLIB-LICENSE.txt (+ CRYPTLIB-COPYING-3.4.9.1.txt shipped with the source).
   hard-required a 10.7 SDK), cross-built for i386-darwin against the 10.6 SDK.
   The current SDL2 (2.32.x) refuses to build on 10.6 (its Cocoa backend needs
   10.7 AppKit symbols like `NSFullScreenWindowMask`), so we use the newest
-  10.6-compatible release; it's period-appropriate for FPC 2.6.2 anyway.
+  10.6-compatible release; it's period-appropriate for the FPC 2.6.x era anyway.
 - **Hunspell** `libhunspell-1.6.0.dylib` — Hunspell **1.6.2** (1.7 uses C++11
   `std::all_of`, absent from the 10.6 SDK's gcc-4.2 libstdc++), cross-built for
   i386-darwin.  The spell binding probes this versioned name then plain
@@ -83,23 +83,30 @@ Match the library BITNESS to the Mystic build (all provided binaries are i386).
 
 Two self-contained cross-build toolchains ship as zips here:
 
-### fpc264irc.tar.gz (~53 MB) — the 2.6.4irc compiler fork
-A complete built distribution of **FPC 2.6.4irc**, a minimal fork of FPC 2.6.4
-that adds a DOS (go32v2) `Sockets` unit over Watt-32, backports FPC 3.0/3.3
-cross-link fixes (so stock `binutils-djgpp` links go32v2 with no C_SECTION
-patch), and fixes OS/2 import-symbol generation.  Contents: `bin/ppc386` +
-`bin/ppcx64` (prebuilt), `bin/units/` (compiled RTL per target incl.
-`i386-go32v2/sockets.ppu`), `src/` (compiler 10 modified files; rtl 1 new + 2
-modified incl. `rtl/go32v2/sockets.pp`), `test/` (per-platform socket tests),
-`patches/os2-cross/`, build scripts, `CHANGELOG-IRC.md`.
+### fpc264irc.tar.gz (~170 MB) — the 2.6.4irc compiler fork (release r3)
+A complete built distribution of **FPC 2.6.4irc release r3** (2026-07-12), a fork
+of FPC 2.6.4 that adds a DOS (go32v2) `Sockets` unit over Watt-32, backports FPC
+3.0/3.3 cross-link fixes (so stock `binutils-djgpp` links go32v2 with no
+C_SECTION patch), adds the `-Ao` (assembler extra options) and `-WS` (embed
+CWSDSTUB into go32v2 exes) flags, and fixes OS/2 import-symbol generation.
+Mirrors github.com/verta1878/fpc264irc.  Contents: `bin/ppc386` + `bin/ppcx64`
+(prebuilt) with `bin/units/` (compiled RTL per target incl.
+`i386-go32v2/sockets.ppu`); `bin/lazarus/`, `bin/tools/`, `bin/ide/` (kept for
+future Mystic upgrades); `src/` (full compiler + rtl incl. `rtl/go32v2/
+sockets.pp`); `test/` (per-platform socket tests incl. FreeBSD); `lib/`
+(Watt-32, CWSDPMI, build-tools); `patches/os2-cross/`; build scripts;
+`CHANGELOG-IRC.md`; `BACKPORT-METHOD.md`; `MILESTONE-R2.md`.  (`.ppu`/`.o` build
+artifacts are stripped from `src/`; they rebuild.)
 
-Key property: base FPC 2.6.4, `minorpatch='irc'`, **PPU wordversion unchanged**
-— binary-compatible with stock 2.6.4 units, so on-disk record layout stays
-2.6.x (the record anchors are safe by construction).  The payoff: `Uses Sockets`
-works on DOS exactly like every other platform, with **no** app-level `{$IFDEF
-GO32V2}`.  NOTE: the project compiler is still the pinned **2.6.2**; 2.6.4irc is
-captured here and validated but adopting it as the build compiler is a separate,
-deliberate switch (see docs/DECISIONS.md).
+Version identity: `minorpatch='irc'`, `release_tag='r3'`,
+`release_date='2026-07-12'` — stable metadata that does not change on rebuild.
+Key property: base FPC 2.6.4, **PPU wordversion unchanged** — binary-compatible
+with stock 2.6.4 units, so on-disk record layout stays 2.6.x (record anchors
+safe by construction).  The payoff: `Uses Sockets` works on DOS exactly like
+every other platform, with **no** app-level `{$IFDEF GO32V2}`.  NOTE: FPC 2.6.4irc
+r3 is now the default project compiler (see docs/TODO.md #9); 2.6.2 is retained
+as a working fallback.  Both are the 2.6.x i386 ABI (4-byte stack alignment; the
+16-byte default arrived in FPC 3.0), so the prebuilt libs here match either.
 
 ### dos-toolchain.zip (~25 MB)
 FPC 2.6.2 compiler (bin/ppcross386, bin/ppc386) + binutils (i386-go32v2-*) +
@@ -107,13 +114,13 @@ the go32v2 RTL units.  Self-contained: unzip, add bin/ to PATH, build a DOS
 (MZ/COFF/DJGPP go32) executable with no separately-installed FPC.  See
 DOS-TOOLCHAIN-README.md.
 
-### os2-linux-toolchain.zip (~2 MB)
-Everything to build OS/2 (LX) executables ON LINUX: the emxbind Linux port
-(sources + shim + 32-bit binary + emxl.exe loader), the binutils 2.30 emx
-patches + the a.out-emx BFD target (i386os2.c), the data-alignment ld wrapper,
-the pristine emx upstream source zips, and full docs (TECHNICAL-REFERENCE.md +
-BUILD-ON-UBUNTU-24.04.md).  A pristine binutils 2.30 + these patches builds an
-ld with target `a.out-emx`; FPC's `ppc386 -Tos2` then links a valid OS/2 LX
-.exe on a Linux host.  This is also unpacked in-tree under libs/emxbind-src/ and
-docs/os2-linux-toolchain/ for browsing; the zip is the portable bundle (e.g. to
-attach to an upstream submission).  emx content is GPL (c) Eberhard Mattes.
+### OS/2 (LX) toolchain — now provided by the FPC 2.6.4irc fork bundle
+Everything to build OS/2 (LX) executables ON LINUX — the emxbind Linux port, the
+binutils 2.30 emx patches + the a.out-emx BFD target, the data-alignment ld
+wrapper, and the emxl.exe loader — now ships inside `libs/fpc264irc.tar.gz`:
+prebuilt tools in `fpc264irc/bin/tools/i386-emx/` (as/ld/ar/emxbind) and the
+patches + recipe in `fpc264irc/patches/os2-cross/` (README.md, EMXL-LOADER.md).
+The fork also carries `build-mystic-os2.sh`, a companion that wires the exact
+compiler + RTL + package paths (incl. fcl-process, which `mis` needs on OS/2).
+The old standalone `os2-linux-toolchain.zip` + `emxbind-src/` were removed from
+libs/ once the fork absorbed them.  emx content is GPL (c) Eberhard Mattes.

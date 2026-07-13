@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # ============================================================
-#  Mystic 1.10 A38 fork - Linux/Unix build  (FPC 2.6.2, i386)
+#  Mystic 1.10 fork - Linux/Unix build  (FPC 2.6.4irc r3, i386)
+#  Default compiler: FPC 2.6.4irc (release r3) - libs/fpc264irc.tar.gz.
 #  Usage:  ./build.sh            build every binary
 #          ./build.sh mis        build a single target
 #  Windows builds: use build-win32.bat (this is bash-only).
@@ -10,7 +11,9 @@ ROOT="$(cd "$(dirname "$0")" && pwd)"; cd "$ROOT"
 BIN="$ROOT/out/bin"; UNITS="$ROOT/out/units"
 mkdir -p "$BIN" "$UNITS"
 
-FPC="${FPC:-fpc}"     # override with FPC=/path/to/ppc386 if needed
+# Default compiler is FPC 2.6.4irc r3 (unpack libs/fpc264irc.tar.gz and point
+# FPC= at its bin/ppc386).  Falls back to whatever 'fpc'/'ppc386' is on PATH.
+FPC="${FPC:-fpc}"     # override with FPC=/path/to/fpc264irc/bin/ppc386
 # fcl-net (cnetdb) is needed by the MIS socket resolver; a full FPC install
 # has it on the unit path automatically. Add -Fu paths here if yours doesn't.
 FPCOPTS=(-Mdelphi -Fumdl -Fumystic -Fimdl -Fimystic -Fomdl -FU"$UNITS" -FE"$BIN")
