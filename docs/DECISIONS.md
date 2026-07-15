@@ -3643,3 +3643,28 @@
   Not changed: build-os2.sh's LINK=1 flow still works - it just sources the emx
   tools from the fork bundle now instead of the removed zip. The fork's
   build-mystic-os2.sh is the newer, self-contained alternative.
+
+## Workflow: FPC bugs fixed in fpc264irc via diff; no C code blocking (2026-07-14)
+
+  Going forward, compiler/package problems are the COMPILER's concern, not
+  Mystic's:
+
+   - When we hit an fpc264irc bug (missing package paths like fcl-net/cNetDB,
+     the paszlib -Mdelphi incompatibility, the ld link-stage stalls), we fix it
+     in the fpc264irc tree and produce a DIFF. The diff goes to the fpc264irc
+     maintainer to fold into the next release - we do not carry compiler
+     workarounds or C glue in the Mystic repo.
+   - cNetDB specifically is an FPC package unit in the compiler tree
+     (fpc264irc/src/packages/fcl-net/). We WAIT for the next fpc264irc release,
+     then base Mystic on it and verify the source compiles for all platforms,
+     rather than patching build paths ad hoc here.
+   - Guiding principle: no C code is allowed to slow or stop the project. Keep
+     resolution/sockets/archiving pure Pascal and self-contained (this is why the
+     fork already moved the resolver off the C glue - see m_io_sockets.pas notes,
+     and why marc uses FPC's own zipper rather than a C ziplib).
+
+  NOTE for any FUTURE e-mail-uniqueness feature: the current GetEmail allows
+  duplicate e-mails (scan removed), so the deleted-user edge case is moot now.
+  If uniqueness is ever re-added (behind a config toggle), the scan MUST skip
+  deleted accounts (RecUser.Deleted, records.pas:818) so a deleted user's stale
+  address does not block reuse.

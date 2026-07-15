@@ -83,8 +83,8 @@ Match the library BITNESS to the Mystic build (all provided binaries are i386).
 
 Two self-contained cross-build toolchains ship as zips here:
 
-### fpc264irc.tar.gz (~170 MB) — the 2.6.4irc compiler fork (release r3)
-A complete built distribution of **FPC 2.6.4irc release r3** (2026-07-12), a fork
+### fpc264irc.tar.gz (~276 MB) — the 2.6.4irc compiler fork (release r3.1)
+A complete built distribution of **FPC 2.6.4irc release r3.1** (2026-07-12), a fork
 of FPC 2.6.4 that adds a DOS (go32v2) `Sockets` unit over Watt-32, backports FPC
 3.0/3.3 cross-link fixes (so stock `binutils-djgpp` links go32v2 with no
 C_SECTION patch), adds the `-Ao` (assembler extra options) and `-WS` (embed
@@ -98,13 +98,13 @@ sockets.pp`); `test/` (per-platform socket tests incl. FreeBSD); `lib/`
 `CHANGELOG-IRC.md`; `BACKPORT-METHOD.md`; `MILESTONE-R2.md`.  (`.ppu`/`.o` build
 artifacts are stripped from `src/`; they rebuild.)
 
-Version identity: `minorpatch='irc'`, `release_tag='r3'`,
+Version identity: `minorpatch='irc'`, `release_tag='r3.1'`,
 `release_date='2026-07-12'` — stable metadata that does not change on rebuild.
 Key property: base FPC 2.6.4, **PPU wordversion unchanged** — binary-compatible
 with stock 2.6.4 units, so on-disk record layout stays 2.6.x (record anchors
 safe by construction).  The payoff: `Uses Sockets` works on DOS exactly like
 every other platform, with **no** app-level `{$IFDEF GO32V2}`.  NOTE: FPC 2.6.4irc
-r3 is now the default project compiler (see docs/TODO.md #9); 2.6.2 is retained
+r3.1 is now the default project compiler (see docs/TODO.md #9); 2.6.2 is retained
 as a working fallback.  Both are the 2.6.x i386 ABI (4-byte stack alignment; the
 16-byte default arrived in FPC 3.0), so the prebuilt libs here match either.
 

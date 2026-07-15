@@ -63,7 +63,7 @@ Linux -> Darwin cross-compile recipe.
 
 > **DOS = 32-bit protected-mode (go32v2/DJGPP).** The DOS binaries are 32-bit
 > and require a 386 or better plus a DPMI host (CWSDPMI). This is **not** a
-> 16-bit real-mode (i8086/8088/286) build — FPC 2.6.x (including 2.6.4irc r3)
+> 16-bit real-mode (i8086/8088/286) build — FPC 2.6.x (including 2.6.4irc r3.1)
 > has no i8086 target, so true 16-bit DOS is out of scope for this compiler.
 
 ```
@@ -79,7 +79,7 @@ SDK=/path/to/MacOSX10.6.sdk ./build-darwin.sh   # macOS -> Mach-O
 
 The OS/2 and DOS cross toolchains ship inside `libs/fpc264irc.tar.gz` (bin/tools/i386-emx,
 `dos-toolchain.zip`) with the binutils patches that let GNU `ld` read FPC's
-object output. FPC 2.6.4irc r3 bundles both toolchains (fpc264irc/bin/tools/: i386-emx for OS/2, i386-go32v2 for DOS).
+object output. FPC 2.6.4irc r3.1 bundles both toolchains (fpc264irc/bin/tools/: i386-emx for OS/2, i386-go32v2 for DOS).
 
 ## What's in the tree
 

@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # ============================================================
-#  Mystic 1.10 fork - DOS build  (FPC 2.6.4irc r3, i386-go32v2)
+#  Mystic 1.10 fork - DOS build  (FPC 2.6.4irc r3.1, i386-go32v2)
 #  Usage:  ./build-dos.sh            build every buildable target
 #          ./build-dos.sh maketheme  build a single target
 #
 #  Cross-compiles for 32-bit protected-mode DOS (go32v2 / DPMI) from a Linux
 #  host, using the self-contained toolchain in libs/dos-toolchain.zip (FPC
 #  cross compiler + go32v2 RTL + a binutils that reads FPC's COFF output.
-#  FPC 2.6.4irc r3 bundles a go32v2 toolchain that handles this (bin/tools/i386-go32v2/).)
+#  FPC 2.6.4irc r3.1 bundles a go32v2 toolchain that handles this (bin/tools/i386-go32v2/).)
 #  NOTE: 32-bit only. Output needs a 386+ and a DPMI host (CWSDPMI). This is NOT
 #  a 16-bit real-mode (i8086) build - FPC 2.6.x has no i8086 target.
 #

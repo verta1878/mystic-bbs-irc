@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ============================================================
-#  Mystic 1.10 fork - OS/2 build  (FPC 2.6.4irc r3, i386-os2)
+#  Mystic 1.10 fork - OS/2 build  (FPC 2.6.4irc r3.1, i386-os2)
 #  Usage:  ./build-os2.sh            compile every binary (compile-only)
 #          LINK=1 ./build-os2.sh     compile + LINK to LX .exe (full build)
 #          ./build-os2.sh mis        build a single target
@@ -24,7 +24,7 @@
 #  It also works natively on OS/2 (an FPC OS/2 release that bundles emx).
 #
 #  Env:
-#    FPC=/path/to/ppc386          the FPC 2.6.4irc r3 compiler
+#    FPC=/path/to/ppc386          the FPC 2.6.4irc r3.1 compiler
 #    OS2UNITS="-Fu... -Fu..."     extra unit paths (cross RTL + packages for os2)
 #    LINK=1                       do the real ld+emxbind link (Linux or OS/2)
 # ============================================================

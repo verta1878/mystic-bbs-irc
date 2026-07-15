@@ -1,14 +1,28 @@
 # Building the fork (all targets)
 
-Compiler: **FPC 2.6.4irc, release r3, i386** (the default project compiler).
-Every target builds the same 14 binaries (see `docs/CREATING-THE-INSTALLER.md`
-for the binary inventory + how to package a release once built).
+Compiler: **FPC 2.6.4irc, release r3.1, i386** (the default project compiler).
+The 7 core shipped binaries are: `mystic`, `mis`, `mutil`, `mplc`, `fidopoll`,
+`qwkpoll`, `maketheme`. Additional utilities (`mide`, `mbbsutil`, `nodespy`,
+`mystpack`, `install`, `install_make`, `109to110`) and the built-in archiver
+`marc` are also built by `build.sh`.
 
-> The compiler is bundled at `libs/fpc264irc.tar.gz` (self-sustaining — it ships
-> its own assembler/linker/archiver via a 3-tier fallback, so a build never
-> dead-ends on a missing tool). Unpack it and point `FPC=` at its `bin/ppc386`.
-> It is PPU-compatible with stock FPC 2.6.4 (wordversion unchanged), so on-disk
-> record layout / anchors are unaffected. (FPC 2.6.2 was the earlier pin.)
+> The compiler is bundled at `libs/fpc264irc.tar.gz` (~276 MB, self-sustaining —
+> it ships its own assembler/linker/archiver and prebuilt package units for all
+> 6 targets). Unpack it and point `FPC=` at its `bin/ppc386`.
+>
+> **r3.1 ships prebuilt PPUs** for `md5`, `crc`, `zipper`, `netdb`, `process`
+> (and more) — no extra `-Fu` source paths are needed. The earlier `cNetDB` unit
+> (fcl-net) has been retired; the fork uses the pure-Pascal `netdb` unit instead.
+>
+> PPU-compatible with stock FPC 2.6.4 (wordversion unchanged), so on-disk record
+> layout / anchors are unaffected.
+
+Compile-verified: **7/7 core targets** + all utilities + `marc` build clean with
+r3.1 using only `-Fubin/units/<target>`.
+
+> **`marc`** (the built-in archiver) must compile in **`-Mobjfpc` mode** (the
+> paszlib units require it; everything else is `-Mdelphi`). `build.sh` handles
+> this automatically.
 
 --------------------------------------------------------------------------------
 
@@ -16,13 +30,13 @@ for the binary inventory + how to package a release once built).
 
 ### Linux -> ELF
 ```bash
-./build.sh                 # all 14 binaries
+./build.sh                 # all targets
 ./build.sh mis             # a single target
 ```
 
 ### Windows -> PE32
 ```
-build-win32.bat            # run on Windows (FPC 2.6.2 i386)
+build-win32.bat            # run on Windows
 ```
 Also cross-buildable from Linux with the native compiler via `ppc386 -Twin32`
 plus the i386-win32 RTL units.

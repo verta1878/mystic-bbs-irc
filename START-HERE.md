@@ -8,7 +8,7 @@ resume from it alone.**
 
 The sysop (an original-era BBS operator) runs a live board on this
 Mystic 1.10 fork and works on it here, in a container with FPC
-2.6.4irc r3 (i386, from libs/fpc264irc.tar.gz). The tree is a git repo (github.com/mystic-bbs-irc — push
+2.6.4irc r3.1 (i386, from libs/fpc264irc.tar.gz). The tree is a git repo (github.com/mystic-bbs-irc — push
 from the sysop's side; the container cannot push). Work is delivered
 as a source zip in /mnt/user-data/outputs/ which the sysop applies and
 pushes.
@@ -24,7 +24,7 @@ pushes.
 
 ## Orientation checklist (before any new work)
 
-1. Confirm the tree + FPC 2.6.4irc r3 are present; if the container was
+1. Confirm the tree + FPC 2.6.4irc r3.1 are present; if the container was
    reset, restore from the latest mystic-A38fork-source-*.zip in
    /mnt/user-data/outputs/ (or re-clone) and rebuild the toolchain
    (DECISIONS.md 2026-07-08 "Container toolchain rebuilt" records the
@@ -43,7 +43,7 @@ pushes.
 
 ## House rules (locked decisions — details in DECISIONS.md)
 
-- FPC 2.6.4irc (release r3) is the default project compiler
+- FPC 2.6.4irc (release r3.1) is the default project compiler
   (libs/fpc264irc.tar.gz — self-sustaining, ships its own tools; verified to
   compile the Mystic tree). PPU wordversion is unchanged vs stock 2.6.4, so the
   on-disk record layout / anchors are unaffected. (2.6.2 was the earlier pin.)
@@ -89,7 +89,7 @@ pushes.
   DosCalls, TProcess, so32dll, generic Keyboard path.)
 - **DOS/go32v2 (2026-07-09)**: DOS builds 10/14, including the mystic server.
   The socket layer (mdl/sockets_go32v2.pas, a Watt-32-backed FPC-Sockets API)
-  and the binutils C_SECTION link fix (now handled by FPC 2.6.4irc r3's bundled go32v2 toolchain) are done and
+  and the binutils C_SECTION link fix (now handled by FPC 2.6.4irc r3.1's bundled go32v2 toolchain) are done and
   in the repo. The 4 networked utilities compile + are link-ready, needing only
   Watt-32 (libwatt.a); build-dos.sh wires -lwatt via WATT32LIB=. See
   docs/DOS-SOCKETS.md.

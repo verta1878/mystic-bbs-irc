@@ -1022,3 +1022,5 @@
 513 |CR|12Post this as a private message? |11
 ; Message reply: "post msg as private" in pub/priv type base
 514 |CR|12Post this as a private message? |11
+; New user / edit: e-mail address failed the basic format check
+515 |CR|12That does not look like a valid e-mail address.|CR|CR|PA

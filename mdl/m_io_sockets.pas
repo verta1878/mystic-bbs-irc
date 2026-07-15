@@ -20,8 +20,9 @@
 // ====================================================================
 Unit m_io_Sockets;
 
-// (fork) C resolver glue removed - ResolveAddress is now pure Pascal
-// (GetHostByName), matching A39.  m_resolve_address.c kept for reference.
+// (fork) libc resolver (cNetDB) retired in favour of FPC r3's pure-Pascal
+// resolver (Resolve/NetDB), so name lookups no longer bind to libc's
+// gethostbyname/gethostbyaddr.  m_resolve_address.c kept in attic for reference.
 
 {$I M_OPS.PAS}
 
@@ -39,7 +40,7 @@ Uses
   {$ENDIF}
   {$IFDEF UNIX}
     BaseUnix,
-    cNetDB,
+    netdb,
   {$ENDIF}
   {$IFDEF GO32V2}
     // DOS/go32v2 has no RTL Sockets unit; sockets_go32v2 provides the same
@@ -603,6 +604,19 @@ Begin
 End;
 
 Function TIOSocket.ResolveAddress (Host: String) : LongInt;
+{$IFDEF UNIX}
+Var
+  HE : THostEntry;
+Begin
+  // r3.1 pure-Pascal resolver via netdb (no libc, no fcl-net Resolve unit).
+  // netdb.GetHostByName returns the address in HOST order; sin_addr needs
+  // NETWORK order, so convert with HostToNet.
+  If GetHostByName(Host, HE) Then
+    Result := LongInt(HostToNet(HE.Addr))
+  Else
+    Result := LongInt(StrToNetAddr(Host + #0));
+End;
+{$ELSE}
 Var
   HostEnt : PHostEnt;
 Begin
@@ -614,6 +628,7 @@ Begin
   Else
     Result := LongInt(StrToNetAddr(Host));
 End;
+{$ENDIF}
 
 Function TIOSocket.Connect (Address: String; Port: Word) : Boolean;
 Var
@@ -673,7 +688,11 @@ Function TIOSocket.WaitConnection (TimeOut: LongInt) : TIOSocket;
 Var
   Sock   : LongInt;
   Client : TIOSocket;
-  PHE    : PHostEnt;
+  {$IFDEF UNIX}
+    RevHE : THostEntry;
+  {$ELSE}
+    PHE   : PHostEnt;
+  {$ENDIF}
   SIN    : TINetSockAddr;
   Temp   : LongInt;
   SL     : TSockLen;
@@ -704,12 +723,21 @@ Begin
 
   FPeerIP := NetAddrToStr(SIN.sin_addr);
 
-  PHE := GetHostByAddr(@SIN.sin_addr, 4, PF_INET);
+  {$IFDEF UNIX}
+    // r3.1 pure-Pascal reverse resolve via netdb.
+    // sin_addr from fpAccept is in NETWORK order; netdb expects HOST order.
+    If ResolveHostByAddr(NetToHost(SIN.sin_addr), RevHE) Then
+      FPeerName := RevHE.Name
+    Else
+      FPeerName := 'Unknown';
+  {$ELSE}
+    PHE := GetHostByAddr(@SIN.sin_addr, 4, PF_INET);
 
-  If Not Assigned(PHE) Then
-    FPeerName := 'Unknown'
-  Else
-    FPeerName := StrPas(PHE^.h_name);
+    If Not Assigned(PHE) Then
+      FPeerName := 'Unknown'
+    Else
+      FPeerName := StrPas(PHE^.h_name);
+  {$ENDIF}
 
   SL := SizeOf(SIN);
 

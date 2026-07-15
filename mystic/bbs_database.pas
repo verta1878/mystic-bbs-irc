@@ -520,56 +520,108 @@ Var
   Arc     : RecArchive;
   Count   : LongInt;
   Str     : String;
-Begin
-  If Temp <> '' Then
-    Temp := strUpper(Temp)
-  Else
-    Temp := strUpper(JustFileExt(FName));
+  Cmd     : String;
+  RC      : LongInt;
+  Ext     : String;
+  Tried   : LongInt;
 
-  Assign (ArcFile, bbsCfg.DataPath + 'archive.dat');
+  // Log an archiver failure so the sysop can see the built-in engine fell back.
+  Procedure LogArcError (Const Msg: String);
+  Var
+    LF : Text;
+    Y, Mo, D, DoW : Word;
+    H, Mi, S, HS  : Word;
+    Stamp : String;
+  Begin
+    GetDate (Y, Mo, D, DoW);
+    GetTime (H, Mi, S, HS);
+    Stamp := strZero(Mo) + '/' + strZero(D) + '/' + strI2S(Y) + ' ' +
+             strZero(H) + ':' + strZero(Mi) + ':' + strZero(S);
 
-  If Not ioReset (ArcFile, SizeOf(RecArchive), fmRWDN) Then Exit;
+    Assign (LF, bbsCfg.DataPath + 'archive.log');
+    {$I-}
+    Append (LF);
+    If IOResult <> 0 Then Rewrite (LF);
+    If IOResult = 0 Then Begin
+      WriteLn (LF, Stamp, '  ', Msg);
+      Close (LF);
+    End;
+    {$I+}
+  End;
 
-  Repeat
-    If Eof(ArcFile) Then Begin
-      Close (ArcFile);
-
-      Exit;
+  // Build the command string for Arc/Mode by expanding %1/%2/%3.
+  Function BuildCmd (Const A: RecArchive) : String;
+  Var S, R: String; C: LongInt;
+  Begin
+    Case Mode of
+      1 : S := A.Pack;
+      2 : S := A.Unpack;
+    Else
+      S := A.View;
     End;
 
-    ioRead (ArcFile, Arc);
+    R := '';
+    C := 1;
+    While C <= Length(S) Do Begin
+      If S[C] = '%' Then Begin
+        Inc (C);
+        If      S[C] = '1' Then R := R + FName
+        Else If S[C] = '2' Then R := R + Mask
+        Else If S[C] = '3' Then R := R + TempP;
+      End Else
+        R := R + S[C];
+      Inc (C);
+    End;
 
-    If (Not Arc.Active) or ((Arc.OSType <> OSType) and (Arc.OSType <> 3)) Then Continue;
-
-    If strUpper(Arc.Ext) = Temp Then Break;
-  Until False;
-
-  Close (ArcFile);
-
-  Case Mode of
-    1 : Str := Arc.Pack;
-    2 : Str := Arc.Unpack;
+    BuildCmd := R;
   End;
 
-  If Str = '' Then Exit;
+Begin
+  If Temp <> '' Then
+    Ext := strUpper(Temp)
+  Else
+    Ext := strUpper(JustFileExt(FName));
 
-  Temp  := '';
-  Count := 1;
+  // Pass 1: prefer the BUILT-IN engine (a marc entry) if one matches.
+  // Pass 2: if it is missing or fails, fall through to external tools.
+  // We scan the table twice so a working external tool still runs even if the
+  // built-in entry errors (e.g. an odd format the RTL zipper can't handle).
+  Tried := 0;
 
-  While Count <= Length(Str) Do Begin
-    If Str[Count] = '%' Then Begin
-      Inc (Count);
+  For Count := 1 to 2 Do Begin
+    Assign (ArcFile, bbsCfg.DataPath + 'archive.dat');
+    If Not ioReset (ArcFile, SizeOf(RecArchive), fmRWDN) Then Exit;
 
-      If Str[Count] = '1' Then Temp := Temp + FName Else
-      If Str[Count] = '2' Then Temp := Temp + Mask Else
-      If Str[Count] = '3' Then Temp := Temp + TempP;
-    End Else
-      Temp := Temp + Str[Count];
+    While Not Eof(ArcFile) Do Begin
+      ioRead (ArcFile, Arc);
 
-    Inc (Count);
+      If (Not Arc.Active) or ((Arc.OSType <> OSType) and (Arc.OSType <> 3)) Then Continue;
+      If strUpper(Arc.Ext) <> Ext Then Continue;
+
+      Cmd := BuildCmd (Arc);
+      If Cmd = '' Then Continue;
+
+      // Pass 1 handles ONLY the built-in engine; pass 2 handles the rest.
+      If (Count = 1) <> (Pos('MARC', strUpper(Cmd)) > 0) Then Continue;
+
+      Inc (Tried);
+      RC := ExecuteProgram ('', Cmd);
+
+      If RC = 0 Then Begin
+        Close (ArcFile);
+        Exit;                         // success - done
+      End;
+
+      // failed - log and let the loop try the next matching entry / pass
+      LogArcError ('archive ' + Ext + ' mode ' + strI2S(Mode) +
+                   ' failed (rc=' + strI2S(RC) + '): ' + Cmd);
+    End;
+
+    Close (ArcFile);
   End;
 
-  ExecuteProgram ('', Temp);
+  If Tried = 0 Then
+    LogArcError ('no archiver configured for ' + Ext + ' (mode ' + strI2S(Mode) + ')');
 End;
 
 Function IsDuplicateFile (Base: RecFileBase; FileName: String; Global: Boolean) : Boolean;

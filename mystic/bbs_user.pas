@@ -512,49 +512,90 @@ Begin
 End;
 
 Procedure TBBSUser.GetEmail (Edit : Boolean);
+
+  // Basic e-mail format check: one '@' with text before it, and a domain
+  // after it containing a dot that has text on both sides (x@y.z).  Deliberately
+  // lenient - just enough to catch obvious typos, not a full RFC validator.
+  // Duplicate addresses ARE allowed (multiple accounts may share an e-mail).
+  Function ValidEmail (Const S: String) : Boolean;
+  Var
+    AtPos, DotPos, I, Ats : LongInt;
+  Begin
+    ValidEmail := False;
+    AtPos := 0;
+    Ats   := 0;
+
+    For I := 1 to Length(S) Do
+      If S[I] = '@' Then Begin Inc (Ats); AtPos := I; End;
+
+    If Ats <> 1 Then Exit;                 // need exactly one '@'
+    If AtPos < 2 Then Exit;                // need text before '@'
+    If AtPos >= Length(S) Then Exit;       // need text after '@'
+
+    // a dot in the domain part, not immediately after '@' and not the last char
+    DotPos := 0;
+    For I := AtPos + 1 to Length(S) Do
+      If S[I] = '.' Then DotPos := I;
+
+    If DotPos = 0 Then Exit;               // need a dot in the domain
+    If DotPos = AtPos + 1 Then Exit;       // '@.something' invalid
+    If DotPos = Length(S) Then Exit;       // trailing dot invalid
+
+    ValidEmail := True;
+  End;
+
 Var
-  Str 		: String;
-  DropOut	: Boolean;
+  Str : String;
 Begin
-  DropOut := False;
   Str := '';
 
   While True Do Begin
-	If Edit Then Begin
-		Session.io.OutFull (Session.GetPrompt(440));
-	End Else Begin
-		Session.io.OutFull (Session.GetPrompt(439));
-	End;
+    If Edit Then
+      Session.io.OutFull (Session.GetPrompt(440))
+    Else
+      Session.io.OutFull (Session.GetPrompt(439));
 
-	Str := Session.io.GetInput(35, 35, 11, ThisUser.Email);
-        While (Pos(' ', Str) > 0) Do Begin
-		Delete (Str, Pos(' ', Str), 1);
-	End;
+    Str := Session.io.GetInput(35, 35, 11, ThisUser.Email);
 
-        DropOut := True;
+    While (Pos(' ', Str) > 0) Do
+      Delete (Str, Pos(' ', Str), 1);
 
-	Reset (UserFile);
-	While Not Eof(UserFile) Do Begin
+    // An empty entry is accepted as-is (e-mail is optional here).
+    If Str = '' Then Break;
 
-		Read (UserFile, EmailUsrChk);
+    // Basic format validation.
+    If Not ValidEmail(Str) Then Begin
+      Session.io.OutFull (Session.GetPrompt(515));
+      Continue;
+    End;
 
-		If (strUPPER(str) = strUPPER(EmailUsrChk.Email)) Then Begin
-			If (EmailUsrChk.PermIdx = ThisUser.PermIdx) Then Begin
-				Break;
-			end else begin
-				Session.io.OutFull (Session.GetPrompt(515));
-                                DropOut := False;
-				Break;
-			End;
-		End;
-	End;
-	If (DropOut = True) Then Begin
-		Break;
-	End;
-	Close (UserFile);
+    // --- Duplicate-address check (currently DISABLED - dupes allowed) -------
+    // When re-enabled (e.g. via a UniqueEmail config toggle), this block scans
+    // the user file and rejects only if a NON-DELETED user already holds the
+    // address.  Deleted accounts (Flags AND UserDeleted <> 0) are ignored, so
+    // their addresses are available for reuse.  For editing, a match on the
+    // user's OWN PermIdx is allowed (they can keep their own address).
+    //
+    // InUse := False;
+    // Reset (UserFile);
+    // While Not Eof(UserFile) Do Begin
+    //   Read (UserFile, EmailUsrChk);
+    //   If EmailUsrChk.Flags AND UserDeleted <> 0 Then Continue; // skip deleted
+    //   If strUpper(Str) = strUpper(EmailUsrChk.Email) Then
+    //     If (Not Edit) or (EmailUsrChk.PermIdx <> ThisUser.PermIdx) Then Begin
+    //       InUse := True;
+    //       Break;
+    //     End;
+    // End;
+    // Close (UserFile);
+    // If InUse Then Begin
+    //   Session.io.OutFull (Session.GetPrompt(515));
+    //   Continue;
+    // End;
+    // -----------------------------------------------------------------
+
+    Break;  // format valid, no dup check -> accept
   End;
-
-  Close (UserFile);
 
   ThisUser.EMail := Str;
 End;
