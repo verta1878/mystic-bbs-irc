@@ -533,8 +533,11 @@ Begin
   End Else
   If Copy(Str,1,4) = 'FMPT' Then Begin {ignore}
   End Else
-  If Copy(Str,1,5) = 'REPLY' Then Begin
-    TmpStr := strStripL(Copy(Str,8,255),':');
+  If Copy(Str,1,6) = 'REPLY:' Then Begin
+    // A52: only the exact 'REPLY:' kludge is stored as subfield 5 (reply ID).
+    // Non-standard variants (REPLYTO:, REPLYADDR:, etc.) fall through to
+    // UNKNOWN (subfield 2000) below.
+    TmpStr := strStripL(Copy(Str,7,255),' ');
     TmpStr := Copy(strStripB(TmpStr,' '),1,100);
     AddSubField(5, TmpStr);
     MsgHdr^.JamHdr.ReplyCrc := StringCRC32(TmpStr);

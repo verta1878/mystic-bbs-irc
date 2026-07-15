@@ -24,13 +24,21 @@ Program BinkPoll;
 
 Uses
   DOS,
-  CryptNew,
+  m_crypt,
   m_DateTime,
   m_FileIO,
   m_Strings,
   m_IO_Sockets,
   m_Protocol_Queue,
+  BBS_Records,
   bbs_Common;
+
+// Local address-to-string (Addr2Str lives in bbs_database which has too many deps)
+Function strAddr2Str (Addr : RecEchoMailAddr) : String;
+Begin
+  Result := strI2S(Addr.Zone) + ':' + strI2S(Addr.Net) + '/' + strI2S(Addr.Node);
+  If Addr.Point <> 0 Then Result := Result + '.' + strI2S(Addr.Point);
+End;
 
 Var
   bbsConfig : RecConfig;
@@ -490,9 +498,9 @@ Begin
 
                      If IoResult <> 0 Then Continue;
 
-                     // A44: send the actual file modification time, not the
-                     // hardcoded March-2013 constant.  BINKP uses Unix epoch.
-                     ActualFileTime := FileAge(FileList.QData[FileList.QPos].FilePath + FileList.QData[FileList.QPos].FileName);
+                     // A44: send actual file date. Use GetFTime (DOS unit) since
+                     // this standalone program doesn't use SysUtils.
+                     GetFTime (OutFile, ActualFileTime);
 
                      SendFrame (M_FILE, FileList.QData[FileList.QPos].FileName + ' ' + strI2S(FileList.QData[FileList.QPos].FileSize) + ' ' + strI2S(ActualFileTime) + ' 0');
 
@@ -579,7 +587,7 @@ End;
 
 Function GetFTNFlowName (Dest: RecEchoMailAddr) : String;
 Begin
-  Result := strI2H((Dest.Net SHL 16) OR Dest.Node);
+  Result := strI2H((Dest.Net SHL 16) OR Dest.Node, 8);
 End;
 
 Procedure ScanOutbound;
@@ -659,7 +667,7 @@ Begin
       FN   := JustFile(Str);
       Path := JustPath(Str);
 
-      Queue.Add (Path, FN);
+      Queue.Add (False, Path, FN, '');
     End;
 
     Close (FLOFile);

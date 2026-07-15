@@ -833,7 +833,10 @@ Begin
         #82 : ToggleInsert(True);
         #83 : If CurX <= Length(Session.Msgs.MsgText[CurLine]) Then Begin
                 Delete (Session.Msgs.MsgText[CurLine], CurX, 1);
-                Session.io.BufAddStr (Copy(Session.Msgs.MsgText[CurLine], CurX, Length(Session.Msgs.MsgText[CurLine])) + ' ');
+
+                // A52: auto-reformat the paragraph after delete, then refresh
+                TextReformat;
+                TextRefreshPart;
                 UpdatePosition;
               End Else
               If CurLine < TotalLine Then

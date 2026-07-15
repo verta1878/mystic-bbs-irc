@@ -32,7 +32,15 @@ Uses
   m_Strings,
   m_IO_Sockets,
   m_Protocol_Queue,
+  BBS_Records,
   bbs_Common;
+
+// Local address-to-string (Addr2Str lives in bbs_database which has too many deps)
+Function strAddr2Str (Addr : RecEchoMailAddr) : String;
+Begin
+  Result := strI2S(Addr.Zone) + ':' + strI2S(Addr.Net) + '/' + strI2S(Addr.Node);
+  If Addr.Point <> 0 Then Result := Result + '.' + strI2S(Addr.Point);
+End;
 
 Var
   bbsConfig : RecConfig;
@@ -709,7 +717,7 @@ Begin
       FN   := JustFile(Str);
       Path := JustPath(Str);
 
-      Queue.Add (Path, FN);
+      Queue.Add (False, Path, FN, '');
     End;
 
     Close (FLOFile);

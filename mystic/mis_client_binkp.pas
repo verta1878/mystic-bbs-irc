@@ -528,7 +528,7 @@ Begin
                             PasswordMD5 := True;
 
                             If AuthenticateNode(AddressList) Then Begin
-                              SendFrame (M_OK, '');
+                              SendFrame (M_OK, 'secure');
 
                               AuthState := AuthOK;
                             End;
@@ -539,7 +539,7 @@ Begin
                               PasswordMD5 := False;
 
                               If AuthenticateNode(AddressList) Then Begin
-                                SendFrame (M_OK, '');
+                                SendFrame (M_OK, 'secure');
 
                                 AuthState := AuthOK;
                               End;
@@ -999,7 +999,8 @@ Var
   BinkP   : TBinkP;
   Count   : Integer;
   Address : String;
-  Before  : LongInt;
+  Before        : LongInt;
+  Authenticated : Boolean;
   F       : File;
 Begin
   Queue := TProtocolQueue.Create;
@@ -1009,11 +1010,13 @@ Begin
   BinkP.ForceMD5     := bbsCfg.inetBINKPCram5;
 
   If BinkP.DoAuthentication Then Begin
+    Authenticated := False;
 
     For Count := 1 to strWordCount(BinkP.AddressList, ' ') Do Begin
       Address := strWordGet(Count, BinkP.AddressList, ' ');
 
       If BinkP.AuthenticateNode(Address) Then Begin
+        Authenticated := True;
         Before := Queue.QSize;
 
         QueueByNode(Queue, False, BinkP.EchoNode);
@@ -1021,18 +1024,25 @@ Begin
         Server.Status (ProcessID, 'Queued ' + strI2S(Queue.QSize - Before) + ' files for ' + Addr2Str(BinkP.EchoNode.Address));
 
         BinkP.SetBlockSize := BinkP.EchoNode.binkBlock;
-//        BinkP.UseMD5       := BinkP.EchoNode.binkMD5 > 0;
-//        BinkP.ForceMD5     := BinkP.EchoNode.binkMD5 = 2;
       End;
     End;
 
-    BinkP.FileList := Queue;
-    BinkP.DoTransfers;
+    // A52: unsecured BINKP - if no node authenticated but unsecure transfers
+    // are enabled, accept the connection and route files to UnsecurePath.
+    If (Not Authenticated) and bbsCfg.inetBINKPUnsecure and (bbsCfg.UnsecurePath <> '') Then Begin
+      Server.Status (ProcessID, 'Unsecured session from ' + BinkP.AddressList);
+      bbsConfig.InBoundPath := bbsCfg.UnsecurePath;
+    End;
 
-    If BinkP.RcvdFiles > 0 Then Begin
-      Assign  (F, bbsCfg.SemaPath + fn_SemFileEchoIn);
-      ReWrite (F, 1);
-      Close   (F);
+    If Authenticated or (bbsCfg.inetBINKPUnsecure and (bbsCfg.UnsecurePath <> '')) Then Begin
+      BinkP.FileList := Queue;
+      BinkP.DoTransfers;
+
+      If BinkP.RcvdFiles > 0 Then Begin
+        Assign  (F, bbsCfg.SemaPath + fn_SemFileEchoIn);
+        ReWrite (F, 1);
+        Close   (F);
+      End;
     End;
   End;
 

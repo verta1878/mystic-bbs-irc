@@ -73,6 +73,7 @@ Type
     AllowAbort     : Boolean;
     NoFile         : Boolean;
     Graphics       : Byte;
+    SavedScreen    : TConsoleImageRec;  // A52: |SS / |RS screen save/restore
     PausePtr       : Byte;
     InputData      : Array[1..mysMaxInputHistory] of String[255];
     LastMCIValue   : String;
@@ -757,6 +758,7 @@ Begin
                     FmtString := True;
                     FmtType   := 13;
                   End;
+            'S' : RemoteRestore(SavedScreen);  // A52: |RS restore saved screen
           End;
     'S' : Case Code[2] of
             'B' : LastMCIValue := strI2S(TBBSCore(Core).User.Security.MaxTB);
@@ -765,6 +767,8 @@ Begin
             'K' : LastMCIValue := strI2S(TBBSCore(Core).User.Security.MaxDLK);
             'L' : LastMCIValue := strI2S(TBBSCore(Core).User.ThisUser.Security);
             'N' : LastMCIValue := bbsCfg.SysopName;
+            'S' : If Console <> NIL Then  // A52: |SS save screen
+                    Console.GetScreenImage(1, 1, 80, 25, SavedScreen);
             'P' : Begin
                     A := Round(TBBSCore(Core).User.Security.PCRatio / 100 * 100);
                     LastMCIValue := strI2S(A);
@@ -1096,7 +1100,11 @@ Begin
 
     If Prefix <> '0;' Then
       Result := Result + 'm'
-    Else
+    Else Begin
+      // A52: when resetting (0;) to change foreground from bright to dark,
+      // re-emit the current background to prevent ICE color bleed.  The '0;'
+      // SGR clears all attributes including the background, so we must
+      // re-specify it.
       Case CurBG of
         00: Result := Result + ';40m';
         01: Result := Result + ';44m';
@@ -1107,6 +1115,7 @@ Begin
         06: Result := Result + ';43m';
         07: Result := Result + ';47m';
       End;
+    End;
   End Else Begin
     // A50/A51: for standard backgrounds (16-23) check CurBG to avoid redundant
     // output; for ICE backgrounds (24-31) always emit since CurBG doesn't track

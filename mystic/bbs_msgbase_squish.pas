@@ -1021,7 +1021,12 @@ Begin
   TmpDt.Hour  := strS2I(Copy(SqInfo^.StrTime,1,2));
   TmpDt.Min   := strS2I(Copy(SqInfo^.StrTime, 4,2));
   TmpDt.Sec   := 0;
-  TmpStr      := FormatDate(TmpDT, 'DD NNN YY  ') + Copy(SqInfo^.StrTime, 1, 5) + ':00';
+
+  // A52: preserve seconds when the time string has them (HH:MM:SS format)
+  If Length(SqInfo^.StrTime) >= 8 Then
+    TmpDt.Sec := strS2I(Copy(SqInfo^.StrTime, 7, 2));
+
+  TmpStr      := FormatDate(TmpDT, 'DD NNN YY  ') + Copy(SqInfo^.StrTime, 1, 5) + ':' + strZero(TmpDt.Sec);
 
   PackTime (TmpDT, TmpDate);
 

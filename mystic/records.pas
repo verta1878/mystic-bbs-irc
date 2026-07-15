@@ -43,7 +43,7 @@
 Const
   mysSoftwareID  = 'Mystic BBS';
   mysCopyYear    = '1997-2013';
-  mysVersion     = '1.10 A38irc-A51';
+  mysVersion     = '1.10 A38irc-A52';
   mysDataChanged = '1.10 A11';
   mysCopyNotice  = 'Copyright (C) ' + mysCopyYear + ' By James Coyle';
 

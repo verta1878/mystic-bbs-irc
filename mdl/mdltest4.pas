@@ -20,6 +20,8 @@
 // ====================================================================
 Program Test4;
 
+{$I M_OPS.PAS}
+
 Uses
   m_io_Sockets;
 
@@ -31,11 +33,12 @@ Begin
 
   WriteLn ('Attempting to connect to localhost port 23 for TEST3 server test');
 
-  Client.ConnectInit('localhost', 23);
-  Client.SetBlocking(False);
-
-  Repeat
-  Until Client.Connect;
+  // Updated for current TIOSocket API (ConnectInit removed)
+  If Not Client.Connect('localhost', 23) Then Begin
+    WriteLn ('Connection failed');
+    Client.Free;
+    Halt;
+  End;
 
 //  If Not Client.Connect ('localhost', 23) Then Begin
 //    WriteLn ('Connection failed');

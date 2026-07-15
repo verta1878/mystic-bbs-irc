@@ -764,6 +764,16 @@ Begin
                     Break;
                   End;
             End;
+      #16 : Begin
+              // A52: CTRL-P posts a message to the currently selected base
+              If GetMBaseByIndex(strS2I(strWordGet(6, ListBox.List[ListBox.Picked]^.Name, #0)), TempBase) Then Begin
+                ChangeArea(strI2S(TempBase.Index));
+                Session.io.OutFull ('|16||11|CLPosting a message to area |15' + strStripPipe(TempBase.Name) + '|11.|CR');
+                PostMessage (True, '/TO:');
+                BuildAreaList;
+              End;
+              ReDraw := True;
+            End;
       #18 : Begin
               BuildAreaList;
               ReDraw := True;
@@ -2083,7 +2093,8 @@ Var
       While Not MsgBase^.EOM Do Begin
         Temp := MsgBase^.GetString(79);
 
-        If Temp[1] <> #1 Then WriteLn (TF, Temp);
+        // A52: include kludge lines in exported file when V (view kludge) is on
+        If (Temp[1] <> #1) or ShowKludge Then WriteLn (TF, Temp);
       End;
 
       Close (TF);
