@@ -13,7 +13,7 @@ Mystic 1.10 fork and works on it here, in a container with FPC
 the container cannot push). Work is delivered as a source zip in
 /mnt/user-data/outputs/ which the sysop applies and pushes.
 
-Version: 1.10 A38irc-A40. All A41, A42, and A43 features from g00r00's
+Version: 1.10 A38irc-A43. All A41, A42, and A43 features from g00r00's
 whatsnew have been ported. 7/7 core targets + marc compile clean with r3.1.
 
 ## Reading order (on resume)

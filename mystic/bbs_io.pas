@@ -476,6 +476,15 @@ Begin
       If Code = '21' Then BufAddStr(Pipe2Ansi(21)) Else
       If Code = '22' Then BufAddStr(Pipe2Ansi(22)) Else
       If Code = '23' Then BufAddStr(Pipe2Ansi(23)) Else
+      // A50: ICE colors (bright backgrounds)
+      If Code = '24' Then BufAddStr(Pipe2Ansi(24)) Else
+      If Code = '25' Then BufAddStr(Pipe2Ansi(25)) Else
+      If Code = '26' Then BufAddStr(Pipe2Ansi(26)) Else
+      If Code = '27' Then BufAddStr(Pipe2Ansi(27)) Else
+      If Code = '28' Then BufAddStr(Pipe2Ansi(28)) Else
+      If Code = '29' Then BufAddStr(Pipe2Ansi(29)) Else
+      If Code = '30' Then BufAddStr(Pipe2Ansi(30)) Else
+      If Code = '31' Then BufAddStr(Pipe2Ansi(31)) Else
       If Code = '[X' Then Begin
         Inc (Count, 2);
 
@@ -1099,7 +1108,10 @@ Begin
         07: Result := Result + ';47m';
       End;
   End Else Begin
-    If (Color - 16) = CurBG Then Exit;
+    // A50/A51: for standard backgrounds (16-23) check CurBG to avoid redundant
+    // output; for ICE backgrounds (24-31) always emit since CurBG doesn't track
+    // the ICE state.
+    If (Color <= 23) and ((Color - 16) = CurBG) Then Exit;
 
 //    Console.TextAttr := CurFG + (Color - 16) * 16;
 
@@ -1112,6 +1124,15 @@ Begin
       21: Result := #27 + '[45m';
       22: Result := #27 + '[43m';
       23: Result := #27 + '[47m';
+      // A50: ICE colors — bright backgrounds (requires terminal support)
+      24: Result := #27 + '[100m';   // grey background
+      25: Result := #27 + '[104m';   // bright blue background
+      26: Result := #27 + '[102m';   // bright green background
+      27: Result := #27 + '[106m';   // bright cyan background
+      28: Result := #27 + '[101m';   // bright red background
+      29: Result := #27 + '[105m';   // bright magenta background
+      30: Result := #27 + '[103m';   // bright yellow background
+      31: Result := #27 + '[107m';   // bright white background
     End;
   End;
 End;

@@ -320,6 +320,12 @@ Begin
     PKTDest.Net   := PKTHeader.DestNet;
     PKTDest.Node  := PKTHeader.DestNode;
     PKTDest.Point := PKTHeader.DestPoint; //V2+
+
+    // A52: prefer V2+ zone fields (OrigZone2/DestZone2) when present — the
+    // V2 fields can sometimes be wrong (zero or swapped).
+    If PKTHeader.OrigZone2 <> 0 Then PKTOrig.Zone := PKTHeader.OrigZone2;
+    If PKTHeader.DestZone2 <> 0 Then PKTDest.Zone := PKTHeader.DestZone2;
+
     Result        := True;
     Opened        := True;
   End;

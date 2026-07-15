@@ -375,6 +375,11 @@ Begin
   If MysLoc <> '' Then MysLoc := DirSlash(MysLoc);
 
   If fpStat(MysLoc + 'mis', Info) = 0 Then Begin
+    // A45: drop root privileges after binding ports.  On Linux, fpSetUID from
+    // root sets real+effective+saved UID, so files received by BINKP etc. will
+    // have ownership matching the MIS binary, not root.
+    // TODO: when fpc264irc adds fpSetEUID/fpSetEGID wrappers, switch to those
+    // for proper effective-only privilege drop.
     fpSetGID (Info.st_GID);
     fpSetUID (Info.st_UID);
   End;

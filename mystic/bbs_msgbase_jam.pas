@@ -794,6 +794,10 @@ Begin
     DT.Hour := strS2I(Copy(JM^.MsgTime, 1, 2));
     DT.Min  := strS2I(Copy(JM^.MsgTime, 4, 2));
 
+    // A47: preserve seconds when the time string has them (HH:MM:SS format)
+    If Length(JM^.MsgTime) >= 8 Then
+      DT.Sec := strS2I(Copy(JM^.MsgTime, 7, 2));
+
     MsgHdr^.JamHdr.DateWritten := DateDT2Unix(DT);
   End;
 

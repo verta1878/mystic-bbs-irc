@@ -644,7 +644,7 @@ Var
       If Session.User.Access(TempBase.ListACS) Then Begin
         GetMessageStats (False, False, False, Count, TempBase, False, False, MsgTotal, MsgNew, MsgYours);
                      //1                         2                                      3                       4                         5                      6                                   7                             8
-        ListBox.Add (TempBase.Name + #0 + bbsCfg.NetDesc[TempBase.NetAddr] + #0 + strComma(MsgTotal) + #0 + strComma(MsgNew) + #0 + strComma(MsgYours) + #0 + strI2S(TempBase.Index) + #0 + strI2S(Ord(MsgNew > 0)) + #0 + strI2S(TempBase.NetAddr), 2);
+        ListBox.Add (TempBase.Name + #0 + bbsCfg.NetDesc[TempBase.NetAddr] + #0 + strComma(MsgTotal) + #0 + strComma(MsgNew) + #0 + strComma(MsgYours) + #0 + strI2S(TempBase.Index) + #0 + strI2S(Ord(MsgNew > 0)) + #0 + strPadL(strI2S(TempBase.NetAddr), 3, '0'), 2);
       End;
     End;
 

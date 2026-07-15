@@ -138,6 +138,7 @@ Var
   TossEcho    : LongInt;
   TossNet     : LongInt;
   DupeIndex   : LongInt;
+  UnsecureToss: Boolean;
   DupeMBase   : RecMessageBase;
   CreateBases : Boolean;
   StripSeenBy : Boolean;
@@ -205,6 +206,13 @@ Var
         End;
         Break;
       End;
+
+    // A44: log the PKT file being processed with origin and destination
+    Log (3, '+', '   Processing ' + JustFile(PktFN) + ' from ' +
+         strI2S(PKT.PKTOrig.Zone) + ':' + strI2S(PKT.PKTOrig.Net) + '/' +
+         strI2S(PKT.PKTOrig.Node) + ' to ' +
+         strI2S(PKT.PKTDest.Zone) + ':' + strI2S(PKT.PKTDest.Net) + '/' +
+         strI2S(PKT.PKTDest.Node));
 
     If Not IsValidAKA(PKT.PKTDest.Zone, PKT.PKTDest.Net, PKT.PKTDest.Node, 0) Then Begin
       Log (3, '!', '   ' + JustFile(PktFN) + ' does not match an AKA');
@@ -342,11 +350,24 @@ Var
               MBase.DefQScan  := INI.ReadInteger(Header_ECHOIMPORT, 'qwk_scan', 1);
               MBase.NetAddr   := 1;
 
+              // A47: match the AKA by the full PKT destination address (zone +
+              // net + node), not just zone. Zone-only matching picks the wrong
+              // AKA for multi-address setups within the same zone.
               For Count := 1 to 30 Do
-                If bbsCfg.NetAddress[Count].Zone = PKT.PKTHeader.DestZone Then Begin
+                If (bbsCfg.NetAddress[Count].Zone = PKT.PKTDest.Zone) and
+                   (bbsCfg.NetAddress[Count].Net  = PKT.PKTDest.Net) and
+                   (bbsCfg.NetAddress[Count].Node = PKT.PKTDest.Node) Then Begin
                   MBase.NetAddr := Count;
                   Break;
                 End;
+
+              // Fallback: if no full match, try zone-only (original behavior)
+              If MBase.NetAddr = 1 Then
+                For Count := 1 to 30 Do
+                  If bbsCfg.NetAddress[Count].Zone = PKT.PKTDest.Zone Then Begin
+                    MBase.NetAddr := Count;
+                    Break;
+                  End;
 
               MBase.FileName := strReplace(MBase.FileName, '/', '_');
               MBase.FileName := strReplace(MBase.FileName, '\', '_');
@@ -402,13 +423,13 @@ Var
             Continue;
           End;
 
-          Log (3, '+', '      Import #' + strI2S(MsgBase^.GetHighMsgNum + 1) + ' to ' + strStripPipe(MBase.Name));
+          Log (3, '+', '      Import #' + strI2S(MsgBase^.GetHighMsgNum + 1) + ' to ' + strStripPipe(MBase.Name) + ' from ' + Addr2Str(PKT.MsgOrig));
 
           SavePKTMsgToBase (MsgBase, PKT, False, StripSeenBy);
 
           Dupes.AddDuplicate(PKT.MsgCRC);
 
-          EchoExportMessage(MBase, MsgBase, Downlinks, TossNet, TossEcho);
+          EchoExportMessage(MBase, MsgBase, Downlinks, TossNet, TossEcho, False);
 
           Inc (TotalEcho);
         End;
@@ -465,7 +486,8 @@ Var
 
     ProcessStatus ('Extracting ' + PktBundle, False);
 
-    ExecuteArchive (TempPath, bbsCfg.InboundPath + PktBundle, ArcType, '*', 2);
+    // A45: extract only *.pkt from bundles (was *, which pulled everything)
+    ExecuteArchive (TempPath, bbsCfg.InboundPath + PktBundle, ArcType, '*.pkt', 2);
 
     BundleList := TStringList.Create;
 
@@ -525,6 +547,7 @@ Begin
 
   CreateBases := INI.ReadBoolean(Header_ECHOIMPORT, 'auto_create', False);
   StripSeenBy := INI.ReadBoolean(Header_ECHOIMPORT, 'strip_seenby', False);
+  UnsecureToss := INI.ReadBoolean(Header_ECHOIMPORT, 'unsecure_dir', False);
   DupeIndex   := INI.ReadInteger(Header_ECHOIMPORT, 'dupe_msg_index', -1);
   Count       := INI.ReadInteger(Header_ECHOIMPORT, 'dupe_db_size', 32000);
 
@@ -580,6 +603,20 @@ Begin
   End;
 
   FindClose (DirInfo);
+
+  // A52: also scan the unsecure inbound directory if enabled
+  If UnsecureToss and (bbsCfg.UnsecurePath <> '') Then Begin
+    FindFirst (bbsCfg.UnsecurePath + '*', AnyFile, DirInfo);
+
+    While DosError = 0 Do Begin
+      If DirInfo.Attr And Directory = 0 Then
+        PktList.Add(FormatDate(DateDos2DT(DirInfo.Time), 'YYYYMMDDHHIISS') + ' ' + DirInfo.Name);
+
+      FindNext (DirInfo);
+    End;
+
+    FindClose (DirInfo);
+  End;
 
   ReadEchoMailLinks(DownLinks, GetFTNPKTName);
 

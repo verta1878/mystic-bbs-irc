@@ -49,6 +49,44 @@ Begin
   If IOResult = 0 Then Close (SF);
 End;
 
+// A44: queue files from the node's outbound FileBox (if enabled).
+// UseFileBox: 0=No, 1=Hold (only when they connect to us), 2=Any (always).
+// Files are deleted after successful transmission.
+Procedure QueueFileBox (Var Queue: TProtocolQueue; Var EchoNode: RecEchoMailNode);
+Var
+  DirInfo : SearchRec;
+  BoxPath : String;
+Begin
+  If EchoNode.UseFileBox < 2 Then Exit;  // 0=No, 1=Hold (inbound only)
+  If EchoNode.OutFileBox = '' Then Exit;
+
+  BoxPath := DirLast(EchoNode.OutFileBox);
+
+  FindFirst (BoxPath + '*', AnyFile, DirInfo);
+  While DosError = 0 Do Begin
+    If (DirInfo.Attr And Directory) = 0 Then
+      Queue.Add (False, BoxPath, DirInfo.Name, '');
+    FindNext (DirInfo);
+  End;
+  FindClose (DirInfo);
+End;
+
+// Delete successfully sent FileBox files after a poll.
+Procedure CleanFileBox (Var Queue: TProtocolQueue; Var EchoNode: RecEchoMailNode);
+Var
+  Count   : LongInt;
+  BoxPath : String;
+Begin
+  If EchoNode.UseFileBox < 2 Then Exit;
+  If EchoNode.OutFileBox = '' Then Exit;
+
+  BoxPath := DirLast(EchoNode.OutFileBox);
+
+  For Count := 0 to Queue.QSize - 1 Do
+    If Queue.QData[Count].FilePath = BoxPath Then
+      FileErase (BoxPath + Queue.QData[Count].FileName);
+End;
+
 Procedure PrintStatus (Owner: Pointer; Level: Byte; Str: String);
 Var
   TF : Text;
@@ -310,18 +348,23 @@ Begin
   Result := GetNodeByAddress(Addr, EchoNode);
 
   If Result And EchoNode.Active Then Begin
+    QueueFileBox (Queue, EchoNode);
+
     Case EchoNode.ProtType of
       0 : If PollNodeBINKP(False, Queue, EchoNode) Then Begin
             EchoNode.LastSent := PollTime;
             CreateEchoSema;
+            CleanFileBox (Queue, EchoNode);
           End;
       1 : If PollNodeFTP(False, Queue, EchoNode) Then Begin
             EchoNode.LastSent := PollTime;
             CreateEchoSema;
+            CleanFileBox (Queue, EchoNode);
           End;
       2 : If PollNodeDirectory(False, Queue, EchoNode) Then Begin
             EchoNode.LastSent := PollTime;
             CreateEchoSema;
+            CleanFileBox (Queue, EchoNode);
           End;
     End;
 
@@ -358,6 +401,8 @@ Begin
     Read (EchoFile, EchoNode);
 
     If EchoNode.Active Then Begin
+      QueueFileBox (Queue, EchoNode);
+
       Case EchoNode.ProtType of
         0 : Res := PollNodeBINKP(OnlyNew, Queue, EchoNode);
         1 : Res := PollNodeFTP(OnlyNew, Queue, EchoNode);
@@ -369,6 +414,7 @@ Begin
 
         EchoNode.LastSent := PollTime;
         CreateEchoSema;
+        CleanFileBox (Queue, EchoNode);
 
         Seek  (EchoFile, FilePos(EchoFile) - 1);
         Write (EchoFile, EchoNode);

@@ -1,6 +1,6 @@
-# Mystic BBS 1.10 A38irc-A40 - Community Fork (IRC)
+# Mystic BBS 1.10 A38irc-A43 - Community Fork (IRC)
 
-> **Release: 2026-07-15** — base **Mystic 1.10 A38irc-A40**, with all
+> **Release: 2026-07-15** — base **Mystic 1.10 A38irc-A43**, with all
 > **A41, A42, and A43** features ported from g00r00's whatsnew. Includes
 > FidoNet enhancements (AreaFix/FileFix, PKT passwords, FMPT/TOPT,
 > CRAM-MD5 ARGUS fix, echomail.in semaphore), MIS event fixes,

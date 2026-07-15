@@ -33,7 +33,7 @@ Uses
 
 Procedure uEchoExport;
 
-Procedure EchoExportMessage (Var MBase: RecMessageBase; Var MsgBase: PMsgBaseABS; Var Links: TEchoMailLinks; Var TotalNet, TotalEcho: LongInt);
+Procedure EchoExportMessage (Var MBase: RecMessageBase; Var MsgBase: PMsgBaseABS; Var Links: TEchoMailLinks; Var TotalNet, TotalEcho: LongInt; IsLocal: Boolean);
 Procedure EchoBundleMessages;
 
 Implementation
@@ -172,7 +172,7 @@ Begin
   FindClose (DirInfo);
 End;
 
-Procedure EchoExportMessage (Var MBase: RecMessageBase; Var MsgBase: PMsgBaseABS; Var Links: TEchoMailLinks; Var TotalNet, TotalEcho: LongInt);
+Procedure EchoExportMessage (Var MBase: RecMessageBase; Var MsgBase: PMsgBaseABS; Var Links: TEchoMailLinks; Var TotalNet, TotalEcho: LongInt; IsLocal: Boolean);
 Var
   PH   : RecPKTHeader;
   MH   : RecPKTMessageHdr;
@@ -190,6 +190,9 @@ Var
     TempStr1 : String;
     TempStr2 : String;
     TempStr3 : String;
+    TempFile : File of RecEchoMailExport;
+    TempIdx  : RecEchoMailExport;
+    TempI    : LongInt;
   Begin
     // if msg originated from this echomail address then do not export
 
@@ -351,7 +354,10 @@ Var
     If MsgBase^.GetDestAddr.Point <> 0 Then
       WriteStr (#1 + 'TOPT ' + strI2S(MsgBase^.GetDestAddr.Point) + #13);
 
-    WriteStr (#1 + 'TID: ' + mysSoftwareID + ' ' + mysVersion + #13);
+    // A44: TID kludge only added to locally-originated messages, not to
+    // messages being tossed through to downlinks during import.
+    If IsLocal Then
+      WriteStr (#1 + 'TID: ' + mysSoftwareID + ' ' + mysVersion + #13);
 
     MsgBase^.MsgTxtStartUp;
 
@@ -359,18 +365,28 @@ Var
       WriteStr (MsgBase^.GetString(79) + #13);
 
     If MBase.NetType <> 3 Then Begin
-      // SEEN-BY needs to include yourself and ANYTHING it is sent to (downlinks)
-      // so we need to cycle through nodes for this mbase and add ALL of them
+      // A44: SEEN-BY must include yourself AND ALL downlinks this message is
+      // sent to (not just the current one).  Build the full list by scanning
+      // the .lnk file for this base.  This prevents SEEN-BY corruption when
+      // exporting to multiple downlinks.
+      TempStr1 := 'SEEN-BY: ' + strI2S(MsgBase^.GetOrigAddr.Net) + '/' + strI2S(MsgBase^.GetOrigAddr.Node);
 
-      TempStr1 := 'SEEN-BY: ' + strI2S(MsgBase^.GetOrigAddr.Net) + '/' + strI2S(MsgBase^.GetOrigAddr.Node) + ' ';
+      Assign (TempFile, MBase.Path + MBase.FileName + '.lnk');
+      If ioReset(TempFile, SizeOf(RecEchoMailExport), fmRWDN) Then Begin
+        While Not Eof(TempFile) Do Begin
+          Read (TempFile, TempIdx);
+          For TempI := 1 to Length(Links) Do
+            If Links[TempI - 1].Node.Index = TempIdx Then Begin
+              If Links[TempI - 1].Node.Address.Net <> MsgBase^.GetOrigAddr.Net Then
+                TempStr1 := TempStr1 + ' ' + strI2S(Links[TempI - 1].Node.Address.Net) + '/' + strI2S(Links[TempI - 1].Node.Address.Node)
+              Else
+                TempStr1 := TempStr1 + ' ' + strI2S(Links[TempI - 1].Node.Address.Node);
+              Break;
+            End;
+        End;
+        Close (TempFile);
+      End;
 
-      If MsgBase^.GetOrigAddr.Net <> OneLink.Node.Address.Net Then
-        TempStr1 := TempStr1 + strI2S(OneLink.Node.Address.Net) + '/';
-
-      TempStr1 := TempStr1 + strI2S(OneLink.Node.Address.Node);
-
-//      WriteStr (TempStr1 + #13);
-//      WriteStr (#1 + 'PATH: ' + strI2S(MsgBase^.GetOrigAddr.Net) + '/' + strI2S(MsgBase^.GetOrigAddr.Node) + #13);
       WriteStr (TempStr1 + #13 + #1 + 'PATH: ' + strI2S(MsgBase^.GetOrigAddr.Net) + '/' + strI2S(MsgBase^.GetOrigAddr.Node) + #13);
     End;
 
@@ -471,7 +487,7 @@ Var
         If (Cutoff = 0) or (DateStr2Dos(MsgBase^.GetDate) >= Cutoff) Then Begin
           Inc (Total);
 
-          EchoExportMessage (MB, MsgBase, OneLink, TotalNet, TotalEcho);
+          EchoExportMessage (MB, MsgBase, OneLink, TotalNet, TotalEcho, True);
         End;
 
       MsgBase^.SeekNext;
@@ -605,7 +621,7 @@ Begin
         If MsgBase^.IsLocal And Not MsgBase^.IsSent Then Begin
           Inc (TotalBase);
 
-          EchoExportMessage (MBase, MsgBase, Downlinks, TotalNet, TotalEcho);
+          EchoExportMessage (MBase, MsgBase, Downlinks, TotalNet, TotalEcho, True);
 
           MsgBase^.SetSent(True);
           MsgBase^.ReWriteHdr;

@@ -383,6 +383,7 @@ Var
   InPos   : Cardinal;
   InTime  : Cardinal;
   FSize   : Cardinal;
+  ActualFileTime : LongInt;
 Begin
   //WriteLn ('Begin File Transfers');
 
@@ -489,8 +490,11 @@ Begin
 
                      If IoResult <> 0 Then Continue;
 
-                     // need to escape filename here and fix file time
-                     SendFrame (M_FILE, FileList.QData[FileList.QPos].FileName + ' ' + strI2S(FileList.QData[FileList.QPos].FileSize) + ' ' + strI2S(TempFileTime) + ' 0');
+                     // A44: send the actual file modification time, not the
+                     // hardcoded March-2013 constant.  BINKP uses Unix epoch.
+                     ActualFileTime := FileAge(FileList.QData[FileList.QPos].FilePath + FileList.QData[FileList.QPos].FileName);
+
+                     SendFrame (M_FILE, FileList.QData[FileList.QPos].FileName + ' ' + strI2S(FileList.QData[FileList.QPos].FileSize) + ' ' + strI2S(ActualFileTime) + ' 0');
 
                      TxState := TxSendData;
                    End Else Begin
