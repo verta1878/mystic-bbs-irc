@@ -120,8 +120,8 @@ Type
     EchoNode     : RecEchoMailNode;
     Client       : TIOSocket;
     IsClient     : Boolean;
-    HideAKAs     : Boolean;   // A39: suppress AKAs outside HideSource zone on outbound handshake
-    HideSource   : Word;      // A39: the zone whose AKAs we advertise when HideAKAs is on
+    HideAKAs     : Boolean;   // A39: suppress AKAs outside HideSource domain on outbound handshake
+    HideSource   : String[8]; // A43: changed from zone (Word) to domain (String[8])
     UseMD5       : Boolean;
     ForceMD5     : Boolean;
     AuthState    : TBinkAuthState;
@@ -271,8 +271,16 @@ Begin
       Addr2     := Addr2Str(EchoNode.Address);
       UseDomain := Pos('@', Addr1) > 0;
 
-      If UseDomain Then
+      // A42: strip .org and .net suffixes from the remote domain name.
+      // Domain names should be max 8 chars for BSO directory compliance
+      // and should not contain periods, but some nodes append .org/.net.
+      If UseDomain Then Begin
+        If (Length(Addr1) > 4) and (strUpper(Copy(Addr1, Length(Addr1) - 3, 4)) = '.ORG') Then
+          Delete (Addr1, Length(Addr1) - 3, 4);
+        If (Length(Addr1) > 4) and (strUpper(Copy(Addr1, Length(Addr1) - 3, 4)) = '.NET') Then
+          Delete (Addr1, Length(Addr1) - 3, 4);
         Addr2 := Addr2 + '@' + EchoNode.Domain;
+      End;
 
       If strUpper(Addr1) = strUpper(Addr2) Then Begin
         If PasswordMD5 Then Begin
@@ -450,10 +458,10 @@ Begin
 
                         For Count := 1 to 30 Do
                           If Addr2Str(bbsCfg.NetAddress[Count]) <> '0:0/0' Then Begin
-                            // A39: when hiding AKAs, only advertise addresses in the
-                            // uplink's own zone (HideSource); skip the rest.
+                            // A43: when hiding AKAs, only advertise addresses whose domain
+                            // matches the node's domain; skip the rest.
                             If IsClient and HideAKAs Then
-                              If bbsCfg.NetAddress[Count].Zone <> HideSource Then
+                              If strUpper(bbsCfg.NetDomain[Count]) <> strUpper(HideSource) Then
                                 Continue;
 
                             If Str <> '' Then Str := Str + ' ';

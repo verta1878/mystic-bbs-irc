@@ -39,7 +39,8 @@ Uses
   BBS_Records,
   BBS_DataBase,
   BBS_Common,
-  BBS_Cfg_Common;
+  BBS_Cfg_Common,
+  BBS_Cfg_EchoMail;
 
 Type
   RecFileBaseFile = File of RecFileBase;
@@ -106,6 +107,7 @@ Var
   Box   : TAnsiMenuBox;
   Form  : TAnsiMenuForm;
   Topic : String;
+  Count : Byte;
 Begin
   Topic := '|03(|09File Base Edit|03) |01-|09> |15';
   Box   := TAnsiMenuBox.Create;
@@ -116,7 +118,13 @@ Begin
   Box.Open (6, 5, 75, 21);
 
   VerticalLine (22, 7, 19);
-  VerticalLine (69, 7, 9);
+  VerticalLine (69, 7, 11);
+
+  // A41: show current network address for file echo
+  If FBase.NetAddr > 0 Then
+    WriteXY (69, 11, 113, strPadR(Addr2Str(bbsCfg.NetAddress[FBase.NetAddr]), 12, ' '))
+  Else
+    WriteXY (69, 11, 113, 'None        ');
 
   Form.AddStr  ('N', ' Base Name'    , 11,  7, 24,  7, 11, 30, 40, @FBase.Name, Topic + 'File base name');
   Form.AddStr  ('F', ' FTP Name'     , 12,  8, 24,  8, 10, 30, 60, @FBase.FTPName, Topic + 'Base name in FTP directory list');
@@ -135,9 +143,19 @@ Begin
   Form.AddBits ('R', ' Free Files'   , 57,  7, 71,  7, 12, FBFreeFiles, @FBase.Flags, Topic + 'Files in base are free?');
   Form.AddBits ('M', ' Slow Media'   , 57,  8, 71,  8, 12, FBSlowMedia, @FBase.Flags, Topic + 'Files stored on slow media device?');
   Form.AddBits (#01, ' Uploader'     , 59,  9, 71,  9, 10, FBShowUpload, @FBase.Flags, Topic + 'Show upload in listing');
+  Form.AddStr  ('G', ' Echo Tag'     , 57, 10, 69, 10, 10, 10, 30, @FBase.EchoTag, Topic + 'File echo tag (for FileFix)');
+  Form.AddNone ('K', ' Net Address'  , 55, 11, 55, 11, 13, Topic + 'Network address for file echo');
 
   Repeat
     Case Form.Execute of
+      'K' : Begin
+              // A41: pick the network address for file echoes, same picker as
+              // message bases.  ESC (returns 0) preserves the original.
+              Count := Configuration_EchoMailAddress(False);
+              If Count > 0 Then FBase.NetAddr := Count;
+
+              WriteXY (69, 11, 113, strPadR(Addr2Str(bbsCfg.NetAddress[FBase.NetAddr]), 12, ' '));
+            End;
       #27 : Break;
     End;
   Until False;

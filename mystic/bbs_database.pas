@@ -102,6 +102,11 @@ Procedure RemoveExportFromBase (Var MBase: RecMessageBase; Idx: LongInt);
 Procedure RemoveExportGlobal   (Idx: LongInt);
 Function  GetMatchedAddress    (Orig, Dest: RecEchoMailAddr) : RecEchoMailAddr;
 
+// A41: file-base equivalents for file-echo node linking (same .lnk pattern)
+Function  IsFileExportNode         (Var FBase: RecFileBase; Idx: LongInt) : Boolean;
+Procedure AddFileExportByBase      (Var FBase: RecFileBase; Idx: LongInt);
+Procedure RemoveFileExportFromBase (Var FBase: RecFileBase; Idx: LongInt);
+
 Implementation
 
 Uses
@@ -950,6 +955,52 @@ Begin
       KillRecord (ExpFile, FilePos(ExpFile), SizeOf(RecEchoMailExport));
   End;
 
+  Close (ExpFile);
+End;
+
+// A41: file-base equivalents for file-echo node linking.  Identical logic to the
+// message-base versions, but using FBase.Path + FBase.FileName for the .lnk path.
+
+Function IsFileExportNode (Var FBase: RecFileBase; Idx: LongInt) : Boolean;
+Var
+  ExpFile : File of RecEchoMailExport;
+  ExpNode : RecEchoMailExport;
+Begin
+  Result := False;
+  Assign (ExpFile, FBase.Path + FBase.FileName + '.lnk');
+  If Not ioReset (ExpFile, SizeOf(RecEchoMailExport), fmRWDN) Then Exit;
+  While Not Eof(ExpFile) Do Begin
+    Read (ExpFile, ExpNode);
+    If ExpNode = Idx Then Begin Result := True; Break; End;
+  End;
+  Close (ExpFile);
+End;
+
+Procedure AddFileExportByBase (Var FBase: RecFileBase; Idx: LongInt);
+Var
+  ExpFile : File of RecEchoMailExport;
+Begin
+  If IsFileExportNode (FBase, Idx) Then Exit;
+  Assign (ExpFile, FBase.Path + FBase.FileName + '.lnk');
+  If Not ioReset (ExpFile, SizeOf(RecEchoMailExport), fmRWDN) Then
+    If Not ioReWrite (ExpFile, SizeOf(RecEchoMailExport), fmRWDN) Then Exit;
+  Seek  (ExpFile, FileSize(ExpFile));
+  Write (ExpFile, Idx);
+  Close (ExpFile);
+End;
+
+Procedure RemoveFileExportFromBase (Var FBase: RecFileBase; Idx: LongInt);
+Var
+  ExpFile : File of RecEchoMailExport;
+  ExpNode : RecEchoMailExport;
+Begin
+  Assign (ExpFile, FBase.Path + FBase.FileName + '.lnk');
+  If Not ioReset (ExpFile, SizeOf(RecEchoMailExport), fmRWDN) Then Exit;
+  While Not Eof(ExpFile) Do Begin
+    Read (ExpFile, ExpNode);
+    If ExpNode = Idx Then
+      KillRecord (ExpFile, FilePos(ExpFile), SizeOf(RecEchoMailExport));
+  End;
   Close (ExpFile);
 End;
 

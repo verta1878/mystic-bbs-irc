@@ -905,7 +905,11 @@ Begin
           Param1    := GetParam('|');
           Count     := Count + 1;
 
+          // A42: save/restore format state so a nested |DF inside another
+          // display file doesn't corrupt the outer file's parsing.
           OutFile (JustFile(strStripLOW(strStripB(Param1, ' '))), True, 0);
+          FmtString := False;
+          FmtType   := 0;
 
           Continue;
         End;
@@ -1381,7 +1385,10 @@ Begin
                     Str := Str + GetChar;
                   End;
 
+                  // A42: reset format state after nested |DF display
                   OutFile (JustFile(strStripLOW(Str)), True, 0);
+                  FmtString := False;
+                  FmtType   := 0;
 
                   Continue;
                 End;

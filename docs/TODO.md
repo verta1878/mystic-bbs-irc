@@ -179,24 +179,24 @@ Whatever surfaces here IS the next real work.
 
 ## 9. Adopt FPC 2.6.4irc as the default compiler — DONE (verify remains)
 
-  GOAL (met): FPC 2.6.4irc release r3 (libs/fpc264irc.tar.gz) is now the DEFAULT
+  GOAL (met): FPC 2.6.4irc release r3.1 (libs/fpc264irc.tar.gz) is now the DEFAULT
   project compiler, replacing 2.6.2.
 
   Done (2026-07-12):
-   - Bundle upgraded to r3 (self-sustaining: ships its own as/ld/ar via the
+   - Bundle upgraded to r3.1 (self-sustaining: ships its own as/ld/ar via the
      3-tier fallback; see fpc264irc/docs/tier_fallback_system.md).
-   - Verified r3 COMPILES the Mystic tree: it built all 7 core units +
+   - Verified r3.1 COMPILES the Mystic tree: it built all 7 core units +
      mplc.o clean in-container (only the final link stalled on the container's
-     known slow-ld, which hits 2.6.2 identically - not an r3 issue).
+     known slow-ld, which hits 2.6.2 identically - not an r3.1 issue).
    - Build-script headers + docs (START-HERE, BUILDING, libs/README, DECISIONS)
-     updated to name r3 as the default. PPU wordversion unchanged vs stock 2.6.4
+     updated to name r3.1 as the default. PPU wordversion unchanged vs stock 2.6.4
      -> record anchors safe by construction.
 
   Remaining verification (not blockers to it being default):
-   - Full 14/14 build on win32 + linux end-to-end under r3 (link included) once
+   - Full 14/14 build on win32 + linux end-to-end under r3.1 (link included) once
      the container link path is unblocked, or on the sysop's machine.
-   - Run tests/a40/run.sh under r3 (FPC= -> fpc264irc/bin/ppc386).
-   - Anchor re-check (5282/768/901/1536) after a full r3 build.
+   - Run tests/a40/run.sh under r3.1 (FPC= -> fpc264irc/bin/ppc386).
+   - Anchor re-check (5282/768/901/1536) after a full r3.1 build.
    - Live smoke test on the board.
 
 ## 10. Clean up libs/ + source-code COMMENTS (SYSOP GOAL)
@@ -249,11 +249,11 @@ layer is written and the binutils link blocker is solved - both in the repo.
     Pascal on our PINNED 2.6.2 - no risky re-pin to 3.0.4/3.2.2, so the SizeOf
     record anchors stay intact.
   - The C_SECTION(0x68) COFF link fix (so ld reads FPC objects) is now handled
-    by FPC 2.6.4irc r3's bundled go32v2 toolchain (bin/tools/i386-go32v2/), which
+    by FPC 2.6.4irc r3.1's bundled go32v2 toolchain (bin/tools/i386-go32v2/), which
     emits/reads the proper COFF section attributes. (The old standalone
-    libs/dos-binutils-patch/ was removed - r3 supersedes it. NOTE: r3 also ships
+    libs/dos-binutils-patch/ was removed - r3.1 supersedes it. NOTE: r3.1 also ships
     a go32v2 Sockets unit, so whether the fork still needs mdl/sockets_go32v2.pas
-    is an open question to settle during live DOS testing under r3.)
+    is an open question to settle during live DOS testing under r3.1.)
   - DOS code gaps closed: m_io_stdio, m_pipe, mis_events ShellExec, go32v2 MD5.
 
 REMAINING - build Watt-32 (libwatt.a) for djgpp/go32v2:

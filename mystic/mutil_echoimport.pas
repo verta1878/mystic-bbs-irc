@@ -146,6 +146,8 @@ Var
   Status      : LongInt;
   ForwardList : Array[1..50] of String[35];
   ForwardSize : Byte = 0;
+  TwitList    : Array[1..100] of String[40];
+  TwitSize    : Byte = 0;
   DownLinks   : TEchoMailLinks;
 
   Procedure ImportPacketFile (PktFN: String);
@@ -156,12 +158,53 @@ Var
     Count   : LongInt;
     Route   : RecEchoMailNode;
     TempStr : String;
+    TempI   : LongInt;
+
+    // A43: twit filter - check if a message's From, To, or originating address
+    // matches any entry in the twit list.  Returns True if the message should
+    // be silently dropped.
+    Function IsTwit : Boolean;
+    Var T : Byte; AddrStr : String;
+    Begin
+      Result := False;
+      If TwitSize = 0 Then Exit;
+      AddrStr := strUpper(Addr2Str(PKT.MsgOrig));
+      For T := 1 to TwitSize Do
+        If (TwitList[T] = strUpper(PKT.MsgFrom)) or
+           (TwitList[T] = strUpper(PKT.MsgTo)) or
+           (TwitList[T] = AddrStr) Then Begin
+          Result := True;
+          Exit;
+        End;
+    End;
+
   Begin
     If Not PKT.Open(PktFN) Then Begin
       Log (3, '!', '   ' + JustFile(PktFN) + ' is not valid PKT');
 
       Exit;
     End;
+
+    // A41: PKT password enforcement.  If the matching echonode has a PKTPass
+    // set, the inbound packet must carry the same password or it is rejected.
+    For Count := 0 to Length(Downlinks) - 1 Do
+      If (Downlinks[Count].Node.Address.Zone = PKT.PKTOrig.Zone) and
+         (Downlinks[Count].Node.Address.Net  = PKT.PKTOrig.Net) and
+         (Downlinks[Count].Node.Address.Node = PKT.PKTOrig.Node) and
+         (Downlinks[Count].Node.PKTPass <> '') Then Begin
+        TempStr := '';
+        For TempI := 1 to 8 Do
+          If PKT.PKTHeader.Password[TempI] <> #0 Then
+            TempStr := TempStr + PKT.PKTHeader.Password[TempI];
+        If strUpper(TempStr) <> strUpper(Downlinks[Count].Node.PKTPass) Then Begin
+          Log (2, '!', '   ' + JustFile(PktFN) + ' PKT password mismatch from ' +
+               strI2S(PKT.PKTOrig.Zone) + ':' + strI2S(PKT.PKTOrig.Net) + '/' +
+               strI2S(PKT.PKTOrig.Node) + '; rejecting');
+          PKT.Close;
+          Exit;
+        End;
+        Break;
+      End;
 
     If Not IsValidAKA(PKT.PKTDest.Zone, PKT.PKTDest.Net, PKT.PKTDest.Node, 0) Then Begin
       Log (3, '!', '   ' + JustFile(PktFN) + ' does not match an AKA');
@@ -188,6 +231,7 @@ Var
       If PKT.MsgArea = 'NETMAIL' Then Begin
 
         If Not ProcessedByAreaFix(PKT) Then
+        If Not ProcessedByFileFix(PKT) Then
           If IsValidAKA(PKT.MsgDest.Zone, PKT.MsgDest.Net, PKT.MsgDest.Node, PKT.MsgDest.Point) Then Begin
 
             If GetMBaseByNetZone(PKT.MsgDest.Zone, MBase) Then Begin
@@ -206,6 +250,13 @@ Var
               End;
 
               MessageBaseOpen  (MsgBase, MBase);
+
+              // A43: twit filter applies to netmail too
+              If IsTwit Then Begin
+                Log (3, '!', '      Twit filtered netmail: ' + PKT.MsgFrom);
+                Continue;
+              End;
+
               SavePKTMsgToBase (MsgBase, PKT, True, StripSeenBy);
 
               Log (2, '+', '      Netmail from ' + PKT.MsgFrom + ' to ' + PKT.MsgTo);
@@ -343,6 +394,12 @@ Var
             MessageBaseOpen(MsgBase, MBase);
 
             CurTag := PKT.MsgArea;
+          End;
+
+          // A43: twit filter - silently drop messages from/to twit-listed names or addresses
+          If IsTwit Then Begin
+            Log (3, '!', '      Twit filtered: ' + PKT.MsgFrom + ' in ' + PKT.MsgArea);
+            Continue;
           End;
 
           Log (3, '+', '      Import #' + strI2S(MsgBase^.GetHighMsgNum + 1) + ' to ' + strStripPipe(MBase.Name));
@@ -487,7 +544,7 @@ Begin
     ForwardList[ForwardSize] := strStripB(FileExt, ' ');
   Until ForwardSize = 50;
 
-(*  global blacklist.txt  and/or revamp of -mtrash and trashcan.txt
+  // A43: read twit filter list from INI (up to 100 names or addresses)
   FillChar (TwitList, SizeOf(TwitList), #0);
 
   Ini.SetSequential(True);
@@ -499,9 +556,8 @@ Begin
 
     Inc (TwitSize);
 
-    TwitList[TwitSize] := strStripB(FileExt, ' ');
-  Until TwitSize = 50;
-*)
+    TwitList[TwitSize] := strUpper(strStripB(FileExt, ' '));
+  Until TwitSize = 100;
 
   INI.SetSequential(False);
 

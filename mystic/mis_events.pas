@@ -185,10 +185,12 @@ Begin
   Result := False;
 
   Assign  (EventFile, bbsConfig.DataPath + 'event.dat');
-  ioReset (EventFile, SizeOf(RecEvent), fmRWDN);
+  {$I-} ioReset (EventFile, SizeOf(RecEvent), fmRWDN); {$I+}
 
-  If IoResult <> 0 Then
-    ioReWrite (EventFile, SizeOf(RecEvent), fmRWDN);
+  // A41: if the config editor has event.dat open, skip this cycle gracefully
+  // instead of creating a new empty file (which destroyed all events) or
+  // proceeding on a never-opened file handle (which could hang the thread).
+  If IoResult <> 0 Then Exit;
 
   While Not Eof(EventFile) And Not Result Do Begin
     ioRead (EventFile, Event);
@@ -278,10 +280,11 @@ Begin
   NextPos          := -1;
 
   Assign  (EventFile, bbsConfig.DataPath + 'event.dat');
-  ioReset (EventFile, SizeOf(RecEvent), fmRWDN);
+  {$I-} ioReset (EventFile, SizeOf(RecEvent), fmRWDN); {$I+}
 
-  If IoResult <> 0 Then
-    ioReWrite (EventFile, SizeOf(RecEvent), fmRWDN);
+  // A41: if the config editor has event.dat open, keep the old event list and
+  // try again next cycle.
+  If IoResult <> 0 Then Exit;
 
   While Not Eof(EventFile) Do Begin
     ioRead (EventFile, Event);
@@ -294,7 +297,12 @@ Begin
       Continue;
     End;
 
-    If First And (Event.ExecType = 3) Then Begin
+    // A41: re-initialize type-3 (interval) events when their LastRan doesn't
+    // make sense as a timer value — this happens when the sysop changes an
+    // event's type from 2 (shell/daily, LastRan is a DOS date) to 3 (interval,
+    // LastRan should be TimerMinutes).  Without this, a stale DOS-date LastRan
+    // causes the interval calculation to misfire.  Also initialize on first run.
+    If (Event.ExecType = 3) and (First or (Event.LastRan > 1440)) Then Begin
       Event.LastRan := TimerMinutes;
 
       ioSeek  (EventFile, FilePos(EventFile) - 1);

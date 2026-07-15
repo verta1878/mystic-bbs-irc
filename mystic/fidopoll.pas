@@ -39,6 +39,16 @@ Uses
 Var
   TempPath : String;
 
+// A42: create the echomail.in semaphore after receiving files, so MIS/MUTIL
+// knows to run an import cycle.  Called after any successful poll (BINKP/FTP/Dir).
+Procedure CreateEchoSema;
+Var SF : File;
+Begin
+  Assign (SF, bbsCfg.SemaPath + 'echomail.in');
+  {$I-} ReWrite (SF, 1); {$I+}
+  If IOResult = 0 Then Close (SF);
+End;
+
 Procedure PrintStatus (Owner: Pointer; Level: Byte; Str: String);
 Var
   TF : Text;
@@ -276,7 +286,7 @@ Begin
   BinkP.UseMD5       := EchoNode.binkMD5 > 0;
   BinkP.ForceMD5     := EchoNode.binkMD5 = 2;
   BinkP.HideAKAs     := EchoNode.binkHideAKA;
-  BinkP.HideSource   := EchoNode.Address.Zone;
+  BinkP.HideSource   := EchoNode.Domain;  // A43: use domain, not zone
 
   If BinkP.DoAuthentication Then Begin
     Result := True;
@@ -301,12 +311,18 @@ Begin
 
   If Result And EchoNode.Active Then Begin
     Case EchoNode.ProtType of
-      0 : If PollNodeBINKP(False, Queue, EchoNode) Then
+      0 : If PollNodeBINKP(False, Queue, EchoNode) Then Begin
             EchoNode.LastSent := PollTime;
-      1 : If PollNodeFTP(False, Queue, EchoNode) Then
+            CreateEchoSema;
+          End;
+      1 : If PollNodeFTP(False, Queue, EchoNode) Then Begin
             EchoNode.LastSent := PollTime;
-      2 : If PollNodeDirectory(False, Queue, EchoNode) Then
+            CreateEchoSema;
+          End;
+      2 : If PollNodeDirectory(False, Queue, EchoNode) Then Begin
             EchoNode.LastSent := PollTime;
+            CreateEchoSema;
+          End;
     End;
 
     // needs to save updated polltime
@@ -352,6 +368,7 @@ Begin
         Inc (Total);
 
         EchoNode.LastSent := PollTime;
+        CreateEchoSema;
 
         Seek  (EchoFile, FilePos(EchoFile) - 1);
         Write (EchoFile, EchoNode);
@@ -367,8 +384,327 @@ Begin
   PrintStatus (NIL, 1, 'Polled ' + strI2S(Total) + ' nodes');
 End;
 
+// A43: list all active echomail nodes with description, address, and session type.
+Procedure ListNodes;
 Var
-  Str : String;
+  EchoFile : File of RecEchoMailNode;
+  EchoNode : RecEchoMailNode;
+  TypeStr  : String;
+Begin
+  WriteLn ('Active echomail nodes:');
+  WriteLn;
+  WriteLn ('  Description                           Address          Type      Domain');
+  WriteLn ('  ' + strRep('-', 72));
+
+  Assign (EchoFile, bbsCfg.DataPath + 'echonode.dat');
+  {$I-} Reset (EchoFile); {$I+}
+  If IOResult <> 0 Then Begin WriteLn ('  No echomail nodes configured.'); Exit; End;
+
+  While Not Eof(EchoFile) Do Begin
+    Read (EchoFile, EchoNode);
+    If Not EchoNode.Active Then Continue;
+
+    Case EchoNode.ProtType of
+      0 : TypeStr := 'BinkP';
+      1 : TypeStr := 'FTP';
+      2 : TypeStr := 'Dir';
+    Else  TypeStr := '?';
+    End;
+
+    WriteLn ('  ' + strPadR(EchoNode.Description, 40, ' ') + strPadR(Addr2Str(EchoNode.Address), 17, ' ') + strPadR(TypeStr, 10, ' ') + EchoNode.Domain);
+  End;
+
+  Close (EchoFile);
+End;
+
+// A43: show configured netmail routing priority.
+Procedure ShowRoute (FilterAddr: String);
+Var
+  EchoFile : File of RecEchoMailNode;
+  EchoNode : RecEchoMailNode;
+Begin
+  WriteLn ('Netmail routing priority (top-down):');
+  WriteLn;
+  WriteLn ('  Node                Route Info');
+  WriteLn ('  ' + strRep('-', 60));
+
+  Assign (EchoFile, bbsCfg.DataPath + 'echonode.dat');
+  {$I-} Reset (EchoFile); {$I+}
+  If IOResult <> 0 Then Exit;
+
+  While Not Eof(EchoFile) Do Begin
+    Read (EchoFile, EchoNode);
+    If Not EchoNode.Active Then Continue;
+    If EchoNode.RouteInfo = '' Then Continue;
+    If (FilterAddr <> '') and (Pos(FilterAddr, strUpper(Addr2Str(EchoNode.Address))) = 0) and
+       (Pos(FilterAddr, strUpper(EchoNode.RouteInfo)) = 0) Then Continue;
+
+    WriteLn ('  ' + strPadR(Addr2Str(EchoNode.Address), 20, ' ') + EchoNode.RouteInfo);
+  End;
+
+  Close (EchoFile);
+End;
+
+// A43: poll only nodes matching a session type filter (binkp/ftp/dir).
+Procedure PollFiltered (OnlyNew: Boolean; TypeFilter: LongInt);
+Var
+  Queue    : TProtocolQueue;
+  EchoFile : File of RecEchoMailNode;
+  EchoNode : RecEchoMailNode;
+  Total    : LongInt;
+  PollTime : LongInt;
+  Res      : Boolean;
+Begin
+  PollTime := CurDateDos;
+  Total    := 0;
+  Queue    := TProtocolQueue.Create;
+
+  WriteLn ('Polling nodes (type filter: ', TypeFilter, ')...');
+
+  Assign (EchoFile, bbsCfg.DataPath + 'echonode.dat');
+  {$I-} Reset (EchoFile); {$I+}
+  If IOResult <> 0 Then Begin Queue.Free; Exit; End;
+
+  While Not Eof(EchoFile) Do Begin
+    Read (EchoFile, EchoNode);
+
+    If EchoNode.Active and ((TypeFilter = -1) or (EchoNode.ProtType = TypeFilter)) Then Begin
+      Case EchoNode.ProtType of
+        0 : Res := PollNodeBINKP(OnlyNew, Queue, EchoNode);
+        1 : Res := PollNodeFTP(OnlyNew, Queue, EchoNode);
+        2 : Res := PollNodeDirectory(False, Queue, EchoNode);
+      End;
+
+      If Res Then Begin
+        Inc (Total);
+        EchoNode.LastSent := PollTime;
+        CreateEchoSema;
+        Seek  (EchoFile, FilePos(EchoFile) - 1);
+        Write (EchoFile, EchoNode);
+      End;
+    End;
+  End;
+
+  Close (EchoFile);
+  Queue.Free;
+
+  WriteLn;
+  PrintStatus (NIL, 1, 'Polled ' + strI2S(Total) + ' nodes');
+End;
+
+// A43: poll only uplink nodes (nodes with RouteInfo set = they route for us).
+Procedure PollUplinks (TypeFilter: LongInt);
+Var
+  Queue    : TProtocolQueue;
+  EchoFile : File of RecEchoMailNode;
+  EchoNode : RecEchoMailNode;
+  Total    : LongInt;
+  PollTime : LongInt;
+  Res      : Boolean;
+Begin
+  PollTime := CurDateDos;
+  Total    := 0;
+  Queue    := TProtocolQueue.Create;
+
+  WriteLn ('Polling uplink nodes...');
+
+  Assign (EchoFile, bbsCfg.DataPath + 'echonode.dat');
+  {$I-} Reset (EchoFile); {$I+}
+  If IOResult <> 0 Then Begin Queue.Free; Exit; End;
+
+  While Not Eof(EchoFile) Do Begin
+    Read (EchoFile, EchoNode);
+
+    If EchoNode.Active and (EchoNode.RouteInfo <> '') and
+       ((TypeFilter = -1) or (EchoNode.ProtType = TypeFilter)) Then Begin
+      Case EchoNode.ProtType of
+        0 : Res := PollNodeBINKP(False, Queue, EchoNode);
+        1 : Res := PollNodeFTP(False, Queue, EchoNode);
+        2 : Res := PollNodeDirectory(False, Queue, EchoNode);
+      End;
+
+      If Res Then Begin
+        Inc (Total);
+        EchoNode.LastSent := PollTime;
+        CreateEchoSema;
+        Seek  (EchoFile, FilePos(EchoFile) - 1);
+        Write (EchoFile, EchoNode);
+      End;
+    End;
+  End;
+
+  Close (EchoFile);
+  Queue.Free;
+
+  WriteLn;
+  PrintStatus (NIL, 1, 'Polled ' + strI2S(Total) + ' uplink nodes');
+End;
+
+// A43: delete BSY (busy) lock files from BSO outbound directories.
+Procedure KillBusy (Mode: String);
+Var
+  EchoFile : File of RecEchoMailNode;
+  EchoNode : RecEchoMailNode;
+  OutPath  : String;
+  DirInfo  : SearchRec;
+  Total    : LongInt;
+Begin
+  Total := 0;
+  Mode  := strUpper(Mode);
+
+  If (Mode = '') Then Mode := 'ECHO';
+
+  WriteLn ('Removing BSY files (mode: ', Mode, ')...');
+
+  // application-level BSY (tempftn/*.bsy)
+  If (Mode = 'APP') or (Mode = 'ALL') Then Begin
+    FindFirst (bbsCfg.SystemPath + 'tempftn' + PathChar + '*.bsy', AnyFile, DirInfo);
+    While DosError = 0 Do Begin
+      FileErase (bbsCfg.SystemPath + 'tempftn' + PathChar + DirInfo.Name);
+      Inc (Total);
+      FindNext (DirInfo);
+    End;
+    FindClose (DirInfo);
+  End;
+
+  // echomail BSO BSY files (per-node outbound dirs)
+  If (Mode = 'ECHO') or (Mode = 'ALL') Then Begin
+    Assign (EchoFile, bbsCfg.DataPath + 'echonode.dat');
+    {$I-} Reset (EchoFile); {$I+}
+    If IOResult = 0 Then Begin
+      While Not Eof(EchoFile) Do Begin
+        Read (EchoFile, EchoNode);
+        If Not EchoNode.Active Then Continue;
+
+        OutPath := GetFTNOutPath(EchoNode);
+
+        FindFirst (OutPath + '*.bsy', AnyFile, DirInfo);
+        While DosError = 0 Do Begin
+          FileErase (OutPath + DirInfo.Name);
+          WriteLn ('  Removed: ', OutPath, DirInfo.Name);
+          Inc (Total);
+          FindNext (DirInfo);
+        End;
+        FindClose (DirInfo);
+      End;
+      Close (EchoFile);
+    End;
+  End;
+
+  WriteLn ('  ', Total, ' BSY file(s) removed.');
+End;
+
+// Parse session type string to ProtType value (-1 = all).
+Function ParseTypeFilter (S: String) : LongInt;
+Begin
+  S := strUpper(strStripB(S, ' '));
+  If (S = 'BINKP') or (S = 'BINK')  Then Result := 0
+  Else If (S = 'FTP')                Then Result := 1
+  Else If (S = 'DIR') or (S = 'DIRECTORY') Then Result := 2
+  Else Result := -1;
+End;
+
+// A43: search the raw FTN nodelist (nodelist.txt) for matching entries.
+// Matches against address, BBS name, location, sysop name, phone, or flags.
+Procedure SearchNodeList (SearchStr: String);
+Var
+  NL      : Text;
+  Line    : String;
+  SU      : String;
+  Zone    : Word;
+  Net     : Word;
+  Node    : Word;
+  AddrStr : String;
+  Fields  : Array[1..8] of String;
+  FCount  : Byte;
+  I       : Byte;
+  P       : LongInt;
+  Hits    : LongInt;
+
+  Procedure ParseFields (Const S: String);
+  Var C: LongInt; F: Byte;
+  Begin
+    FCount := 1;
+    Fields[1] := '';
+    For C := 1 to Length(S) Do
+      If S[C] = ',' Then Begin
+        If FCount < 8 Then Begin Inc(FCount); Fields[FCount] := ''; End;
+      End Else
+        Fields[FCount] := Fields[FCount] + S[C];
+  End;
+
+Begin
+  SearchStr := strUpper(strStripB(SearchStr, ' '));
+
+  If SearchStr = '' Then Begin
+    WriteLn ('Usage: FIDOPOLL SEARCH <text>');
+    WriteLn ('Searches nodelist.txt for matching BBS name, sysop, location, or address.');
+    Exit;
+  End;
+
+  Assign (NL, bbsCfg.DataPath + 'nodelist.txt');
+  {$I-} Reset (NL); {$I+}
+  If IOResult <> 0 Then Begin
+    WriteLn ('Nodelist not found: ', bbsCfg.DataPath, 'nodelist.txt');
+    Exit;
+  End;
+
+  WriteLn ('Searching nodelist for "', SearchStr, '"...');
+  WriteLn;
+  WriteLn ('  Address        BBS Name                   Location           SysOp');
+  WriteLn ('  ' + strRep('-', 72));
+
+  Zone := 1;
+  Net  := 0;
+  Hits := 0;
+
+  While Not Eof(NL) Do Begin
+    ReadLn (NL, Line);
+    If (Line = '') or (Line[1] = ';') Then Continue;
+
+    ParseFields(Line);
+    If FCount < 6 Then Continue;
+
+    SU := strUpper(Fields[1]);
+
+    // Track current zone/net/host from the nodelist markers
+    If SU = 'ZONE'   Then Begin Zone := strS2I(Fields[2]); Net := 0; End;
+    If SU = 'REGION' Then Net := strS2I(Fields[2]);
+    If SU = 'HOST'   Then Net := strS2I(Fields[2]);
+
+    // Node entries have blank or 'Hub'/'Pvt'/'Hold'/'Down' in field 1
+    If (SU = 'ZONE') or (SU = 'REGION') or (SU = 'HOST') Then
+      Node := 0
+    Else
+      Node := strS2I(Fields[2]);
+
+    AddrStr := strI2S(Zone) + ':' + strI2S(Net) + '/' + strI2S(Node);
+
+    // Search all fields (case-insensitive)
+    If (Pos(SearchStr, strUpper(AddrStr)) > 0) or
+       (Pos(SearchStr, strUpper(Fields[3])) > 0) or
+       (Pos(SearchStr, strUpper(Fields[4])) > 0) or
+       (Pos(SearchStr, strUpper(Fields[5])) > 0) or
+       (Pos(SearchStr, strUpper(Fields[6])) > 0) or
+       ((FCount >= 8) and (Pos(SearchStr, strUpper(Fields[8])) > 0)) Then Begin
+      // Replace underscores with spaces for display
+      For I := 3 to 5 Do
+        While Pos('_', Fields[I]) > 0 Do
+          Fields[I][Pos('_', Fields[I])] := ' ';
+
+      WriteLn ('  ' + strPadR(AddrStr, 17, ' ') + strPadR(Fields[3], 27, ' ') + strPadR(Fields[4], 19, ' ') + Fields[5]);
+      Inc (Hits);
+    End;
+  End;
+
+  Close (NL);
+  WriteLn;
+  WriteLn ('  ', Hits, ' match(es) found.');
+End;
+
+Var
+  Str  : String;
+  Str2 : String;
 Begin
   FileMode := 66;
 
@@ -388,12 +724,17 @@ Begin
   End;
 
   If ParamCount = 0 Then Begin
-    WriteLn ('This program will send and retreive echomail packets for configured');
-    WriteLn ('echomail nodes using any of BINKP, FTP, or Directory-based transmission');
+    WriteLn ('Send and retrieve echomail packets for configured echomail nodes');
+    WriteLn ('using BINKP, FTP, or Directory-based transmission.');
     WriteLn;
-    WriteLn ('FIDOPOLL SEND      - Only send/poll if node has new outbound messages');
-    WriteLn ('FIDOPOLL FORCED    - Poll/send to all configured/activenodes');
-    WriteLn ('FIDOPOLL [Address] - Poll/send echomail node [Address] (ex: 46:1/100)');
+    WriteLn ('FIDOPOLL SEND            - Only send/poll if node has new outbound messages');
+    WriteLn ('FIDOPOLL FORCED [Type]   - Poll/send to all nodes of session [Type] (Blank/All)');
+    WriteLn ('FIDOPOLL UPLINK [Type]   - Poll all Uplink nodes of session [Type] (Blank/All)');
+    WriteLn ('FIDOPOLL [Address]       - Poll/send echomail node [Address] (ex: 46:1/100)');
+    WriteLn ('FIDOPOLL LIST            - List active echomail nodes');
+    WriteLn ('FIDOPOLL ROUTE [Address] - Show configured netmail routing (Optional address)');
+    WriteLn ('FIDOPOLL SEARCH [Text]   - Search nodelist for [Text]');
+    WriteLn ('FIDOPOLL KILLBUSY [Mode] - Delete BSY files [App, Echo, All] (Blank/Echo)');
 
     Halt(1);
   End;
@@ -404,8 +745,31 @@ Begin
 
   Str := strUpper(strStripB(ParamStr(1), ' '));
 
-  If (Str = 'SEND') or (Str = 'FORCED') Then
-    PollAll (Str = 'SEND')
+  If ParamCount >= 2 Then
+    Str2 := strStripB(ParamStr(2), ' ')
+  Else
+    Str2 := '';
+
+  If Str = 'SEND' Then
+    PollAll (True)
+  Else
+  If Str = 'FORCED' Then
+    PollFiltered (False, ParseTypeFilter(Str2))
+  Else
+  If Str = 'UPLINK' Then
+    PollUplinks (ParseTypeFilter(Str2))
+  Else
+  If Str = 'LIST' Then
+    ListNodes
+  Else
+  If Str = 'ROUTE' Then
+    ShowRoute (strUpper(Str2))
+  Else
+  If Str = 'SEARCH' Then
+    SearchNodeList (Str2)
+  Else
+  If Str = 'KILLBUSY' Then
+    KillBusy (Str2)
   Else
   If Not PollByAddress(Str) Then
     PrintStatus (NIL, 1, 'Invalid command line or address');

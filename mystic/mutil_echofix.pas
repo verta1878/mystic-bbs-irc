@@ -40,6 +40,7 @@ Uses
   mUtil_EchoCore;
 
 Function ProcessedByAreaFix (Var PKT: TPKTReader) : Boolean;
+Function ProcessedByFileFix (Var PKT: TPKTReader) : Boolean;
 
 Implementation
 
@@ -349,6 +350,159 @@ Begin
   // destination (see the NetType-3 fix in mutil_common.SaveMessage).
   If GetMBaseByNetZone(Node.Address.Zone, NmBase) Then
     SaveMessage (NmBase, 'AreaFix', PKT.MsgFrom, 'AreaFix Results',
+                 Node.Address, RBuf, RLines);
+End;
+
+// ====================================================================
+// A41: FileFix — file-echo management via NetMail (same model as AreaFix
+// above, but operating on fbases.dat / RecFileBase).
+//
+// Supported commands:
+//   %HELP      list available commands (filefixhelp.txt from DATA dir)
+//   %PWD <pw>  change the node's AreaFixPass (shared with AreaFix)
+//   %LIST      list all file echo areas
+//   %LINKED    list linked file echoes
+//   %UNLINKED  list unlinked file echoes
+//   +ECHOTAG   link to a file echo
+//   -ECHOTAG   unlink from a file echo
+// ====================================================================
+
+Function ProcessedByFileFix (Var PKT: TPKTReader) : Boolean;
+Var
+  Node   : RecEchoMailNode;
+  RBuf   : RecMessageText;
+  RLines : Integer;
+  NmBase : RecMessageBase;
+  Count  : LongInt;
+  Line   : String;
+  Cmd    : String;
+  Tag    : String;
+  Sign   : Char;
+  FBase  : RecFileBase;
+  HelpF  : Text;
+  HelpS  : String;
+
+  Function GetFileBaseByTag (ATag: String; Var FB: RecFileBase) : Boolean;
+  Var LF : File; LB : RecFileBase;
+  Begin
+    Result := False;
+    Assign (LF, bbsCfg.DataPath + 'fbases.dat');
+    If Not ioReset(LF, SizeOf(RecFileBase), fmRWDN) Then Exit;
+    While Not Eof(LF) Do Begin
+      ioRead(LF, LB);
+      If strUpper(LB.EchoTag) = strUpper(ATag) Then Begin
+        FB := LB; Result := True; Break;
+      End;
+    End;
+    Close (LF);
+  End;
+
+  Procedure ListFileAreas (WantLinked, WantUnlinked, WantAll: Boolean);
+  Var LF : File; LB : RecFileBase; Linked : Boolean; Mark : String;
+  Begin
+    Assign (LF, bbsCfg.DataPath + 'fbases.dat');
+    If Not ioReset(LF, SizeOf(RecFileBase), fmRWDN) Then Exit;
+    While Not Eof(LF) Do Begin
+      ioRead(LF, LB);
+      If LB.EchoTag = '' Then Continue;
+      Linked := IsFileExportNode(LB, Node.Index);
+      If WantAll or (WantLinked and Linked) or (WantUnlinked and Not Linked) Then Begin
+        If Linked Then Mark := '[*] ' Else Mark := '[ ] ';
+        AddLine (RBuf, RLines, Mark + LB.EchoTag);
+      End;
+    End;
+    Close (LF);
+  End;
+
+Begin
+  Result := False;
+
+  If strUpper(PKT.MsgTo) <> 'FILEFIX' Then Exit;
+
+  // Same auth as AreaFix: subject holds the password, origin must match a
+  // configured active node with a valid AreaFixPass.
+  If Not GetNodeByAuth(PKT.MsgOrig, PKT.MsgSubj, Node) Then Begin
+    Result := True;  // consume the message (no password oracle)
+    Exit;
+  End;
+
+  Result := True;
+  RLines := 0;
+
+  AddLine (RBuf, RLines, 'FileFix Results for ' + Addr2Str(Node.Address));
+  AddLine (RBuf, RLines, strRep('-', 50));
+
+  For Count := 1 to PKT.MsgLines Do Begin
+    Line := strStripB(PKT.MsgText[Count]^, ' ');
+
+    If (Line = '') or (Line[1] = ';') or (Line[1] = '-') and (Length(Line) > 3) and (Line[2] = '-') Then
+      Continue;
+
+    If Line[1] = #1 Then Continue;
+
+    Cmd := strUpper(strWordGet(1, Line, ' '));
+
+    If Cmd = '%HELP' Then Begin
+      Assign (HelpF, bbsCfg.DataPath + 'filefixhelp.txt');
+      {$I-} Reset (HelpF); {$I+}
+      If IoResult = 0 Then Begin
+        While Not Eof(HelpF) Do Begin
+          ReadLn (HelpF, HelpS);
+          AddLine (RBuf, RLines, HelpS);
+        End;
+        Close (HelpF);
+      End Else
+        AddLine (RBuf, RLines, 'No help file (filefixhelp.txt)');
+    End Else
+    If Cmd = '%PWD' Then Begin
+      Node.AreaFixPass := Copy(strStripB(strWordGet(2, Line, ' '), #32), 1, 20);
+      SaveEchoNode (Node);
+      AddLine (RBuf, RLines, 'Password changed.');
+    End Else
+    If Cmd = '%LIST' Then Begin
+      AddLine (RBuf, RLines, 'All file echo areas:');
+      ListFileAreas (True, True, True);
+    End Else
+    If Cmd = '%LINKED' Then Begin
+      AddLine (RBuf, RLines, 'Linked file echoes:');
+      ListFileAreas (True, False, False);
+    End Else
+    If Cmd = '%UNLINKED' Then Begin
+      AddLine (RBuf, RLines, 'Unlinked file echoes:');
+      ListFileAreas (False, True, False);
+    End Else
+    If (Line[1] In ['+', '-']) or (Cmd[1] <> '%') Then Begin
+      If Line[1] In ['+', '-'] Then Begin
+        Sign := Line[1];
+        Tag  := strWordGet(1, Copy(Line, 2, 255), ' ');
+      End Else Begin
+        Sign := '+';
+        Tag  := strWordGet(1, Line, ' ');
+      End;
+
+      If GetFileBaseByTag(Tag, FBase) Then Begin
+        Case Sign of
+          '-' : Begin
+                  RemoveFileExportFromBase (FBase, Node.Index);
+                  AddLine (RBuf, RLines, 'Removed: ' + Tag);
+                End;
+        Else
+          If IsFileExportNode(FBase, Node.Index) Then
+            AddLine (RBuf, RLines, 'Already linked: ' + Tag)
+          Else Begin
+            AddFileExportByBase (FBase, Node.Index);
+            AddLine (RBuf, RLines, 'Added: ' + Tag);
+          End;
+        End;
+      End Else
+        AddLine (RBuf, RLines, 'Unknown file echo: ' + Tag);
+    End;
+  End;
+
+  Result := True;
+
+  If GetMBaseByNetZone(Node.Address.Zone, NmBase) Then
+    SaveMessage (NmBase, 'FileFix', PKT.MsgFrom, 'FileFix Results',
                  Node.Address, RBuf, RLines);
 End;
 

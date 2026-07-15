@@ -8,10 +8,13 @@ resume from it alone.**
 
 The sysop (an original-era BBS operator) runs a live board on this
 Mystic 1.10 fork and works on it here, in a container with FPC
-2.6.4irc r3.1 (i386, from libs/fpc264irc.tar.gz). The tree is a git repo (github.com/mystic-bbs-irc — push
-from the sysop's side; the container cannot push). Work is delivered
-as a source zip in /mnt/user-data/outputs/ which the sysop applies and
-pushes.
+2.6.4irc r3.1 (i386, from libs/fpc264irc.tar.gz). The tree is a git repo
+(github.com/verta1878/mystic-bbs-irc — push from the sysop's side;
+the container cannot push). Work is delivered as a source zip in
+/mnt/user-data/outputs/ which the sysop applies and pushes.
+
+Version: 1.10 A38irc-A40. All A41, A42, and A43 features from g00r00's
+whatsnew have been ported. 7/7 core targets + marc compile clean with r3.1.
 
 ## Reading order (on resume)
 

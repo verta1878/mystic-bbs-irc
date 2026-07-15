@@ -635,8 +635,8 @@ Type
     DefScan    : Byte;
     Flags      : LongInt;
     Created    : LongInt;
-    Res        : Array[1..32] of Byte;
-    //echomail network adresss?
+    NetAddr    : Byte;                                          // A41: network AKA index for file echoes
+    EchoTag    : String[30];                                    // A41: file echo tag (like MBase.EchoTag)
   End;
 
 (* The file directory listing are stored as <FBaseRec.FileName>.DIR in    *)

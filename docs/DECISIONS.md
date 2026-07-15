@@ -3550,12 +3550,12 @@
   symbol the DOS build actually reaches is provided by sockets_go32v2. (Final
   proof is still a DOS link-to-.exe with libwatt.a, which remains pending.)
 
-## Upgraded bundled fpc264irc to release r3 (2026-07-12)
+## Upgraded bundled fpc264irc to release r3.1 (2026-07-12)
 
   The previously-bundled libs/fpc264irc.tar.gz was an OLD/incomplete snapshot:
   empty CHANGELOG-IRC.md + README + 0-byte build scripts, no version metadata,
   bin/ppc386 not at the expected path. Replaced it with the current release from
-  github.com/verta1878/fpc264irc: release r3 (release_tag='r3',
+  github.com/verta1878/fpc264irc: release r3.1 (release_tag='r3.1',
   release_date='2026-07-12').
 
   New bundle (~170 MB tarball) keeps EVERYTHING needed for future Mystic
@@ -3565,57 +3565,57 @@
   BACKPORT-METHOD.md, MILESTONE-R2.md. Only rebuildable .ppu/.o/.a artifacts were
   stripped from src/ (bin/units prebuilt units are kept).
 
-  What r3 adds vs our old snapshot: proper version identity, the -Ao (assembler
+  What r3.1 adds vs our old snapshot: proper version identity, the -Ao (assembler
   extra options) and -WS (embed CWSDSTUB) flags, FreeBSD socket support, cleaner
   test suite, and the complete changelog/backport docs. Still PPU-compatible with
   stock 2.6.4 (wordversion unchanged) -> record anchors safe by construction.
 
-  Unchanged: the project build compiler is still the pinned 2.6.2. Adopting r3 as
+  Unchanged: the project build compiler is still the pinned 2.6.2. Adopting r3.1 as
   the build compiler is TODO #9 (deliberate switch, anchor-verify at each step).
 
-## FPC 2.6.4irc r3 is now the DEFAULT project compiler (2026-07-12)
+## FPC 2.6.4irc r3.1 is now the DEFAULT project compiler (2026-07-12)
 
-  Decision (sysop): adopt FPC 2.6.4irc release r3 as the default compiler for the
-  fork, replacing FPC 2.6.2. Reason: r3 is self-sustaining (ships its own
+  Decision (sysop): adopt FPC 2.6.4irc release r3.1 as the default compiler for the
+  fork, replacing FPC 2.6.2. Reason: r3.1 is self-sustaining (ships its own
   as/ld/ar via the 3-tier fallback), has the DOS Sockets unit + cross-fixes the
   fork needs, and other planned features depend on it.
 
-  Verified before flipping the default: r3's bin/ppc386 runs in-container
+  Verified before flipping the default: r3.1's bin/ppc386 runs in-container
   (reports 2.6.4) and COMPILES the Mystic tree - it built all 7 core units
   (m_datetime/m_fileio/m_output/m_output_linux/m_strings/m_types/mpl_compile) +
   mplc.o with no errors. Only the final link stalled on the container's known
   slow-ld bottleneck (2.6.2 hits the same stall), so that is an environment
-  issue, not an r3 capability gap.
+  issue, not an r3.1 capability gap.
 
-  Safety: r3 keeps the stock 2.6.4 PPU wordversion, so on-disk record layout is
+  Safety: r3.1 keeps the stock 2.6.4 PPU wordversion, so on-disk record layout is
   unchanged and the anchors (5282/768/901/1536) are safe by construction. A full
-  r3 build + anchor re-check + tests/a40 run + live smoke test remain as
-  verification (TODO #9), but none block r3 being the documented default.
+  r3.1 build + anchor re-check + tests/a40 run + live smoke test remain as
+  verification (TODO #9), but none block r3.1 being the documented default.
 
-  Updated to name r3 as default: build.sh + build-{dos,os2,darwin}.sh headers,
+  Updated to name r3.1 as default: build.sh + build-{dos,os2,darwin}.sh headers,
   START-HERE.md (the pin line), docs/BUILDING.md, libs/README.md,
   tests/a40/README.md + run.sh. 2.6.2 is retained as a working fallback.
 
-## Removed libs/dos-binutils-patch/ — superseded by FPC 2.6.4irc r3 (2026-07-12)
+## Removed libs/dos-binutils-patch/ — superseded by FPC 2.6.4irc r3.1 (2026-07-12)
 
-  With r3 now the default compiler, the standalone DOS binutils patch is
-  redundant: r3 bundles a go32v2 toolchain (bin/tools/i386-go32v2/ - as/ld/ar)
+  With r3.1 now the default compiler, the standalone DOS binutils patch is
+  redundant: r3.1 bundles a go32v2 toolchain (bin/tools/i386-go32v2/ - as/ld/ar)
   and emits proper COFF section attributes, so `ld` reads FPC's C_SECTION(0x68)
   output natively without the coff-go32 patch. The compiler owns that concern
   now, so a loose duplicate in libs/ is not something to maintain here.
 
   Removed libs/dos-binutils-patch/ (~39MB, incl. the bundled binutils-2.30
-  source tarball - r3 carries its own in lib/build-tools/). References updated:
+  source tarball - r3.1 carries its own in lib/build-tools/). References updated:
   build-dos.sh, START-HERE.md, README.md, RELEASE-NOTES.md, docs/DOS-SOCKETS.md,
-  docs/TODO.md now point at r3's go32v2 toolchain. The earlier DECISIONS entry
+  docs/TODO.md now point at r3.1's go32v2 toolchain. The earlier DECISIONS entry
   describing the original patch is left intact as accurate history.
 
-  NOT removed: libs/emxbind-src/ (OS/2) - r3's os2-cross tier is still 'in
+  NOT removed: libs/emxbind-src/ (OS/2) - r3.1's os2-cross tier is still 'in
   flight' per its own tier doc, and the FPC maintainer is still finishing OS/2;
-  keep our working copy until r3's OS/2 path is confirmed. libs/ld64-linux-x86_64/
-  (Darwin) also kept - r3 does NOT bundle a darwin cross-linker.
+  keep our working copy until r3.1's OS/2 path is confirmed. libs/ld64-linux-x86_64/
+  (Darwin) also kept - r3.1 does NOT bundle a darwin cross-linker.
 
-  Open question for live DOS testing under r3: r3 ships a go32v2 Sockets unit, so
+  Open question for live DOS testing under r3.1: r3.1 ships a go32v2 Sockets unit, so
   whether the fork still needs mdl/sockets_go32v2.pas is TBD (settle on the board,
   needs libwatt.a).
 

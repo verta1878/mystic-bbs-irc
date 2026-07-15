@@ -287,6 +287,12 @@ Var
       PH.PKTType   := 2;
       PH.ProdCode  := 254;
 
+      // A41: PKT password from the echonode config.  Copy up to 8 chars
+      // into the fixed-size header field.
+      FillChar (PH.Password, SizeOf(PH.Password), 0);
+      If OneLink.Node.PKTPass <> '' Then
+        Move (OneLink.Node.PKTPass[1], PH.Password, Length(OneLink.Node.PKTPass));
+
       // Map current V2 values to V2+ values
 
       PH.ProdCode2 := PH.ProdCode;
@@ -336,6 +342,14 @@ Var
 
     If MBase.NetType = 3 Then
       WriteStr (#1 + 'INTL ' + Addr2Str(MsgBase^.GetDestAddr) + ' ' + Addr2Str(MsgBase^.GetOrigAddr) + #13);
+
+    // A41: FMPT/TOPT kludges for point systems (FTS-0001).  Added when the
+    // originating or destination address has a non-zero point number, so
+    // point-aware mailers (HPT, etc.) can route correctly.
+    If MsgBase^.GetOrigAddr.Point <> 0 Then
+      WriteStr (#1 + 'FMPT ' + strI2S(MsgBase^.GetOrigAddr.Point) + #13);
+    If MsgBase^.GetDestAddr.Point <> 0 Then
+      WriteStr (#1 + 'TOPT ' + strI2S(MsgBase^.GetDestAddr.Point) + #13);
 
     WriteStr (#1 + 'TID: ' + mysSoftwareID + ' ' + mysVersion + #13);
 

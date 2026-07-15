@@ -658,6 +658,12 @@ Begin
 
   MsgBase := NIL;
 
+  // A42: zero the cached MBase so the first iteration cannot accidentally match
+  // stale data and write a message to the wrong base.  Without this, a leftover
+  // QwkConfID/QwkNetID or Index could coincidentally equal the first message's
+  // conference number, causing it to land in a random base.
+  FillChar (MBase, SizeOf(MBase), 0);
+
   While Not DataFile.EOF Do Begin
     DataFile.ReadBlock(QwkHeader, SizeOf(QwkHeader));
 

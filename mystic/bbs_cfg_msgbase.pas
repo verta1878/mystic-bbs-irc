@@ -203,7 +203,12 @@ Begin
 
     Case Form.Execute of
       '0' : MBase.QwkNetID := Configuration_QwkNetworks(False);
-      'D' : MBase.NetAddr := Configuration_EchoMailAddress(False);
+      'D' : Begin
+              // A41: ESC in the address picker returns 0; preserve the
+              // original setting instead of overwriting with 0.
+              Links := Configuration_EchoMailAddress(False);
+              If Links > 0 Then MBase.NetAddr := Links;
+            End;
       '7' : Configuration_NodeExport (MBase);
       #27 : {If (MBase.NetType > 0) And (MBase.EchoTag = '') And (MBase.NetType <> 3) Then
               ShowMsgBox(0, 'Echo base requires echotag')
@@ -341,7 +346,10 @@ Var
                 If GetNodeByIndex(DelIdx, EN) Then
                   DelStr := Addr2Str(EN.Address);
               End;
-        'D' : Global.NetAddr := Configuration_EchoMailAddress(False);
+        'D' : Begin
+                Count := Configuration_EchoMailAddress(False);
+                If Count > 0 Then Global.NetAddr := Count;
+              End;
         #21 : Begin
                 ActCnt := 0;
 

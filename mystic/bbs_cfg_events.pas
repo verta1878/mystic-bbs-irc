@@ -104,11 +104,13 @@ Var
   Begin
     List.Clear;
 
-    Reset(F);
+    {$I-} Reset(F); {$I+}
+    If IOResult <> 0 Then Exit;
 
     While Not Eof(F) Do Begin
       Read (F, Event);
 
+      DL := '';
       For Count := 0 to 6 Do
         If Event.ExecDays[Count] Then
           DL := DL + DayString[Count][1]
@@ -122,8 +124,9 @@ Var
         0 : TypeStr := 'BBS';
         1 : TypeStr := 'Semaphore';
         2 : TypeStr := 'Shell';
-//        3 : TypeStr := 'PollMail';
-//        4 : TypeStr := 'SendMail';
+        3 : TypeStr := 'Interval';
+      Else
+        TypeStr := 'Unknown';
       End;
 
       List.Add (strPadR(strYN(Event.Active), 7, ' ') + ' ' + strPadR(TypeStr, 15, ' ') + '  ' + strPadR(Event.Name, 25, ' ') + '  ' + strZero(Hour) + ':' + strZero(Min) + '  ' + DL, 0);

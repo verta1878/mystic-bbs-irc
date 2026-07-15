@@ -187,6 +187,11 @@ Begin
 
       If (TempStr[1] = #1) And (Not ShowKludge) Then Continue;
 
+      // A41: replace CTRL-A (kludge marker) with @ in quote data so raw
+      // control characters don't leak into the quoted text.
+      While Pos(#1, TempStr) > 0 Do
+        TempStr[Pos(#1, TempStr)] := '@';
+
       DoWrap := Not IsQuotedText(TempStr);
 
       If DoWrap Then Begin

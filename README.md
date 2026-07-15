@@ -1,8 +1,12 @@
-# Mystic BBS 1.10 A38 - Community Fork
+# Mystic BBS 1.10 A38irc-A40 - Community Fork (IRC)
 
-> **Release: 2026-07-09** - base **Mystic 1.10 A38**, brought up to roughly
-> **1.10 A39 feature level** (FidoNet tosser, JAM compatibility, ANSI draw mode,
-> themed message boxes, and the full message base index reader). Builds with
+> **Release: 2026-07-15** — base **Mystic 1.10 A38irc-A40**, with all
+> **A41, A42, and A43** features ported from g00r00's whatsnew. Includes
+> FidoNet enhancements (AreaFix/FileFix, PKT passwords, FMPT/TOPT,
+> CRAM-MD5 ARGUS fix, echomail.in semaphore), MIS event fixes,
+> file-echo support, twit filter, built-in ZIP archiver (marc),
+> extended fidopoll commands (LIST/ROUTE/SEARCH/KILLBUSY/UPLINK),
+> and the email validation/feedback bug fixes. Builds with
 > **Free Pascal 2.6.2** for Windows (XP+, 32-bit), Linux (i386), macOS/Darwin
 > (compiles + links with an Apple SDK you supply), and **OS/2** - now built
 > **entirely on Linux** to native LX executables via a self-hosted emx
