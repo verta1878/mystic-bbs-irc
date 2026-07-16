@@ -879,7 +879,7 @@ Begin
                         TextPath     := bbsCfg.TextPath;
                         MenuPath     := bbsCfg.MenuPath;
                         ScriptPath   := bbsCfg.ScriptPath;
-                        TemplatePath := bbsCfg.TextPath;
+                        TemplatePath := bbsCfg.TextPath; // retired field, kept for record compatibility
                         Colors[0]    := 1;
                         Colors[1]    := 9;
                         Colors[2]    := 11;

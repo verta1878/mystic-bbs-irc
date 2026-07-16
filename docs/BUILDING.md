@@ -70,15 +70,14 @@ SDK=/path/to/MacOSX10.6.sdk ./build-darwin.sh mis  # one target
 
 ### DOS -> go32v2 (protected-mode DPMI)
 ```bash
-WATT32LIB=/path/to/watt ./build-dos.sh     # 14/14  (with libwatt.a)
-./build-dos.sh                             # 10/14  (no networking)
+WATT32LIB=/path/to/watt ./build-dos.sh     # 14/14
 ```
-- `WATT32LIB=`  directory containing `libwatt.a`. Supply it to build all 14.
-- **Without it:** the 4 networked programs (`mis`, `fidopoll`, `nodespy`,
-  `qwkpoll`) will not link -> 10/14. The other 10 build fine.
-- **Needs:** the go32v2 cross compiler + go32v2 RTL + patched binutils that reads
-  FPC's COFF output (the DOS toolchain). See `docs/DOS-SOCKETS.md` for the
-  Watt-32 socket layer details.
+- **Fully working.** All 14 targets build and link, including the 4 networked
+  programs (`mis`, `fidopoll`, `nodespy`, `qwkpoll`) which link against Watt-32
+  (`libwatt.a`) for TCP/IP on DOS.
+- `WATT32LIB=`  directory containing `libwatt.a`.
+- **Needs:** the go32v2 cross compiler + go32v2 RTL + binutils. See
+  `docs/DOS-SOCKETS.md` for the Watt-32 socket layer details.
 
 --------------------------------------------------------------------------------
 

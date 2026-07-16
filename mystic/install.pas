@@ -376,6 +376,8 @@ Begin
   MakeDir (Config.SystemPath + 'files' + PathChar + 'uploads' + PathChar);
   MakeDir (Config.InBoundPath);
   MakeDir (Config.OutBoundPath);
+  MakeDir (Lang.TextPath + 'rip' + PathChar);     { RIPscrip display files }
+  MakeDir (Lang.TextPath + 'icons' + PathChar);   { RIPscrip icon files }
 End;
 
 Procedure ExtractFile (Y : Byte; Desc, FN, EID, DestPath : String);
@@ -465,7 +467,7 @@ Begin
     TLang.FileName     := 'default';
 		TLang.TextPath     := Lang.TextPath;
 		TLang.MenuPath     := Lang.MenuPath;
-    TLang.TemplatePath := Lang.TextPath;
+    TLang.TemplatePath := Lang.TextPath; // retired field
     TLang.ScriptPath   := Config.ScriptPath;
 
 		Seek	(LangFile, FilePos(LangFile) - 1);

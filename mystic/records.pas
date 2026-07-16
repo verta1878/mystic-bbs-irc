@@ -227,7 +227,7 @@ Type
     DefStartMenu    : String[20];                               // Default start menu
     UNUSED          : String[20];
     DefThemeFile    : String[20];
-    DefTermMode     : Byte;                                     // 0=ask 1=detect 2=detect/ask 3=ansi
+    DefTermMode     : Byte;                                     // 0=ask 1=detect 2=detect/ask 3=ansi 4=rip
     DefScreenSize   : Byte;
     DefScreenCols   : Byte;
     ChatStart       : Byte;                                     // Chat hour start
@@ -755,6 +755,12 @@ Const
   ThmLightbarYN = $00000004;
   ThmFallback   = $00000008;
 
+Const
+  { Terminal graphics/emulation modes (Session.io.Graphics) }
+  TERM_ASCII = 0;
+  TERM_ANSI  = 1;
+  TERM_RIP   = 2;   { RIPscrip v1.54 graphical terminal }
+
 Type
   RecTheme = Record
     Flags        : LongInt;
@@ -763,7 +769,7 @@ Type
     TextPath     : String[mysMaxPathSize];
     MenuPath     : String[mysMaxPathSize];
     ScriptPath   : String[mysMaxPathSize];
-    TemplatePath : String[mysMaxPathSize];
+    TemplatePath : String[mysMaxPathSize];  // RETIRED: never used at runtime, kept for record layout
     LineChat1    : Byte;
     LineChat2    : Byte;
     UserInputFmt : Byte;

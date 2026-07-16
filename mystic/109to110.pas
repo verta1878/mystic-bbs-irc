@@ -933,7 +933,7 @@ Begin
     Theme.TextPath     := OldLang.TextPath;
     Theme.MenuPath     := OldLang.MenuPath;
     Theme.ScriptPath   := Config.ScriptPath;
-    Theme.TemplatePath := OldLang.TextPath;
+    Theme.TemplatePath := OldLang.TextPath; // retired field
     Theme.FieldColor1  := OldLang.FieldCol1;
     Theme.FieldColor2  := OldLang.FieldCol2;
     Theme.FieldChar    := OldLang.FieldChar;

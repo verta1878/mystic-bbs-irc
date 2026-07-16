@@ -1,17 +1,18 @@
 Program MArc;
 
 // ====================================================================
-// Mystic BBS Software - IRC fork      Copyright 1997-2013 By James Coyle
+// Copyright 2026 by Antonio Rico (verta1878)
+// Part of mystic-bbs-irc (GPLv3 community fork)
 // ====================================================================
 //
-// This file is part of Mystic BBS.
+// This file is part of mystic-bbs-irc.
 //
-// Mystic BBS is free software: you can redistribute it and/or modify
+// mystic-bbs-irc is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 //
-// Mystic BBS is distributed in the hope that it will be useful,
+// mystic-bbs-irc is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
@@ -220,6 +221,13 @@ Begin
     If Info.Genre    <> '' Then WriteLn('  Genre   : ', Info.Genre);
     If Info.Comment  <> '' Then WriteLn('  Comment : ', Info.Comment);
     If Info.Duration >  0  Then WriteLn('  Length  : ', Info.Duration, ' sec');
+    If Info.VCodec   <> '' Then WriteLn('  Video   : ', Info.VCodec, '  ', Info.VWidth, 'x', Info.VHeight);
+    If Info.ACodec   <> '' Then Begin
+      Write('  Audio   : ', Info.ACodec);
+      If Info.ASampleRate > 0 Then Write('  ', Info.ASampleRate, ' Hz');
+      If Info.AChannels > 0 Then Write('  ', Info.AChannels, 'ch');
+      WriteLn;
+    End;
   End Else Begin
     WriteLn('MARC: no readable media tags in ', ExtractFileName(FN));
     ExitOK := False;

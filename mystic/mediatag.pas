@@ -1,17 +1,18 @@
 Unit MediaTag;
 
 // ====================================================================
-// Mystic BBS Software - IRC fork      Copyright 1997-2013 By James Coyle
+// Copyright 2026 by Antonio Rico (verta1878)
+// Part of mystic-bbs-irc (GPLv3 community fork)
 // ====================================================================
 //
-// This file is part of Mystic BBS.
+// This file is part of mystic-bbs-irc.
 //
-// Mystic BBS is free software: you can redistribute it and/or modify
+// mystic-bbs-irc is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 //
-// Mystic BBS is distributed in the hope that it will be useful,
+// mystic-bbs-irc is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
@@ -38,15 +39,25 @@ Interface
 
 Type
   TMediaInfo = Record
-    Valid    : Boolean;      // was any metadata found
-    Kind     : String;       // 'MP3' / 'MP4' / '' (unknown)
-    Title    : String;
-    Artist   : String;
-    Album    : String;
-    Year     : String;
-    Genre    : String;
-    Comment  : String;
-    Duration : LongInt;      // seconds, 0 if unknown
+    Valid      : Boolean;      // was any metadata found
+    Kind       : String;       // 'MP3' / 'MP4' / '' (unknown)
+    Title      : String;
+    Artist     : String;
+    Album      : String;
+    Year       : String;
+    Genre      : String;
+    Comment    : String;
+    Duration   : LongInt;      // seconds, 0 if unknown
+    // A52: extended MP4 codec info (from trak/stsd/tkhd/mdhd atoms)
+    VCodec     : String;       // video codec FourCC e.g. 'avc1', 'mp4v'
+    VWidth     : Word;         // video width in pixels
+    VHeight    : Word;         // video height in pixels
+    VBitRate   : LongInt;      // video bitrate in kbps (estimated), 0 if unknown
+    VFrameRate : String;       // frame rate e.g. '29.97', '25', '' if unknown
+    ACodec     : String;       // audio codec FourCC e.g. 'mp4a', ''
+    ASampleRate: LongInt;      // audio sample rate in Hz e.g. 48000
+    AChannels  : Word;         // audio channels (1=mono, 2=stereo)
+    ABitRate   : LongInt;      // audio bitrate in kbps, 0 if unknown
   End;
 
 // Fill Info from FileName.  Returns True if the file was recognised as a
@@ -291,10 +302,63 @@ Var
     Seek(F, Body);
     BlockRead(F, B, 20, Got);
     If Got < 20 Then Exit;
-    // B[0]=version; v0: timescale @ 12, duration @ 16 (both 4-byte BE)
     TS  := (B[12] Shl 24) Or (B[13] Shl 16) Or (B[14] Shl 8) Or B[15];
     Dur := (B[16] Shl 24) Or (B[17] Shl 16) Or (B[18] Shl 8) Or B[19];
     If TS > 0 Then Info.Duration := Dur Div TS;
+  End;
+
+  // A52: read tkhd (track header) for video dimensions
+  Procedure Read_tkhd (Body: LongInt);
+  Var B : Array[0..83] of Byte; Got : LongInt; W, H : LongInt;
+  Begin
+    Seek(F, Body);
+    BlockRead(F, B, 84, Got);
+    If Got < 84 Then Exit;
+    // v0: width @ 76 (fixed-point 16.16), height @ 80
+    W := (B[76] Shl 8) Or B[77];
+    H := (B[80] Shl 8) Or B[81];
+    If (W > 0) and (H > 0) and (Info.VWidth = 0) Then Begin
+      Info.VWidth  := W;
+      Info.VHeight := H;
+    End;
+  End;
+
+  // A52: read stsd (sample description) for codec FourCC + codec-specific data
+  Procedure Read_stsd (Body, Len: LongInt);
+  Var B : Array[0..79] of Byte; Got : LongInt; CC : String; SR : LongInt;
+  Begin
+    Seek(F, Body);
+    BlockRead(F, B, 80, Got);
+    If Got < 40 Then Exit;
+    // B[0..3]=version+flags, B[4..7]=entry count; first entry at +8
+    // Entry: B[8..11]=size, B[12..15]=FourCC
+    CC := Chr(B[12]) + Chr(B[13]) + Chr(B[14]) + Chr(B[15]);
+    // Video codecs
+    If (CC = 'avc1') or (CC = 'avc3') or (CC = 'mp4v') or (CC = 'hvc1') or
+       (CC = 'hev1') or (CC = 'av01') Then Begin
+      If Info.VCodec = '' Then Begin
+        Info.VCodec := CC;
+        // Video entry: width @ 32, height @ 34 (from entry start at +8)
+        If Got >= 44 Then Begin
+          Info.VWidth  := (B[8+24] Shl 8) Or B[8+25];
+          Info.VHeight := (B[8+26] Shl 8) Or B[8+27];
+        End;
+      End;
+    End Else
+    // Audio codecs
+    If (CC = 'mp4a') or (CC = 'ac-3') or (CC = 'ec-3') or
+       (CC = 'Opus') or (CC = 'fLaC') or (CC = 'alac') Then Begin
+      If Info.ACodec = '' Then Begin
+        Info.ACodec := CC;
+        // Audio entry: channels @ 8+16, samplerate @ 8+24 (fixed 16.16)
+        If Got >= 34 Then
+          Info.AChannels := (B[8+16] Shl 8) Or B[8+17];
+        If Got >= 42 Then Begin
+          SR := (B[8+24] Shl 8) Or B[8+25];
+          If SR > 0 Then Info.ASampleRate := SR;
+        End;
+      End;
+    End;
   End;
 
   // recursively scan atoms within [Start, Start+Len) for containers/items
@@ -302,7 +366,7 @@ Var
   Var
     Cur : LongInt; Sz : LongInt; Typ : String; Body : LongInt; AtomKey : String;
   Begin
-    If Depth > 8 Then Exit;
+    If Depth > 10 Then Exit;
     Cur := Start;
     While Cur + 8 <= Start + Len Do Begin
       Seek(F, Cur);
@@ -311,15 +375,22 @@ Var
       If Cur + Sz > Start + Len Then Sz := (Start + Len) - Cur;
       Body := Cur + 8;
 
-      If (Typ = 'moov') or (Typ = 'udta') or (Typ = 'ilst') Then
+      If (Typ = 'moov') or (Typ = 'udta') or (Typ = 'ilst') or
+         (Typ = 'trak') or (Typ = 'mdia') or (Typ = 'minf') or
+         (Typ = 'stbl') Then
         Scan(Body, Sz - 8, Depth + 1)
       Else
       If Typ = 'meta' Then
-        // 'meta' has a 4-byte version/flags before its children
         Scan(Body + 4, Sz - 12, Depth + 1)
       Else
       If Typ = 'mvhd' Then
         Declare_mvhd(Body)
+      Else
+      If Typ = 'tkhd' Then
+        Read_tkhd(Body)
+      Else
+      If Typ = 'stsd' Then
+        Read_stsd(Body, Sz - 8)
       Else
       If (Length(Typ) = 4) and (Typ[1] = #$A9) Then Begin
         // iTunes text atom: (c)nam/(c)ART/(c)alb/(c)day/(c)gen/(c)cmt

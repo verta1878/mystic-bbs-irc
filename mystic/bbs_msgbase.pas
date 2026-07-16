@@ -3383,7 +3383,12 @@ Begin
     Exit;
   End;
 
-  If Not Session.User.Access(MBase.PostACS) Then Begin
+  // Parse /F (forced) flag early so it can bypass the ACS check below.
+  // New-user feedback uses /F because the user hasn't been saved yet and
+  // their security level may not pass PostACS.
+  Forced := Pos('/F', strUpper(Data)) > 0;
+
+  If (Not Forced) and (Not Session.User.Access(MBase.PostACS)) Then Begin
     Session.io.OutFullLn (Session.GetPrompt(105));
 
     MBase                    := Old;
