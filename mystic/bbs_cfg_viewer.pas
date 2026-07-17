@@ -219,9 +219,9 @@ Var
   Str  : String;
   Line : LongInt;
 Begin
-  WriteXY (1, 24, 112, strPadR(' Goto line: ', 80, ' '));
+  WriteXY (1, TBBSCore(FOwner).User.ThisUser.ScreenSize, 112, strPadR(' Goto line: ', 80, ' '));
 
-  Session.io.AnsiGotoXY(13, 24);
+  Session.io.AnsiGotoXY(13, TBBSCore(FOwner).User.ThisUser.ScreenSize);
   Str := Session.io.GetInput(10, 10, 11, '');
 
   If Str <> '' Then Begin
@@ -247,9 +247,9 @@ Var
   Found : Boolean;
   Check : String;
 Begin
-  WriteXY (1, 24, 112, strPadR(' Search: ', 80, ' '));
+  WriteXY (1, TBBSCore(FOwner).User.ThisUser.ScreenSize, 112, strPadR(' Search: ', 80, ' '));
 
-  Session.io.AnsiGotoXY(10, 24);
+  Session.io.AnsiGotoXY(10, TBBSCore(FOwner).User.ThisUser.ScreenSize);
   Str := Session.io.GetInput(60, 60, 11, '');
 
   If Str = '' Then Begin
@@ -333,7 +333,13 @@ End;
 Procedure TAnsiFileViewer.HandleCharKey (Ch: Char);
 Begin
   Case Ch of
-    #27 : ShowESCMenu;
+    #27 : Begin
+            ShowESCMenu;
+            If Not FDone Then Begin
+              DrawContent;
+              DrawTopBar;
+            End;
+          End;
     #07 : GotoLine;
     #23 : SearchText;
     'P' : PageDown;

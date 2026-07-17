@@ -117,10 +117,10 @@ Type
     Procedure   DoBackSpace;
     Procedure   DoDelete;
     Procedure   DoChar (Ch: Char);
-    Function    Edit : Boolean;
+    Function    Edit : Boolean; Virtual;
     Procedure   Quote;
     Procedure   QuoteWindow;
-    Procedure   EditorCommands;
+    Procedure   EditorCommands; Virtual;
     Procedure   DrawCommands;
     Procedure   MessageUpload;
   End;

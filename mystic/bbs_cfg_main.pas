@@ -53,7 +53,8 @@ Uses
   bbs_cfg_MenuEdit,
   bbs_cfg_Events,
   bbs_Cfg_QwkNet,
-  bbs_cfg_viewer;
+  bbs_cfg_viewer,
+  bbs_cfg_editor;
 
 Procedure Configuration_ExecuteEditor (Mode: Char);
 Var
@@ -434,7 +435,12 @@ Begin
                 'H' : Configuration_EditFile(bbsCfg.DataPath + 'hackwarn.txt');
                 'P' : Configuration_EditFile(bbsCfg.DataPath + 'spellcheck.txt');
                 'G' : Configuration_EditFile(bbsCfg.DataPath + 'taglines.txt');
-                'C' : ;
+                'C' : Begin
+                        If ShowMsgBox(1, 'Reset system caller count to zero?') Then Begin
+                          bbsCfg.SystemCalls := 0;
+                          PutBaseConfiguration(bbsCfg);
+                        End;
+                      End;
                 'V' : AboutBox;
                 'X' : Break;
               Else

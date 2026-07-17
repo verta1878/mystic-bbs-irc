@@ -1031,7 +1031,7 @@ Begin
     // are enabled, accept the connection and route files to UnsecurePath.
     If (Not Authenticated) and bbsCfg.inetBINKPUnsecure and (bbsCfg.UnsecurePath <> '') Then Begin
       Server.Status (ProcessID, 'Unsecured session from ' + BinkP.AddressList);
-      bbsConfig.InBoundPath := bbsCfg.UnsecurePath;
+      bbsCfg.InBoundPath := bbsCfg.UnsecurePath;
     End;
 
     If Authenticated or (bbsCfg.inetBINKPUnsecure and (bbsCfg.UnsecurePath <> '')) Then Begin
