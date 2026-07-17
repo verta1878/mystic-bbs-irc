@@ -86,6 +86,19 @@ Type
     MaxMsgLines  : Word;
     MaxMsgCols   : Byte;
 
+    { File mode fields }
+    FileMode     : Boolean;
+    FileReadOnly : Boolean;
+    FileName     : String;
+    FileChanged  : Boolean;
+
+    { File mode methods }
+    Function    LoadFile (AFileName: String) : Boolean;
+    Function    SaveFile : Boolean;
+    Function    SaveFileAs (AFileName: String) : Boolean;
+    Procedure   FileEditorCommands;
+    Procedure   DrawFileStatusBar;
+
     Constructor Create (Var O: Pointer; TemplateFile: String);
     Destructor  Destroy; Override;
 
@@ -133,8 +146,9 @@ Uses
   BBS_Records,
   BBS_Core,
   BBS_Ansi_MenuBox,
-  bbs_cfg_viewer,
-  BBS_Common;
+  BBS_Ansi_MenuForm,
+  BBS_Common,
+  DOS;
 
 Constructor TEditorANSI.Create (Var O: Pointer; TemplateFile: String);
 Begin
@@ -166,6 +180,10 @@ Begin
   Template    := TemplateFile;
   MaxMsgLines := mysMaxMsgLines;
   MaxMsgCols  := 79;
+  FileMode    := False;
+  FileReadOnly:= False;
+  FileName    := '';
+  FileChanged := False;
 
   FillChar (CutText, SizeOf(CutText), 0);
 End;
@@ -467,22 +485,48 @@ Begin
 
     For Count := 1 to 10 Do Begin
       If Count = 10 Then
-        Temp := 1
+        Temp := 0
       Else
-        Temp := Count + 1;
+        Temp := Count;
 
-      StrCharSet := StrCharSet + '|00|23' + strI2S(Temp - 1) + '|15' + GlyphTypeStr[GlyphPtr][Temp] + ' ';
+      StrCharSet := StrCharSet + strI2S(Temp) + GlyphTypeStr[GlyphPtr][Count] + ' ';
     End;
 
     Session.io.ScreenInfo[1].Y := 2;
-    Session.io.ScreenInfo[2].Y := 24;
+    Session.io.ScreenInfo[1].A := 7;
+    Session.io.ScreenInfo[2].Y := TBBSCore(Owner).User.ThisUser.ScreenSize - 1;
+    Session.io.ScreenInfo[2].A := 9;
 
     Session.io.AnsiColor(7);
     Session.io.AnsiClear;
 
-    WriteXYPipe (1, 1, 7, 52, '|08[|15X|08:   |15Y|08:     ]      [|07' + StrInsert + '|08] [|07' + StrGlyph + '|08] <|07CTRL|08+|07Z |15Help|08> #' + StrZero(GlyphPtr));
-    WriteXYPipe (51, 1, 112, 80, StrCharSet);
+    WriteXY (1, 1, 8, '[');
+    WriteXY (2, 1, 15, 'X');
+    WriteXY (3, 1, 8, ':');
+    WriteXY (7, 1, 15, 'Y');
+    WriteXY (8, 1, 8, ':');
+    WriteXY (14, 1, 8, ']');
+    WriteXY (21, 1, 8, '[');
+    WriteXY (22, 1, 7, StrInsert);
+    WriteXY (25, 1, 8, '] [');
+    WriteXY (28, 1, 7, StrGlyph);
+    WriteXY (31, 1, 8, '] <');
+    WriteXY (33, 1, 7, 'CTRL');
+    WriteXY (37, 1, 8, '+');
+    WriteXY (38, 1, 7, 'Z ');
+    WriteXY (40, 1, 15, 'Help');
+    WriteXY (44, 1, 8, '> #' + StrZero(GlyphPtr));
+    WriteXY (51, 1, 112, StrCharSet);
     WriteXY     (16, 1, CurAttr, 'ATTR');
+  End Else If FileMode Then Begin
+    Session.io.ScreenInfo[1].Y := 2;
+    Session.io.ScreenInfo[1].A := 7;
+    Session.io.ScreenInfo[2].Y := TBBSCore(Owner).User.ThisUser.ScreenSize - 1;
+    Session.io.ScreenInfo[2].A := 7;
+
+    Session.io.AnsiColor(7);
+    Session.io.AnsiClear;
+    DrawFileStatusBar;
   End Else Begin
     Session.io.PromptInfo[2] := Subject;
     Session.io.OutFile (Template, True, 0);
@@ -1306,11 +1350,147 @@ Begin
   Until Done;
 End;
 
+
+Function FilePickerDialog (APath, AMask: String) : String;
+Var
+  Box     : TAnsiMenuBox;
+  Img     : TConsoleImageRec;
+  DirInfo : SearchRec;
+  FName   : Array[1..50] of String[80];
+  FSize   : Array[1..50] of LongInt;
+  FIsDir  : Array[1..50] of Boolean;
+  Count   : Integer;
+  Pick    : Integer;
+  Top     : Integer;
+  MaxShow : Integer;
+  Row     : Integer;
+  Ch      : Char;
+  CurPath : String;
+  Done    : Boolean;
+  DelFile : File;
+
+  Procedure ScanDir;
+  Begin
+    Count := 0;
+    Inc(Count); FName[Count] := '..'; FSize[Count] := 0; FIsDir[Count] := True;
+    FindFirst(CurPath + '*.*', $10, DirInfo);
+    While (DosError = 0) and (Count < 40) Do Begin
+      If (DirInfo.Attr And $10 <> 0) and (DirInfo.Name <> '.') and (DirInfo.Name <> '..') Then Begin
+        Inc(Count);
+        FName[Count] := DirInfo.Name + PathChar;
+        FSize[Count] := 0;
+        FIsDir[Count] := True;
+      End;
+      FindNext(DirInfo);
+    End;
+    FindClose(DirInfo);
+    FindFirst(CurPath + AMask, $27, DirInfo);
+    While (DosError = 0) and (Count < 50) Do Begin
+      If DirInfo.Attr And $10 = 0 Then Begin
+        Inc(Count);
+        FName[Count] := DirInfo.Name;
+        FSize[Count] := DirInfo.Size;
+        FIsDir[Count] := False;
+      End;
+      FindNext(DirInfo);
+    End;
+    FindClose(DirInfo);
+  End;
+
+  Procedure DrawList;
+  Var K, Attr: Integer;
+      SizeStr: String;
+  Begin
+    WriteXY(10, 5, 11, strPadR(' ' + CurPath + AMask, 42, ' '));
+    For K := 1 to MaxShow Do Begin
+      If Top + K <= Count Then Begin
+        If Top + K = Pick Then Attr := 112
+        Else If FIsDir[Top + K] Then Attr := 11
+        Else Attr := 7;
+        If FIsDir[Top + K] Then
+          SizeStr := '   <DIR>'
+        Else
+          SizeStr := strPadL(strI2S(FSize[Top + K]), 8, ' ');
+        WriteXY(10, 5 + K, Attr, strPadR(' ' + FName[Top + K], 33, ' ') + SizeStr + ' ');
+      End Else
+        WriteXY(10, 5 + K, 7, strRep(' ', 42));
+    End;
+  End;
+
+Begin
+  Result  := '';
+  CurPath := APath;
+  MaxShow := 15;
+  Done    := False;
+
+  Console.GetScreenImage(8, 4, 54, 5 + MaxShow + 1, Img);
+  Box := TAnsiMenuBox.Create;
+  Box.Open(8, 4, 54, 5 + MaxShow + 1);
+
+  ScanDir;
+  Pick := 1;
+  Top  := 0;
+  DrawList;
+
+  Repeat
+    Ch := Session.io.GetKey;
+    Case Ch of
+      #27 : Begin Done := True; End;
+      #00 : Case Session.io.GetKey of
+              #72 : If Pick > 1 Then Begin Dec(Pick); If Pick <= Top Then Dec(Top); DrawList; End;
+              #80 : If Pick < Count Then Begin Inc(Pick); If Pick > Top + MaxShow Then Inc(Top); DrawList; End;
+              #73 : Begin Pick := Pick - MaxShow; If Pick < 1 Then Pick := 1; Top := Pick - 1; If Top < 0 Then Top := 0; DrawList; End;
+              #81 : Begin Pick := Pick + MaxShow; If Pick > Count Then Pick := Count; Top := Pick - MaxShow; If Top < 0 Then Top := 0; DrawList; End;
+              #83 : Begin { DELETE key }
+                      If (Pick >= 1) and (Pick <= Count) and (Not FIsDir[Pick]) Then Begin
+                        If ShowMsgBox(1, 'Delete ' + FName[Pick] + '?') Then Begin
+                          Assign(DelFile, CurPath + FName[Pick]);
+                          {$I-} Erase(DelFile); {$I+}
+                          If IOResult = 0 Then;
+                          ScanDir;
+                          If Pick > Count Then Pick := Count;
+                          If Pick < 1 Then Pick := 1;
+                          DrawList;
+                        End;
+                      End;
+                    End;
+            End;
+      #13 : Begin
+              If (Pick >= 1) and (Pick <= Count) Then Begin
+                If FIsDir[Pick] Then Begin
+                  If FName[Pick] = '..' Then Begin
+                    If Length(CurPath) > 1 Then Begin
+                      Delete(CurPath, Length(CurPath), 1);
+                      While (Length(CurPath) > 0) and
+                            (CurPath[Length(CurPath)] <> PathChar) Do
+                        Delete(CurPath, Length(CurPath), 1);
+                    End;
+                  End Else
+                    CurPath := CurPath + Copy(FName[Pick], 1, Length(FName[Pick]) - 1) + PathChar;
+                  ScanDir; Pick := 1; Top := 0; DrawList;
+                End Else Begin
+                  Result := CurPath + FName[Pick];
+                  Done := True;
+                End;
+              End;
+            End;
+    End;
+  Until Done;
+
+  Box.Close;
+  Box.Free;
+  Session.io.RemoteRestore(Img);
+End;
+
 Procedure TEditorANSI.DrawCommands;
 Var
   Ch       : Char;
   ColorStr : String;
   Img      : TConsoleImageRec;
+  OpenFile : File;
+  SaveFile : Text;
+  OpenBuf  : Array[1..4096] of Char;
+  OpenLen  : LongInt;
   FG       : Byte;
   BG       : Byte;
   Row      : Byte;
@@ -1384,6 +1564,9 @@ Begin
   DrawMenu;
   Session.io.BufFlush;
 
+  { Small delay to let any ESC sequence complete }
+  Session.io.BufFlush;
+
   FG := CurAttr And 15;
   BG := (CurAttr And $70) Shr 4;
 
@@ -1413,19 +1596,39 @@ Begin
               ColorStr := FilePickerDialog(bbsCfg.TextPath, '*.ans');
               If (ColorStr <> '') and FileExist(ColorStr) Then Begin
                 { Load the ANSI file into the editor buffer }
-                Subject := ColorStr;
+                ANSI.Clear;
+                Assign(OpenFile, ColorStr);
+                ioReset(OpenFile, 1, fmReadWrite + fmDenyNone);
+                While Not Eof(OpenFile) Do Begin
+                  ioBlockRead(OpenFile, OpenBuf, SizeOf(OpenBuf), OpenLen);
+                  If ANSI.ProcessBuf(OpenBuf, OpenLen) Then Break;
+                End;
+                Close(OpenFile);
+                Subject   := ColorStr;
+                FindLastLine;
+                TopLine   := 0;
+                CurLine   := 0;
+                CurX      := 1;
+                CurY      := 1;
               End;
               Break;
             End;
       'S', 's' : Begin
               Session.io.RemoteRestore(Img);
-              WriteXY(1, 1, 112, strPadR(' Save as: ', 80, ' '));
-              Session.io.AnsiGotoXY(11, 1);
-              ColorStr := Session.io.GetInput(60, 60, 11, Subject);
-              If ColorStr <> '' Then Begin
-                Subject := ColorStr;
-                Save := True;
-                Done := True;
+              If Subject = '' Then Begin
+                ColorStr := FilePickerDialog(bbsCfg.TextPath, '*.ans');
+                If ColorStr = '' Then Begin Break; End;
+              End Else
+                ColorStr := Subject;
+              { Save ANSI data to file }
+              Subject := ColorStr;
+              Assign(SaveFile, ColorStr);
+              {$I-} ReWrite(SaveFile); {$I+}
+              If IOResult = 0 Then Begin
+                FindLastLine;
+                For OpenLen := 1 to LastLine Do
+                  WriteLn(SaveFile, GetLineText(OpenLen));
+                Close(SaveFile);
               End;
               Break;
             End;
@@ -1459,6 +1662,7 @@ Begin
   Until False;
 
   Session.io.RemoteRestore (Img);
+  Session.io.BufFlush;
   ReDrawTemplate (False);
 End;
 
@@ -1664,10 +1868,20 @@ Begin
 
                  DrawPage (CurY, WinSize, False);
                End;
+        ^X   : Begin { Ctrl+X - exit, ask to save if changed }
+                 If FileMode and FileChanged Then Begin
+                   If ShowMsgBox(1, 'Save changes before exit?') Then
+                     SaveFile;
+                 End;
+                 Done := True;
+                 Save := False;
+               End;
         ^Z,
         ^[   : Begin
                  If DrawMode Then
                    DrawCommands
+                 Else If FileMode Then
+                   FileEditorCommands
                  Else
                    EditorCommands;
 
@@ -1694,6 +1908,203 @@ Begin
   Result := Save;
 
   Session.io.AnsiGotoXY (1, Session.User.ThisUser.ScreenSize);
+End;
+
+
+Function TEditorANSI.LoadFile (AFileName: String) : Boolean;
+Var
+  F      : File;
+  Buf    : Array[1..4096] of Char;
+  BufLen : LongInt;
+Begin
+  Result := False;
+
+  If Not FileExist(AFileName) Then Begin
+    { Create empty file if it doesn't exist }
+    Assign(F, AFileName);
+    {$I-} ReWrite(F, 1); {$I+}
+    If IOResult = 0 Then Close(F);
+    FileName    := AFileName;
+    FileChanged := False;
+    Result      := True;
+    Exit;
+  End;
+
+  FileName := AFileName;
+  ANSI.Clear;
+
+  Assign (F, AFileName);
+  ioReset (F, 1, fmReadWrite + fmDenyNone);
+
+  While Not Eof(F) Do Begin
+    ioBlockRead (F, Buf, SizeOf(Buf), BufLen);
+    If ANSI.ProcessBuf(Buf, BufLen) Then Break;
+  End;
+
+  Close (F);
+  FindLastLine;
+  FileChanged := False;
+  Result      := True;
+End;
+
+Function TEditorANSI.SaveFile : Boolean;
+Var
+  F    : Text;
+  Line : LongInt;
+Begin
+  Result := False;
+  If FileName = '' Then Exit;
+
+  FindLastLine;
+
+  Assign (F, FileName);
+  {$I-} ReWrite (F); {$I+}
+  If IOResult <> 0 Then Exit;
+
+  For Line := 1 to LastLine Do
+    WriteLn (F, GetLineText(Line));
+
+  Close (F);
+  FileChanged := False;
+  Result      := True;
+End;
+
+Function TEditorANSI.SaveFileAs (AFileName: String) : Boolean;
+Begin
+  FileName := AFileName;
+  Result   := SaveFile;
+End;
+
+Procedure TEditorANSI.DrawFileStatusBar;
+Var
+  Status : String;
+  Pos    : String;
+Begin
+  If FileReadOnly Then
+    Status := 'VIEW ONLY'
+  Else If FileName = '' Then
+    Status := '      NEW'
+  Else If FileChanged Then
+    Status := '  CHANGED'
+  Else
+    Status := '         ';
+
+  Pos := strI2S(TopLine + CurLine) + '/' + strI2S(LastLine);
+
+  WriteXY (1, 1, 112, strPadR(' File: ' + FileName, 60, ' ') + strPadL(Status, 19, ' '));
+
+  If FileReadOnly Then
+    WriteXY (1, TBBSCore(Owner).User.ThisUser.ScreenSize, 112,
+             strPadR(' ESC/Menu     ^G Goto     ^W Where', 66, ' ') +
+             strPadL(Pos, 14, ' '))
+  Else
+    WriteXY (1, TBBSCore(Owner).User.ThisUser.ScreenSize, 112,
+             strPadR(' ESC/Menu     ^G Goto     ^W Where     ^Y Delete     ^K Cut', 66, ' ') +
+             strPadL(Pos, 14, ' '));
+End;
+
+Procedure TEditorANSI.FileEditorCommands;
+Var
+  Box  : TAnsiMenuBox;
+  Form : TAnsiMenuForm;
+  Img  : TConsoleImageRec;
+  Res  : Char;
+  NewFN: String;
+Begin
+  Console.GetScreenImage (24, 6, 52, 15, Img);
+
+  Box := TAnsiMenuBox.Create;
+
+  If FileReadOnly Then Begin
+    Box.Open (24, 8, 52, 14);
+
+    Form := TAnsiMenuForm.Create;
+    Form.ExitOnFirst := True;
+
+    Form.AddNone ('C', ' C Continue',            26,  9, 26,  9, 24, '');
+    Form.AddNone ('?', ' ? Help',                26, 10, 26, 10, 24, '');
+    Form.AddNone ('\', ' \ Jump to first line',  26, 11, 26, 11, 24, '');
+    Form.AddNone ('/', ' / Jump to last line',   26, 12, 26, 12, 24, '');
+    Form.AddNone ('Q', ' Q Quit',               26, 13, 26, 13, 24, '');
+
+    Res := Form.Execute;
+    Form.Free;
+    Box.Close;
+    Box.Free;
+    Session.io.RemoteRestore (Img);
+
+    Case Res of
+      'Q' : Begin Done := True; Save := False; End;
+      '\' : Begin TopLine := 0; CurLine := 0; CurY := WinY1;
+              DrawPage (WinY1, WinY2, False); LocateCursor; End;
+      '/' : Begin FindLastLine;
+              If LastLine > WinSize Then Begin
+                TopLine := LastLine - WinSize; CurLine := WinSize - 1;
+              End Else Begin TopLine := 0; CurLine := LastLine - 1; End;
+              CurY := WinY1 + CurLine;
+              DrawPage (WinY1, WinY2, False); LocateCursor; End;
+    End;
+  End Else Begin
+    Box.Open (24, 6, 52, 15);
+
+    Form := TAnsiMenuForm.Create;
+    Form.ExitOnFirst := True;
+
+    Form.AddNone ('C', ' C Continue',            26,  7, 26,  7, 24, '');
+    Form.AddNone ('?', ' ? Help',                26,  8, 26,  8, 24, '');
+    Form.AddNone ('\', ' \ Jump to first line',  26,  9, 26,  9, 24, '');
+    Form.AddNone ('/', ' / Jump to last line',   26, 10, 26, 10, 24, '');
+    Form.AddNone ('Q', ' Q Quit',               26, 11, 26, 11, 24, '');
+    Form.AddNone ('S', ' S Save',               26, 12, 26, 12, 24, '');
+    Form.AddNone ('A', ' A Save As...',          26, 13, 26, 13, 24, '');
+    Form.AddNone ('O', ' O Open...',             26, 14, 26, 14, 24, '');
+
+    Res := Form.Execute;
+    Form.Free;
+    Box.Close;
+    Box.Free;
+    Session.io.RemoteRestore (Img);
+
+    Case Res of
+      'Q' : Begin Done := True; Save := False; End;
+      'S' : Begin
+              If FileName <> '' Then Begin
+                If SaveFile Then Begin
+                  DrawFileStatusBar;
+                  ShowMsgBox(0, 'File saved');
+                End;
+              End;
+            End;
+      'A' : Begin
+              WriteXY (1, TBBSCore(Owner).User.ThisUser.ScreenSize, 112,
+                       strPadR(' Save as: ', 80, ' '));
+              Session.io.AnsiGotoXY (11, TBBSCore(Owner).User.ThisUser.ScreenSize);
+              NewFN := Session.io.GetInput (60, 60, 11, FileName);
+              If NewFN <> '' Then Begin
+                If SaveFileAs(NewFN) Then DrawFileStatusBar;
+              End;
+              DrawFileStatusBar;
+            End;
+      'O' : Begin
+              NewFN := FilePickerDialog(bbsCfg.DataPath, '*.*');
+              If (NewFN <> '') and FileExist(NewFN) Then Begin
+                LoadFile (NewFN);
+                ReDrawTemplate (True);
+                DrawPage (WinY1, WinY2, False);
+                DrawFileStatusBar;
+              End;
+              DrawFileStatusBar;
+            End;
+      '\' : Begin TopLine := 0; CurLine := 0; CurY := WinY1;
+              DrawPage (WinY1, WinY2, False); LocateCursor; End;
+      '/' : Begin FindLastLine;
+              If LastLine > WinSize Then Begin
+                TopLine := LastLine - WinSize; CurLine := WinSize - 1;
+              End Else Begin TopLine := 0; CurLine := LastLine - 1; End;
+              CurY := WinY1 + CurLine;
+              DrawPage (WinY1, WinY2, False); LocateCursor; End;
+    End;
+  End;
 End;
 
 End.

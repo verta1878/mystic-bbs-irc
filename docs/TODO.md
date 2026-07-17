@@ -283,3 +283,137 @@ DOS constraint is no preemptive threads, not "one connection". The DOS mis
 Execute currently serves one caller at a time (bring-up simplification); a
 cooperative select() accept-loop for multiple concurrent nodes is the planned
 upgrade. See docs/DOS-SOCKETS.md.
+
+## 11. Configuration Editor + ANSI Editor + Server-side RIP (2026-07-17)
+
+### Completed
+
+**TEditorANSI unified editor** — merged TConfigEditor + TAnsiFileViewer
+into g00r00's TEditorANSI class. Four modes in one class:
+- Normal mode (FileMode=False, DrawMode=False): message editor
+- File mode (FileMode=True): text file editor, 8-item ESC menu
+- View mode (FileMode=True, FileReadOnly=True): log viewer, 5-item ESC
+- Draw mode (DrawMode=True): ANSI editor with graphical draw menu
+
+**cfg Other menu** — 14 items fully wired:
+- A ANSI Editor, T Text Editor, L View Log Files, R RIP Editor
+- N-G Edit config files (badnames, bademail, newletter, etc.)
+- C Reset Caller Data (with SystemLog), V Version Info, X Exit
+
+**FilePickerDialog** — in bbs_edit_ansi.pas (shared by text + ANSI editor):
+- Arrow key navigation with highlighted selection bar
+- .. parent directory, subdirectories with trailing \
+- File sizes, <DIR> markers
+- DELETE key deletes files (with confirmation)
+- ESC cancels, Enter selects
+
+**g00r00 editor features** (from whatsnew.112):
+- Ctrl+X exits editor, asks to save if file changed
+- "File saved" confirmation box after successful save
+- Filename retained between save dialogs (Subject field)
+
+**DrawCommands graphical draw menu:**
+- 16 foreground colors (0-9, a-f to select)
+- 8 background colors (!, @, $, %, ^, &, *, ( to select)
+- 10 CP437 glyph character sets displayed
+- FG/BG color preview with current attribute
+- O Open (FilePickerDialog, *.ans filter, loads via ProcessBuf)
+- S Save (prompts filename, saves via GetLineText)
+- Q Quit Drawing (exits editor)
+- # Keys Normal (toggles glyph mode off)
+
+**Status bar fixes:**
+- WriteXY instead of WriteXYPipe (no MCI pipe processing)
+- ScreenInfo[1].A = 7 for draw mode (fixes invisible text)
+- ScreenInfo[2].Y uses ScreenSize (not hardcoded 24)
+- F-key glyph bar renders CP437 directly
+
+**ans2rip bug fixes:**
+- RipNewCommand always writes !| prefix (was writing | without !)
+- Chained commands now work: !|S0102!|B08040F07
+- rip_render handles CRLF line endings
+- Verified with ImageMagick compare: all 5 test files render with color
+
+**Code quality:**
+- All 219 .pas files normalized to CRLF (g00r00 standard)
+- Reset Caller Data logged to mystic.log
+- 4 files retired to retired/ (code merged into TEditorANSI)
+- mystpack confirmed compatible (rebuilt with current records)
+- mutil already does MsgPurge + MsgPack (mystpack redundant)
+
+**Tools documented** (mystic_rip/TOOLS.md):
+- ansilove: ANSI art renderer (IRC/BBS standard, in libs/)
+- ImageMagick: pixel diff, side-by-side comparison
+- rip_render: headless FPC RIP renderer
+- Validation workflow: ansilove -> ans2rip -> rip_render -> compare
+
+### Blocked on testing
+
+- T (Text Editor) FileMode: untested since merge into TEditorANSI
+- L (Log Viewer) FileReadOnly: untested since merge
+- A (ANSI Editor) DrawMode: draw menu, text rendering, F-key glyphs
+- N-G (Edit files) FileMode with pre-loaded files: untested since merge
+- New user email: needs fresh install test with Sysop account
+- ans2rip text positioning: bars correct, text offset from bars
+
+### Still to add (from g00r00 whatsnew.112)
+
+- Upload ANSI option in draw menu
+- Theme Editor "Display Files" -> lists .a?? -> opens ANSI editor
+- Theme Editor "Templates" -> lists .ini -> opens text editor
+- Menu command *2 Edit ANSI file (with /open parameter)
+- FS editor .ini template format (msg_editor.ini, major refactor)
+
+### Deferred features (from DurDraw study)
+
+- Alt+Up/Down: cycle foreground color while drawing
+- Alt+Left/Right: cycle background color while drawing
+- Alt+[/]: cycle character sets without opening draw menu
+- Alt+S: character set picker popup
+
+To implement: add Alt+arrow handlers to the draw mode key loop
+in TEditorANSI.Edit. Alt keys come as ESC+arrow (#27 followed by
+arrow key code). Need to distinguish ESC-as-menu from ESC-as-alt.
+
+### Server-side RIP support (planned)
+
+When a RIP terminal connects (RIPterm, PabloDraw), Mystic detects
+RIP mode and sends .rip display files instead of .ans. User input
+stays text. RIP rendering happens on the CLIENT, not the server.
+
+**Implementation order:**
+1. OutFile() .rip file selection (bbs_io.pas, small change)
+   - Try .rip before .ans when UseRipTerm is set
+2. RIP terminal detection in login sequence
+   - Client sends !|Q00000000 (RIP query)
+   - Server sets Session.io.UseRipTerm, Graphics := TERM_RIP
+3. Theme .rip file generation via ans2rip
+   - text/login.rip, text/matrix.rip, text/newuser.rip, etc.
+4. Menu .rip files with mouse regions
+   - !|M command for clickable buttons (TTermRip already parses)
+5. Door/game RIP support (future)
+
+**All dependencies done:**
+- UseRipDetect in RecConfig (carved from Reserved, size unchanged)
+- TERM_RIP = 2 constant
+- ThmAllowRIP = $00000004 flag
+- IconPath/FontPath in RecTheme (carved from Reserved, size unchanged)
+- ans2rip converter (working, verified with ImageMagick)
+- 51/51 RIP commands in TTermRip (48 tests passing)
+- rip_render headless renderer
+- Theme path halt (all 5 paths checked, maketheme cfgtheme)
+
+**What TTermRip does NOT need on the server:**
+- No server-side rendering (client renders)
+- No TRipSurface (converter/tools only)
+- No font/icon loading (client resources)
+
+### Build status
+
+- 14/14 Windows binaries: OK
+- Linux build: OK
+- 48/48 RIPscrip tests: OK
+- ans2rip: compiles, renders correctly
+- All .pas files: CRLF
+- GitHub: needs push (synced at 16d3663)
+- Repo: 789 entries, 111 .pas in mystic/, 4 in retired/

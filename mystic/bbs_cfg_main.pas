@@ -53,8 +53,7 @@ Uses
   bbs_cfg_MenuEdit,
   bbs_cfg_Events,
   bbs_Cfg_QwkNet,
-  bbs_cfg_viewer,
-  bbs_cfg_editor;
+  bbs_Edit_Ansi;
 
 Procedure Configuration_ExecuteEditor (Mode: Char);
 Var
@@ -79,16 +78,14 @@ End;
 
 Procedure Configuration_AnsiEditor;
 Var
-  Editor : TConfigEditor;
+  Editor : TEditorANSI;
   TmpImg : TConsoleImageRec;
 Begin
   Console.GetScreenImage (1, 1, 79, 24, TmpImg);
-  Editor := TConfigEditor.Create(Pointer(Session));
+  Editor := TEditorANSI.Create(Pointer(Session), '');
   Editor.DrawMode   := True;
   Editor.InsertMode := False;
-  Editor.GlyphMode  := False;
   Editor.MaxMsgCols := 79;
-  Editor.ReDrawTemplate(True);
   Editor.Edit;
   Editor.Free;
   Session.io.RemoteRestore(TmpImg);
@@ -96,11 +93,12 @@ End;
 
 Procedure Configuration_EditFile (FName: String);
 Var
-  Editor : TConfigEditor;
+  Editor : TEditorANSI;
   TmpImg : TConsoleImageRec;
 Begin
   Console.GetScreenImage (1, 1, 79, 24, TmpImg);
-  Editor := TConfigEditor.Create(Pointer(Session));
+  Editor := TEditorANSI.Create(Pointer(Session), '');
+  Editor.FileMode := True;
   If FName <> '' Then
     Editor.LoadFile(FName);
   Editor.Edit;
@@ -110,14 +108,16 @@ End;
 
 Procedure Configuration_ViewLogs;
 Var
-  Viewer : TAnsiFileViewer;
+  Editor : TEditorANSI;
   TmpImg : TConsoleImageRec;
 Begin
   Console.GetScreenImage (1, 1, 79, 24, TmpImg);
-  Viewer := TAnsiFileViewer.Create(Pointer(Session), True);
-  If Viewer.LoadFile(bbsCfg.LogsPath + 'mystic.log') Then
-    Viewer.Run;
-  Viewer.Free;
+  Editor := TEditorANSI.Create(Pointer(Session), '');
+  Editor.FileMode     := True;
+  Editor.FileReadOnly := True;
+  If Editor.LoadFile(bbsCfg.LogsPath + 'mystic.log') Then
+    Editor.Edit;
+  Editor.Free;
   Session.io.RemoteRestore(TmpImg);
 End;
 

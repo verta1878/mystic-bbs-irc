@@ -79,6 +79,9 @@ Begin
 
   // lines are CR-framed on the wire; tolerate LF-only files (some
   // editors save .RIP that way) and make sure the final line ends
+  { Handle CRLF -> CR }
+  Data := StringReplace(Data, #13#10, #13, [rfReplaceAll]);
+  { Handle LF-only -> CR }
   If Pos(#13, Data) = 0 Then
     Data := StringReplace(Data, #10, #13, [rfReplaceAll]);
 

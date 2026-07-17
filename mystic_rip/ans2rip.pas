@@ -70,12 +70,8 @@ Procedure RipNewCommand (Const Op: String);
 // Start a new RIP command: !|<op>
 Begin
   RipCheckWrap(Length(Op) + 2);
-  If LinePos = 0 Then Begin
-    Write(OutF, '!');
-    Inc(LinePos);
-  End;
-  Write(OutF, '|' + Op);
-  Inc(LinePos, 1 + Length(Op));
+  Write(OutF, '!|' + Op);
+  Inc(LinePos, 2 + Length(Op));
 End;
 
 Procedure RipWriteNumber (V: Integer);
