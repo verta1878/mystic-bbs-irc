@@ -412,7 +412,8 @@ Type
     UnsecurePath      : String[mysMaxPathSize];
     inetBINKPRename   : Byte;
     inetBINKPExempt   : Boolean;
-    Reserved          : Array[1..553] of Char;
+    Reserved          : Array[1..552] of Char;
+    UseRipDetect     : Boolean;
   End;
 
 Const
@@ -753,6 +754,7 @@ Const
   ThmAllowASCII = $00000001;
   ThmAllowANSI  = $00000002;
   ThmLightbarYN = $00000004;
+  ThmAllowRIP   = $00000004;
   ThmFallback   = $00000008;
 
 Const
@@ -809,7 +811,9 @@ Type
     BoxHeadAttr   : Byte;
     BoxOKAttr     : Byte;
     BoxTextAttr   : Byte;
-    Reserved     : Array[1..188] of Byte;
+    Reserved     : Array[1..26] of Byte;
+    IconPath     : String[mysMaxPathSize];
+    FontPath     : String[mysMaxPathSize];
   End;
 
   BBSListRec = Record

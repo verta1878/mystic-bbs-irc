@@ -44,32 +44,42 @@ Unit rip_Term;
 Interface
 
 Uses
+  SysUtils,
   rip_Canvas;
 
 Type
   // reply channel: RIP query commands answer the host by "typing" a
   // string at it.  In-core this is TIOBase; the example keeps it an
   // FPC-native callback so the module has no mdl dependency.
-  TRipReplyProc = Procedure (Const S: AnsiString) of Object;
+  TRipClient = Procedure (Const S: AnsiString) of Object;
 
   TTermRip = Class
     Screen   : TRipCanvas;      // render target (graphics seam)
     WasValid : Boolean;
   Private
-    Client   : TRipReplyProc;   // reply channel (future query responses)
+    Client   : TRipClient;   // reply channel (future query responses)
     LineBuf  : AnsiString;      // current logical line (CR-terminated)
     CurX     : Integer;         // current pen position (RIP 'm')
     CurY     : Integer;
+    FVars    : Array[0..99] of Record
+                Name  : AnsiString;
+                Value : AnsiString;
+              End;
+    FVarCount: Integer;
+    FBasePath: AnsiString;       // base path for ReadScene/FileQuery
 
     Function    MegaNum (Const S: AnsiString; Var Idx: Integer) : Integer;
-    Procedure   HandleCommand (Cmd: Char; Const Args: AnsiString);
+    Procedure   HandleCommand (Level: Integer; Cmd: Char; Const Args: AnsiString);
     Procedure   ParseLine (Const Line: AnsiString);
   Public
     Constructor Create (Var Con: TRipCanvas);
     Destructor  Destroy; Override;
     Procedure   Process (Ch: Char);
     Procedure   ProcessBuf (Var Buf; BufLen: Word);
-    Procedure   SetReplyClient (Cli: TRipReplyProc);
+    Procedure   SetReplyClient (Cli: TRipClient);
+    Procedure   SetBasePath (Const Path: AnsiString);
+    Function    GetVar (Const Name: AnsiString) : AnsiString;
+    Procedure   SetVar (Const Name, Value: AnsiString);
   End;
 
 Implementation
@@ -91,7 +101,7 @@ Begin
   Inherited Destroy;
 End;
 
-Procedure TTermRip.SetReplyClient (Cli: TRipReplyProc);
+Procedure TTermRip.SetReplyClient (Cli: TRipClient);
 Begin
   Client := Cli;
 End;
@@ -119,7 +129,7 @@ Begin
   End;
 End;
 
-Procedure TTermRip.HandleCommand (Cmd: Char; Const Args: AnsiString);
+Procedure TTermRip.HandleCommand (Level: Integer; Cmd: Char; Const Args: AnsiString);
 Var
   I   : Integer;
   X0  : Integer;
@@ -132,9 +142,14 @@ Var
   Col : Integer;
   Reg : TRipMouseRegion;
   S   : AnsiString;
+  PolyPts   : Array[0..50] of Record X, Y: Integer; End;
+  SceneFile : File;
+  SceneBuf  : Array[0..4095] of Byte;
+  SceneRead : LongInt;
 Begin
   I := 1;
 
+  If Level = 0 Then
   Case Cmd of
     'c' : Begin  // RIP_COLOR: set draw color (1 field)
             Col := MegaNum(Args, I);
@@ -259,18 +274,216 @@ Begin
     'K' : Screen.KillMouseRegions;  // RIP_KILL_MOUSE_FIELDS
     'e' : Screen.Clear;             // RIP_ERASE_WINDOW (simplified)
     'E' : Screen.Clear;             // RIP_ERASE_VIEW (simplified)
-  Else
-    ;  // unimplemented command: ignore (Phase 2 extends here)
-  End;
+    // --- Phase 2 additions (ported from mterm) ---
+    'v' : Begin  // RIP_VIEWPORT: x0, y0, x1, y1
+            X0 := MegaNum(Args, I); Y0 := MegaNum(Args, I);
+            X1 := MegaNum(Args, I); Y1 := MegaNum(Args, I);
+            Screen.SetViewPort (X0, Y0, X1, Y1, True);
+          End;
+    'w' : Begin  // RIP_TEXT_WINDOW: x0, y0, x1, y1, wrap
+            X0 := MegaNum(Args, I); Y0 := MegaNum(Args, I);
+            X1 := MegaNum(Args, I); Y1 := MegaNum(Args, I);
+            R  := MegaNum(Args, I);
+            Screen.TextWindow (X0, Y0, X1, Y1, R);
+          End;
+    '*' : Screen.ResetWindows;
+    'g' : Begin  // RIP_GOTOXY: x, y
+            X0 := MegaNum(Args, I); Y0 := MegaNum(Args, I);
+            Screen.GotoXY (X0, Y0);
+          End;
+    'H' : Screen.Home;
+    '>' : Screen.EraseEOL;
+    'Q' : Begin S := Copy(Args, I, Length(Args)); Screen.SetPalette (S[1]); End;
+    'a' : Begin  // RIP_ONE_PALETTE: color, ega64
+            X0 := MegaNum(Args, I); Y0 := MegaNum(Args, I);
+            Screen.SetOnePalette (X0, Y0);
+          End;
+    'Y' : Begin  // RIP_FONT_STYLE: font, dir, size
+            X0 := MegaNum(Args, I); Y0 := MegaNum(Args, I);
+            R  := MegaNum(Args, I);
+            Screen.SetFontStyle (X0, Y0, R);
+          End;
+    'A' : Begin  // RIP_ARC: x, y, stAng, endAng, radius
+            X0 := MegaNum(Args, I); Y0 := MegaNum(Args, I);
+            X1 := MegaNum(Args, I); Y1 := MegaNum(Args, I);
+            R  := MegaNum(Args, I);
+            Screen.Arc (X0, Y0, X1, Y1, R);
+          End;
+    'V' : Begin  // RIP_OVAL_ARC: x, y, stAng, endAng, xRad, yRad
+            X0 := MegaNum(Args, I); Y0 := MegaNum(Args, I);
+            X1 := MegaNum(Args, I); Y1 := MegaNum(Args, I);
+            XR := MegaNum(Args, I); YR := MegaNum(Args, I);
+            Screen.OvalArc (X0, Y0, X1, Y1, XR, YR);
+          End;
+    'I' : Begin  // RIP_PIE_SLICE: x, y, stAng, endAng, radius
+            X0 := MegaNum(Args, I); Y0 := MegaNum(Args, I);
+            X1 := MegaNum(Args, I); Y1 := MegaNum(Args, I);
+            R  := MegaNum(Args, I);
+            Screen.PieSlice (X0, Y0, X1, Y1, R);
+          End;
+    'i' : Begin  // RIP_OVAL_PIE: x, y, stAng, endAng, xRad, yRad
+            X0 := MegaNum(Args, I); Y0 := MegaNum(Args, I);
+            X1 := MegaNum(Args, I); Y1 := MegaNum(Args, I);
+            XR := MegaNum(Args, I); YR := MegaNum(Args, I);
+            Screen.OvalPieSlice (X0, Y0, X1, Y1, XR, YR);
+          End;
+    'Z' : Begin  // RIP_BEZIER: x1,y1,x2,y2,x3,y3,x4,y4,count
+            X0 := MegaNum(Args, I); Y0 := MegaNum(Args, I);
+            X1 := MegaNum(Args, I); Y1 := MegaNum(Args, I);
+            XR := MegaNum(Args, I); YR := MegaNum(Args, I);
+            R  := MegaNum(Args, I); Col := MegaNum(Args, I);
+            Screen.Bezier (X0, Y0, X1, Y1, XR, YR, R, Col, MegaNum(Args, I));
+          End;
+    'S' : Begin  // RIP_FILL_STYLE: pattern, color
+            X0  := MegaNum(Args, I); Col := MegaNum(Args, I);
+            Screen.SetFillStyle (X0, Col);
+          End;
+    's' : Begin S := Copy(Args, I, 16); Screen.SetFillPattern (S[1], MegaNum(Args, I)); End;
+    'P' : Begin  // RIP_POLYGON: npoints, then x,y pairs
+            Col := MegaNum(Args, I);
+            If (Col >= 2) and (Col <= 50) Then Begin
+              For R := 0 to Col - 1 Do Begin
+                PolyPts[R].X := MegaNum(Args, I);
+                PolyPts[R].Y := MegaNum(Args, I);
+              End;
+              Screen.Polygon(PolyPts, Col);
+            End;
+          End;
+    'p' : Begin  // RIP_FILL_POLYGON: npoints, then x,y pairs
+            Col := MegaNum(Args, I);
+            If (Col >= 2) and (Col <= 50) Then Begin
+              For R := 0 to Col - 1 Do Begin
+                PolyPts[R].X := MegaNum(Args, I);
+                PolyPts[R].Y := MegaNum(Args, I);
+              End;
+              Screen.FillPolygon(PolyPts, Col);
+            End;
+          End;
+    'l' : Begin  // RIP_POLYLINE: npoints, then x,y pairs
+            Col := MegaNum(Args, I);
+            If (Col >= 2) and (Col <= 50) Then Begin
+              For R := 0 to Col - 1 Do Begin
+                PolyPts[R].X := MegaNum(Args, I);
+                PolyPts[R].Y := MegaNum(Args, I);
+              End;
+              Screen.Polyline(PolyPts, Col);
+            End;
+          End;
+    '#' : ;  // RIP_NO_MORE: end of scene
+  End; // case level 0
+
+  If Level = 1 Then
+  Case Cmd of
+    'B' : Begin S := Copy(Args, I, Length(Args)); Screen.SetButtonStyle (S[1]); End;
+    'U' : Begin  // RIP_BUTTON: x0, y0, x1, y1, params
+            X0 := MegaNum(Args, I); Y0 := MegaNum(Args, I);
+            X1 := MegaNum(Args, I); Y1 := MegaNum(Args, I);
+            S  := Copy(Args, I, Length(Args));
+            Screen.DrawButton (X0, Y0, X1, Y1, S);
+          End;
+    'T' : Begin  // RIP_BEGIN_TEXT: x, y, w, h
+            X0 := MegaNum(Args, I); Y0 := MegaNum(Args, I);
+            X1 := MegaNum(Args, I); Y1 := MegaNum(Args, I);
+            Screen.BeginText (X0, Y0, X1, Y1);
+          End;
+    't' : Begin  // RIP_REGION_TEXT: justify, text
+            X0 := MegaNum(Args, I);
+            S  := Copy(Args, I, Length(Args));
+            Screen.RegionText (X0, S);
+          End;
+    'E' : Screen.EndText;
+    'C' : Begin  // RIP_GET_IMAGE: x0, y0, x1, y1
+            X0 := MegaNum(Args, I); Y0 := MegaNum(Args, I);
+            X1 := MegaNum(Args, I); Y1 := MegaNum(Args, I);
+            Screen.GetImage (X0, Y0, X1, Y1);
+          End;
+    'P' : Begin  // RIP_PUT_IMAGE: x, y, mode
+            X0 := MegaNum(Args, I); Y0 := MegaNum(Args, I);
+            R  := MegaNum(Args, I);
+            Screen.PutImage (X0, Y0, R);
+          End;
+    'W' : Screen.WriteIcon (Copy(Args, I, Length(Args)));
+    'I' : Begin  // RIP_LOAD_ICON: x, y, mode, clip, filename
+            X0 := MegaNum(Args, I); Y0 := MegaNum(Args, I);
+            MegaNum(Args, I); MegaNum(Args, I);
+            Screen.LoadIcon (X0, Y0, Copy(Args, I, Length(Args)));
+          End;
+    'G' : Begin  // RIP_COPY_REGION: x0,y0,x1,y1,dx,dy
+            X0 := MegaNum(Args, I); Y0 := MegaNum(Args, I);
+            X1 := MegaNum(Args, I); Y1 := MegaNum(Args, I);
+            Screen.GetImage (X0, Y0, X1, Y1);
+            Screen.PutImage (MegaNum(Args, I), MegaNum(Args, I), 0);
+          End;
+    'K' : Screen.KillMouseRegions;
+    'M' : Begin  // RIP_MOUSE (level 1)
+            X0 := MegaNum(Args, I); Y0 := MegaNum(Args, I);
+            X1 := MegaNum(Args, I); Y1 := MegaNum(Args, I);
+            Reg.X0 := X0; Reg.Y0 := Y0;
+            Reg.X1 := X1; Reg.Y1 := Y1;
+            Reg.Invert     := Args[I] = '1'; Inc(I);
+            MegaNum(Args, I);
+            Reg.ResetAfter := Args[I] = '1'; Inc(I);
+            MegaNum(Args, I); MegaNum(Args, I); MegaNum(Args, I);
+            MegaNum(Args, I); MegaNum(Args, I);
+            Reg.Text := Copy(Args, I, Length(Args));
+            Screen.AddMouseRegion (Reg);
+          End;
+    'D' : Begin  // RIP_DEFINE: $name=value
+            S := Copy(Args, I, Length(Args));
+            If (Length(S) > 0) and (S[1] = '$') Then Begin
+              Delete(S, 1, 1);
+              R := Pos('=', S);
+              If R > 0 Then
+                SetVar(Copy(S, 1, R-1), Copy(S, R+1, Length(S)))
+              Else
+                SetVar(S, '');
+            End;
+          End;
+    'R' : Begin  // RIP_READ_SCENE: load and parse another .rip file
+            S := Copy(Args, I, Length(Args));
+            If (S <> '') and (FBasePath <> '') Then Begin
+              S := FBasePath + S;
+              {$I-} Assign(SceneFile, S); Reset(SceneFile, 1); {$I+}
+              If IOResult = 0 Then Begin
+                While Not Eof(SceneFile) Do Begin
+                  BlockRead(SceneFile, SceneBuf, SizeOf(SceneBuf), SceneRead);
+                  For R := 0 to SceneRead - 1 Do
+                    Process(Chr(SceneBuf[R]));
+                End;
+                Close(SceneFile);
+              End;
+            End;
+          End;
+    'F' : Begin  // RIP_FILE_QUERY: check file, respond with size
+            S := Copy(Args, I, Length(Args));
+            If (S <> '') and (FBasePath <> '') Then Begin
+              S := FBasePath + S;
+              {$I-} Assign(SceneFile, S); Reset(SceneFile, 1); {$I+}
+              If IOResult = 0 Then Begin
+                R := FileSize(SceneFile);
+                Close(SceneFile);
+                If Assigned(Client) Then
+                  Client(IntToStr(R) + #13#10);
+              End Else
+                If Assigned(Client) Then
+                  Client('0' + #13#10);
+            End;
+          End;
+    'Q' : Begin  // RIP_QUERY: respond with terminal ID
+            If Assigned(Client) Then
+              Client ('RIPSCRIP015400' + #13#10);
+          End;
+  End; // case level 1
 End;
 
 Procedure TTermRip.ParseLine (Const Line: AnsiString);
 Var
   P    : Integer;
   J    : Integer;
-  Cmd  : Char;
-  Args : AnsiString;
-  Text : AnsiString;
+  Cmd   : Char;
+  Level : Integer;
+  Args  : AnsiString;
+  Text  : AnsiString;
 Begin
   If Line = '' Then Exit;
 
@@ -281,8 +494,11 @@ Begin
       Inc (P, 2);
 
       // optional level digit(s) before the command letter
-      While (P <= Length(Line)) And (Line[P] In ['0'..'9']) Do
+      Level := 0;
+      While (P <= Length(Line)) And (Line[P] In ['0'..'9']) Do Begin
+        Level := Level * 10 + (Ord(Line[P]) - Ord('0'));
         Inc (P);
+      End;
 
       If P > Length(Line) Then Exit;
 
@@ -298,7 +514,7 @@ Begin
 
       Args := Copy(Line, P, J - P);
 
-      HandleCommand (Cmd, Args);
+      HandleCommand (Level, Cmd, Args);
 
       WasValid := True;
 
@@ -344,6 +560,40 @@ Var
 Begin
   For Count := 1 to BufLen Do
     Process (Data[Count]);
+End;
+
+Procedure TTermRip.SetBasePath (Const Path: AnsiString);
+Begin
+  FBasePath := Path;
+  If (FBasePath <> '') and (FBasePath[Length(FBasePath)] <> '/') and
+     (FBasePath[Length(FBasePath)] <> '\') Then
+    FBasePath := FBasePath + '/';
+End;
+
+Function TTermRip.GetVar (Const Name: AnsiString) : AnsiString;
+Var I: Integer;
+Begin
+  Result := '';
+  For I := 0 to FVarCount - 1 Do
+    If FVars[I].Name = Name Then Begin
+      Result := FVars[I].Value;
+      Exit;
+    End;
+End;
+
+Procedure TTermRip.SetVar (Const Name, Value: AnsiString);
+Var I: Integer;
+Begin
+  For I := 0 to FVarCount - 1 Do
+    If FVars[I].Name = Name Then Begin
+      FVars[I].Value := Value;
+      Exit;
+    End;
+  If FVarCount < 100 Then Begin
+    FVars[FVarCount].Name  := Name;
+    FVars[FVarCount].Value := Value;
+    Inc(FVarCount);
+  End;
 End;
 
 End.

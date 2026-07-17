@@ -144,3 +144,46 @@ and period-appropriate Linux builds are unaffected.
 
 Phase 2/3 tracking moved to docs/TODO.md (fills, stroked fonts, buttons,
 emitter; then Beziers/clipboard/long tail).
+
+---
+
+## Current status (session update)
+
+### Completed
+
+- rip_term.pas: 51 of 51 commands. Level 0 + Level 1
+  dispatch with proper level tracking. All phases complete.
+- rip_canvas.pas: 49 abstract methods. Full RIPscrip v1.54
+  drawing surface interface. All implemented in rip_surface.pas.
+- ans2rip: PabloDraw-compatible ANSI-to-RIP converter. Moved to
+  mystic_rip/.
+- bbs_ansi_console.pas: TAbstractConsole + TAnsiEscConsole. MDL-free
+  console replacement for TOutput. Pure ANSI escape codes.
+- bbs_term_ansi.pas: MDL-free copy of TTermAnsi. Uses
+  TAbstractConsole instead of TOutput. Ready for cfg ANSI editor.
+- bbs_cfg_viewer.pas: TAnsiFileViewer class. Scrollable file viewer
+  with ESC popup menu (Continue/Help/Jump/Quit), ^G Goto, ^W Where.
+  Used by View Log Files in the Other menu.
+- Theme path validation: LoadThemeData checks all 5 theme paths
+  (Text, Menu, Script, Icon, Font). Reports all missing, then halts.
+- RecTheme: IconPath + FontPath carved from Reserved (188 -> 26).
+  Record size unchanged. On-disk compatible.
+- mripedit: standalone RIP scene editor (renamed from mripcfg).
+- maketheme: cfgtheme prompts for Icon/Font paths, offers to create dirs.
+- ans2rip: PabloDraw-compatible output (CRLF, ASCII 32-126, base-36).
+- 48 tests passing (Phase 3 test suite).
+
+### Decisions
+
+- NO MDL in new code. All new units use FPC RTL only.
+- Server-side RIP rendering deferred (Option 3). Client only for now.
+- mterm deleted. RIPscrip rendering stays in mystic_rip framework.
+- Icon/Font paths are theme-only (RecTheme), not system config.
+- RecConfig unchanged (mystic.dat compatible).
+
+### Remaining
+
+- All 51 commands implemented. No Phase 3 stubs remain.
+- rip_surface.pas: all 49 abstract methods implemented.
+- Doc audit: reconcile all docs with current code.
+- New user email: debug logging added, needs testing.

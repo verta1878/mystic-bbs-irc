@@ -171,10 +171,52 @@ project at `docs/RIPscrip154.txt` (5,150 lines). Key points:
 | .icn icons | `<textpath>/icons/` | RIPscrip icon files |
 | RIP detection | automatic | sends `!|1Q00000000`, checks for `R` response |
 
-## Companion: mterm
+## Tools
 
-The fork includes **mterm** — a standalone RIPscrip v1.54 terminal written in
-Free Pascal. It implements the full v1.54 command set (52 commands) using FPC's
-native Graph unit (BGI), which is the exact API RIPscrip was designed for.
-mterm connects via Telnet, COM port, or FOSSIL driver. See the mterm project
-for details.
+### ans2rip
+
+ANSI-to-RIPscrip converter in `mystic_rip/ans2rip.pas`. Uses PabloDraw-
+compatible output format: base-36 mega-numbers, line wrapping at 70 chars
+with backslash continuation, CP437 encoding.
+
+```
+ans2rip input.ans output.rip
+```
+
+### mripedit
+
+Standalone RIPscrip scene editor in `mripedit/`. WYSIWYG editor for
+creating .rip files with 14 drawing tools, undo/redo, and native .rip
+format save. Run from the command line or via mystic -cfg Other menu.
+
+```
+mripedit [--iconpath=DIR] [--fontpath=DIR] [filename.rip]
+```
+
+### rip_render / rip_view
+
+Headless renderer and SDL2 viewer in `mystic_rip/`. For testing .rip
+files without a BBS connection.
+
+```
+rip_render screen.rip output.bmp     # headless
+rip_view screen.rip                  # SDL2 window
+```
+
+## mystic_rip engine
+
+The RIPscrip engine in `mystic_rip/` implements 51 of 51 RIPscrip v1.54
+commands across Level 0 (drawing primitives) and Level 1 (buttons, text
+blocks, clipboard, icons). TTermRip parallels TTermAnsi: same interface,
+same hook points in bbs_io/mis/nodespy. See `mystic_rip/README.md` for
+the full command table.
+
+All 51 RIPscrip v1.54 commands implemented including Polygon,
+Define, ReadScene, and FileQuery.
+
+## Credits
+
+- RIPscrip v1.54: TeleGrafix Communications (freely licensed protocol)
+- PabloDraw (MIT): reference for RipWriter encoding patterns
+- BGI fonts (.CHR): originally Borland International, freely available
+- Carl Gorringe / RIPtermJS (GPLv3): studied as reference (no code copied)

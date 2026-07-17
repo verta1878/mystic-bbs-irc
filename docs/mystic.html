@@ -22472,4 +22472,69 @@ LOCAL WIKI DOCS NOW AVAILABLE (extracted from sysop&#x27;s HTTrack mirror 2026-0
 <p class="src">&mdash; wiki page: mystic_knownbugs</p>
 </div>
 <footer>Consolidated from the Mystic BBS wiki (wiki.mysticbbs.com) plus the fork's reverse-engineered template docs. Generated 2026-07-07 for the Mystic A38 "IRC" fork.</footer>
-</div></body></html>
+</div>
+<h2 id="ripscrip">RIPscrip Support</h2>
+
+<h3>Overview</h3>
+<p>Mystic BBS supports RIPscrip v1.54, a vector graphics protocol that
+gives BBS menus a graphical user interface with clickable buttons,
+icons, and scalable fonts. When a RIP-capable terminal connects,
+Mystic sends <code>.rip</code> files instead of ANSI art.</p>
+
+<p>RIPscrip is optional. If no <code>.rip</code> files exist, Mystic
+falls back to <code>.ans</code> (ANSI) or <code>.asc</code> (ASCII).</p>
+
+<h3>Terminal Modes</h3>
+<table>
+<tr><th>Value</th><th>Constant</th><th>Meaning</th></tr>
+<tr><td>0</td><td>TERM_ASCII</td><td>Plain text</td></tr>
+<tr><td>1</td><td>TERM_ANSI</td><td>ANSI color and cursor</td></tr>
+<tr><td>2</td><td>TERM_RIP</td><td>RIPscrip v1.54 graphical</td></tr>
+</table>
+
+<h3>Configuration</h3>
+<p><strong>System Config</strong> (mystic -cfg &rarr; Configuration):</p>
+<ul>
+<li>Terminal: Ask / Detect / Detect-Ask / ANSI / RIP</li>
+</ul>
+<p><strong>Theme Editor</strong> (mystic -cfg &rarr; Editors &rarr; Theme):</p>
+<ul>
+<li>Icon Path &mdash; path to .ICN icon files</li>
+<li>Font Path &mdash; path to .CHR font files</li>
+<li>Allow RIP &mdash; enable RIPscrip for this theme</li>
+</ul>
+<p>If Icon Path or Font Path are empty or point to missing directories,
+Mystic halts with an error. Run <code>maketheme cfgtheme</code> to fix.</p>
+
+<h3>File Layout</h3>
+<pre>
+\mystic\text\            Display files (.ans and .rip)
+\mystic\text\icon\       RIPscrip icons (.icn)
+\mystic\text\font\       BGI vector fonts (.chr)
+\mystic\menus\           Menu files (.mnu and .rip)
+</pre>
+<p>File search order for RIP terminals: .rip &rarr; .ans &rarr; .asc</p>
+
+<h3>Command Line</h3>
+<pre>
+mystic -L -R             Local mode with RIPscrip forced
+mystic -R                Force RIP terminal mode
+</pre>
+
+<h3>MCI Codes</h3>
+<table>
+<tr><th>Code</th><th>Description</th></tr>
+<tr><td>|SE</td><td>Terminal type: shows "RIP", "Ansi", or "Ascii"</td></tr>
+<tr><td>|RI</td><td>RIP reset: sends !|* (no-op if not RIP)</td></tr>
+</table>
+
+<h3>Tools</h3>
+<table>
+<tr><th>Tool</th><th>Description</th></tr>
+<tr><td>mripedit</td><td>Standalone RIPscrip scene editor</td></tr>
+<tr><td>ans2rip</td><td>ANSI to RIP converter</td></tr>
+<tr><td>mkicons</td><td>.ICN icon generator</td></tr>
+<tr><td>maketheme cfgtheme</td><td>Set theme paths from command line</td></tr>
+</table>
+
+</body></html>

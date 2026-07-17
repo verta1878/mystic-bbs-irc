@@ -274,3 +274,27 @@ real record types from install_arc.pas (SizeOf gives 12 / 100):
 
 If the first 5 bytes are `04 4D 59 53 1A` you have a MYS archive; byte layout and
 counts follow §2.
+
+## RIPscrip directories
+
+The installer should create the icon and font directories under the
+text path. These are required by the theme path validation (Mystic
+halts if they are missing or not configured).
+
+```
+  MakeDir(TextPath + 'icon' + PathChar);
+  MakeDir(TextPath + 'font' + PathChar);
+```
+
+The default theme should set IconPath and FontPath:
+
+```
+  Theme.IconPath := TextPath + 'icon' + PathChar;
+  Theme.FontPath := TextPath + 'font' + PathChar;
+```
+
+If these paths are not set, the sysop can fix them with:
+
+```
+  maketheme cfgtheme
+```

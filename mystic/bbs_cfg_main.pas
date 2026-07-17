@@ -52,7 +52,8 @@ Uses
   bbs_cfg_EchoMail,
   bbs_cfg_MenuEdit,
   bbs_cfg_Events,
-  bbs_Cfg_QwkNet;
+  bbs_Cfg_QwkNet,
+  bbs_cfg_viewer;
 
 Procedure Configuration_ExecuteEditor (Mode: Char);
 Var
@@ -75,6 +76,49 @@ Begin
   Session.io.RemoteRestore(TmpImage);
 End;
 
+Procedure Configuration_EditFile (FName: String);
+Var
+  Viewer : TAnsiFileViewer;
+  TmpImg : TConsoleImageRec;
+Begin
+  Console.GetScreenImage (1, 1, 79, 24, TmpImg);
+  Viewer := TAnsiFileViewer.Create(Pointer(Session), False);
+  If (FName = '') or Viewer.LoadFile(FName) Then
+    Viewer.Run;
+  Viewer.Free;
+  Session.io.RemoteRestore(TmpImg);
+End;
+
+Procedure Configuration_ViewLogs;
+Var
+  Viewer : TAnsiFileViewer;
+  TmpImg : TConsoleImageRec;
+Begin
+  Console.GetScreenImage (1, 1, 79, 24, TmpImg);
+  Viewer := TAnsiFileViewer.Create(Pointer(Session), True);
+  If Viewer.LoadFile(bbsCfg.LogsPath + 'mystic.log') Then
+    Viewer.Run;
+  Viewer.Free;
+  Session.io.RemoteRestore(TmpImg);
+End;
+
+Procedure Configuration_RIPEditor;
+Var
+  Img : TConsoleImageRec;
+  ABox : TAnsiMenuBox;
+Begin
+  Console.GetScreenImage (15, 8, 65, 14, Img);
+  ABox := TAnsiMenuBox.Create;
+  ABox.Open (15, 8, 65, 14);
+  WriteXY (17, 10, 15, ' RIP Editor');
+  WriteXY (17, 11, 7,  ' Run mripedit from the command line:');
+  WriteXY (17, 12, 11, '   mripedit [filename.rip]');
+  Session.io.GetKey;
+  ABox.Close;
+  ABox.Free;
+  Session.io.RemoteRestore (Img);
+End;
+
 Var
   MenuPtr : Byte = 0;
 
@@ -88,7 +132,7 @@ Begin
     1 : Topic := 'Configuration';
     2 : Topic := 'Servers';
     3 : Topic := 'Editors';
-    4 : Topic := 'Info';
+    4 : Topic := 'Other';
   End;
 
   Desc := Item.Help;
@@ -192,7 +236,7 @@ Begin
             Form.AddNone('C', ' Configuration ',  5, 2,  5, 2, 15, 'BBS configuration settings');
             Form.AddNone('S', ' Servers ',       26, 2, 26, 2,  9, 'Mystic Internet Server (MIS) settings');
             Form.AddNone('E', ' Editors ',       41, 2, 41, 2,  9, 'BBS configuration editors');
-            Form.AddNone('I', ' Info ',          56, 2, 56, 2,  6, 'BBS Information and Monitors');
+            Form.AddNone('O', ' Other ',         56, 2, 56, 2,  7, 'Tools, editors, and system info');
             Form.AddNone('X', ' Exit ' ,         69, 2, 69, 2,  6, 'Exit configuration');
 
             Res := Form.Execute;
@@ -209,7 +253,7 @@ Begin
                 'C' : MenuPtr := 1;
                 'S' : MenuPtr := 2;
                 'E' : MenuPtr := 3;
-                'I' : MenuPtr := 4;
+                'O' : MenuPtr := 4;
               End;
           End;
       1 : Begin
@@ -345,10 +389,24 @@ Begin
             End;
           End;
       4 : Begin
-            BoxOpen      (54, 4, 64, 6);
-            CoolBoxOpen  (54, 'Info');
+            BoxOpen      (48, 4, 79, 21);
+            CoolBoxOpen  (54, 'Other');
 
-            Form.AddNone ('A', ' A About',         55, 5, 55, 5, 9, '');
+            Form.AddNone ('A', ' A ANSI Editor',              50,  5, 50,  5, 28, 'Launch ANSI art editor');
+            Form.AddNone ('T', ' T Text Editor',              50,  6, 50,  6, 28, 'Edit text files');
+            Form.AddNone ('L', ' L View Log Files',           50,  7, 50,  7, 28, 'View system log files');
+            Form.AddNone ('R', ' R RIP Editor',               50,  8, 50,  8, 28, 'Edit RIPscrip scene files');
+            Form.AddNone ('-', ' --------------------------', 50,  9, 50,  9, 28, '');
+            Form.AddNone ('N', ' N Edit Bad User Names',      50, 10, 50, 10, 28, 'Edit banned user names');
+            Form.AddNone ('D', ' D Edit Bad E-mails',         50, 11, 50, 11, 28, 'Edit banned email list');
+            Form.AddNone ('W', ' W Edit New User Welcome',    50, 12, 50, 12, 28, 'Edit new user welcome letter');
+            Form.AddNone ('U', ' U Edit New User Notify',     50, 13, 50, 13, 28, 'Edit new user notification');
+            Form.AddNone ('H', ' H Edit Hack Warning',        50, 14, 50, 14, 28, 'Edit hack warning message');
+            Form.AddNone ('P', ' P Edit Spellcheck Words',    50, 15, 50, 15, 28, 'Edit spellcheck dictionary');
+            Form.AddNone ('G', ' G Edit Global Taglines',     50, 16, 50, 16, 28, 'Edit global tagline list');
+            Form.AddNone ('C', ' C Reset Caller Data',        50, 17, 50, 17, 28, 'Reset caller data');
+            Form.AddNone ('-', ' --------------------------', 50, 18, 50, 18, 28, '');
+            Form.AddNone ('V', ' V Version Information',      50, 19, 50, 19, 28, 'About Mystic BBS');
 
             Res        := Form.Execute;
             MenuPos[4] := Form.ItemPos;
@@ -358,14 +416,26 @@ Begin
             If Form.WasHiExit Then Begin
               Case Res of
                 #75 : MenuPtr := 3;
-                #77 : Begin              // Right off Info -> land on top-bar Exit
+                #77 : Begin
                         MenuPtr     := 0;
                         MenuPos[0]  := 5;
                       End;
               End;
             End Else
               Case Res of
-                'A' : AboutBox;
+                'A' : Configuration_EditFile('');
+                'T' : Configuration_EditFile('');
+                'L' : Configuration_ViewLogs;
+                'R' : Configuration_RIPEditor;
+                'N' : Configuration_EditFile(bbsCfg.DataPath + 'badnames.txt');
+                'D' : Configuration_EditFile(bbsCfg.DataPath + 'bademail.txt');
+                'W' : Configuration_EditFile(bbsCfg.DataPath + 'newletter.txt');
+                'U' : Configuration_EditFile(bbsCfg.DataPath + 'newnotify.txt');
+                'H' : Configuration_EditFile(bbsCfg.DataPath + 'hackwarn.txt');
+                'P' : Configuration_EditFile(bbsCfg.DataPath + 'spellcheck.txt');
+                'G' : Configuration_EditFile(bbsCfg.DataPath + 'taglines.txt');
+                'C' : ;
+                'V' : AboutBox;
                 'X' : Break;
               Else
                 MenuPtr := 0;

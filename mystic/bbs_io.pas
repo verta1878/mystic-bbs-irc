@@ -73,6 +73,7 @@ Type
     AllowAbort     : Boolean;
     NoFile         : Boolean;
     Graphics       : Byte;
+    UseRipTerm     : Boolean;
     SavedScreen    : TConsoleImageRec;  // A52: |SS / |RS screen save/restore
     PausePtr       : Byte;
     InputData      : Array[1..mysMaxInputHistory] of String[255];
@@ -244,6 +245,7 @@ Begin
   InSize         := 0;
   NoFile         := False;
   Graphics       := 1;
+  UseRipTerm     := False;
   PausePtr       := 1;
   LastMCIValue   := '';
   InputPos       := 0;

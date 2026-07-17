@@ -94,3 +94,45 @@ WATT32LIB=/path/to/watt ./build-dos.sh     # 14/14
   alpha's import is complete). Each archive unpacks into a matching top-level
   folder so FULL and UPDATE never merge, and its FILE_ID.DIZ ends with a
   `Released: <STAMP>` line.
+
+## Building mystic_rip (RIPscrip engine)
+
+The RIPscrip engine is in `mystic_rip/` and builds separately.
+
+```bash
+cd mystic_rip
+./build-rip.sh              # Linux
+./build-rip.sh win32        # Windows cross-compile
+```
+
+Individual tools:
+
+```bash
+fpc -Mobjfpc ans2rip.pas       # ANSI-to-RIP converter
+fpc -Mobjfpc mkicons.pas       # .ICN icon generator
+fpc -Mobjfpc ripmake.pas       # text-to-RIP generator
+fpc -Mobjfpc test_phase3.pas   # test suite (48 tests)
+```
+
+The engine uses **FPC RTL only** (no MDL units). rip_view requires
+SDL2 at runtime (not linked; loaded via sdl_bind.pas).
+
+## Building maketheme
+
+maketheme must be rebuilt when records.pas changes (RecTheme layout):
+
+```bash
+# Linux
+./build.sh maketheme
+
+# Windows cross-compile
+ppc386 -Twin32 -Mdelphi -Fumystic -Fumdl -Fimystic -Fimdl \
+    -Fu<units-path> -FEout/bin -B mystic/maketheme.pas
+```
+
+## Building mripedit (standalone RIP editor)
+
+```bash
+cd mripedit
+fpc -Mobjfpc mripedit.pas
+```

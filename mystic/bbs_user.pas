@@ -1119,10 +1119,19 @@ Begin
   // can hand control to the next menu (main -> onliners) and not return here, in
   // which case a feedback block placed after it never executes.  PostMessage uses
   // the in-memory ThisUser, so it does not need the account written to disk first.
+  Session.SystemLog('DEBUG NewUser: NewUserEmail=' + strI2S(Ord(bbsCfg.NewUserEmail)));
+  Session.SystemLog('DEBUG NewUser: FeedbackTo=[' + bbsCfg.FeedbackTo + ']');
+  Session.SystemLog('DEBUG NewUser: SysopName=[' + bbsCfg.SysopName + ']');
+  Session.SystemLog('DEBUG NewUser: Security=' + strI2S(ThisUser.Security));
+
   If bbsCfg.NewUserEmail Then Begin
+    Session.SystemLog('DEBUG NewUser: email prompt starting');
     Session.io.OutFile('feedback', True, 0);
+    Session.SystemLog('DEBUG NewUser: calling MW command to ' + bbsCfg.FeedbackTo);
     If Session.Menu.ExecuteCommand ('MW', '/TO:' + strReplace(bbsCfg.FeedbackTo, ' ', '_') + ' /SUBJ:New_User_Feedback /F') Then;
-  End;
+    Session.SystemLog('DEBUG NewUser: email prompt complete');
+  End Else
+    Session.SystemLog('DEBUG NewUser: NewUserEmail is FALSE - skipped');
 
   Session.Menu.MenuName := 'newinfo';
   Session.Menu.ExecuteMenu (True, False, False, True);

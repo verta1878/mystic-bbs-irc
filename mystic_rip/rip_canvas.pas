@@ -110,6 +110,43 @@ Type
     Procedure FilledOval (X, Y, XRad, YRad: Integer); Virtual; Abstract;  // RIP 'o'
     Procedure FloodFill (X, Y: Integer; Border: TRipColor); Virtual; Abstract; // RIP 'F'
     Procedure WriteText (X, Y: Integer; Const S: AnsiString); Virtual; Abstract; // RIP '@'/'T'
+    // arcs and curves
+    Procedure Arc (X, Y, StAngle, EndAngle, Radius: Integer); Virtual; Abstract;
+    Procedure OvalArc (X, Y, StAngle, EndAngle, XRad, YRad: Integer); Virtual; Abstract;
+    Procedure PieSlice (X, Y, StAngle, EndAngle, Radius: Integer); Virtual; Abstract;
+    Procedure OvalPieSlice (X, Y, StAngle, EndAngle, XRad, YRad: Integer); Virtual; Abstract;
+    Procedure Bezier (X1, Y1, X2, Y2, X3, Y3, X4, Y4, Count: Integer); Virtual; Abstract;
+    // polygons
+    Procedure Polygon (Var Points; NumPoints: Integer); Virtual; Abstract;
+    Procedure FillPolygon (Var Points; NumPoints: Integer); Virtual; Abstract;
+    Procedure Polyline (Var Points; NumPoints: Integer); Virtual; Abstract;
+    // style
+    Procedure SetFillStyle (Pattern: Integer; Color: TRipColor); Virtual; Abstract;
+    Procedure SetFillPattern (Var Pattern; Color: TRipColor); Virtual; Abstract;
+    Procedure SetFontStyle (Font, Direction, Size: Integer); Virtual; Abstract;
+    Procedure SetPalette (Var Pal); Virtual; Abstract;
+    Procedure SetOnePalette (Color, EGA64: Integer); Virtual; Abstract;
+    // viewport and windows
+    Procedure SetViewPort (X0, Y0, X1, Y1: Integer; Clip: Boolean); Virtual; Abstract;
+    Procedure TextWindow (X0, Y0, X1, Y1, Wrap: Integer); Virtual; Abstract;
+    Procedure ResetWindows; Virtual; Abstract;
+    Procedure GotoXY (X, Y: Integer); Virtual; Abstract;
+    Procedure Home; Virtual; Abstract;
+    Procedure EraseEOL; Virtual; Abstract;
+    Procedure EraseWindow; Virtual; Abstract;
+    Procedure EraseView; Virtual; Abstract;
+    // clipboard and icons
+    Procedure GetImage (X0, Y0, X1, Y1: Integer); Virtual; Abstract;
+    Procedure PutImage (X, Y, Mode: Integer); Virtual; Abstract;
+    Procedure WriteIcon (FileName: AnsiString); Virtual; Abstract;
+    Procedure LoadIcon (X, Y: Integer; FileName: AnsiString); Virtual; Abstract;
+    // buttons
+    Procedure SetButtonStyle (Var Params); Virtual; Abstract;
+    Procedure DrawButton (X0, Y0, X1, Y1: Integer; Const Params: AnsiString); Virtual; Abstract;
+    // text blocks
+    Procedure BeginText (X, Y, W, H: Integer); Virtual; Abstract;
+    Procedure RegionText (Justify: Integer; Const S: AnsiString); Virtual; Abstract;
+    Procedure EndText; Virtual; Abstract;
     // input regions
     Procedure AddMouseRegion (Const R: TRipMouseRegion); Virtual; Abstract;  // RIP 'M'
     Procedure KillMouseRegions; Virtual; Abstract;                           // RIP 'K'

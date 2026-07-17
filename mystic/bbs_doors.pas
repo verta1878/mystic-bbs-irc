@@ -195,7 +195,7 @@ Begin
   Write (tFile, (Session.TimeLeft * 60), Ending); {seconds left}
   Write (tFile, Session.TimeLeft, Ending); {mins left}
 
-  If Session.io.Graphics = 1 Then Write (tFile, 'GR' + Ending) Else Write (tFile, 'NG' + Ending);
+  If Session.io.Graphics >= TERM_ANSI Then Write (tFile, 'GR' + Ending) Else Write (tFile, 'NG' + Ending);
 
   Write (tFile, Session.User.ThisUser.ScreenSize, Ending);   {page length}
   Write (tFile, 'N' + Ending);    {Y=expert, N=novice}

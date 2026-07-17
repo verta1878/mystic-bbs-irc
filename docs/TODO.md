@@ -94,35 +94,46 @@ Whatever surfaces here IS the next real work.
 
 --------------------------------------------------------------------------
 
-## 4. RIP GRAPHICS — Phase 1 DONE, next phases
+## 4. RIP GRAPHICS — ALL PHASES COMPLETE
 
-  Engine landed 2026-07-08 (see docs/RIP-INTEGRATION.md §9 for exactly what
-  went where). Remaining, in design-doc order:
+51/51 RIPscrip v1.54 commands implemented. 48 tests passing.
 
-  - Phase 2a (renderer): fill patterns (RIP 'S'/'s'), line styles/thickness
-    ('='), stroked/scalable fonts ('Y' text settings), the button/icon system
-    ('U','1B' level-1 buttons) with <clk> invert feedback, text windows ('w')
-    and viewports ('v') instead of the simplified whole-screen 'e'/'E' clear.
-  - Phase 2b (hook-up): give TTermRip a live seat next to TTermAnsi — an
-    RIP-capable front-end path (nodespy_term / mystic_sdl session) that
-    auto-detects RIP and routes the stream; wire TRipWindow.OnRegionClick to
-    the connection so hot-region clicks type at the host. THIS is the
-    promotion point: rip_term.pas -> mdl/m_term_rip.pas, reply callback ->
-    TIOBase. Threading (if any) = FPC TThread/cthreads (like
-    m_socket_server), never a custom layer.
-  - Phase 2c (emitter): serve RIP from the BBS side — author screens ->
-    '!|' sequences, the way ANSI is emitted from templates/MCI today.
-  - Phase 3: Beziers ('Z'), polygons ('P'/'p'), clipboard ops ('C' level-1
-    extended), RIP_QUERY replies via the SetReplyClient seam, the rare-command
-    long tail.
-  - Environment note (RESOLVED 2026-07-08 for the shipped lib): the FPC 2.6.2
-    i386 "crash in SDL_Init" was the 4-byte vs 16-byte i386 stack-alignment
-    mismatch with modern distro SDL. libs/linux-i386/libSDL2-2.0.so.0 is now
-    built from 2.32.8 source WITH -mstackrealign and runs clean (rip_view and
-    sdl_demo verified headless). A stock distro SDL will still crash; use the
-    bundled one. Windows SDL2.dll was never affected.
+### Completed
 
---------------------------------------------------------------------------
+- **Phase 1** (core drawing): c W = m X L R B C O o F @ T M K e E (17 cmds)
+- **Phase 2** (full Level 0 + Level 1): arcs, bezier, viewport, text window,
+  palette, font style, fill style, buttons, text blocks, clipboard, icons,
+  mouse regions, query response (28 more cmds)
+- **Phase 3** (final 6): Polygon/FillPolygon/Polyline with point array
+  parsing, Define (\$variable storage), ReadScene (file includes),
+  FileQuery (host file check with reply)
+
+### Engine files (mystic_rip/)
+
+- rip_term.pas (599 lines): parser + Level 0/1 command dispatch
+- rip_canvas.pas (157 lines): 49 abstract methods
+- rip_surface.pas (765 lines): software 640x350 rasterizer, all methods
+- rip_window.pas: SDL2 presenter
+- rip_render.pas: headless .RIP to BMP
+- ans2rip.pas: ANSI-to-RIP converter (PabloDraw compatible)
+- mkicons.pas: .ICN icon generator
+- test_phase3.pas: 48 tests
+
+### Mystic integration (mystic/)
+
+- records.pas: TERM_RIP, ThmAllowRIP, UseRipDetect, IconPath/FontPath
+- bbs_core.pas: theme path halt (all 5 paths checked)
+- bbs_cfg_main.pas: Other menu (14 items), TAnsiFileViewer log viewer
+- bbs_cfg_theme.pas: Icon Path + Font Path fields, Allow RIP flag
+- bbs_cfg_syscfg.pas: Terminal toggle 0-4 (adds RIP)
+- bbs_ansi_console.pas + bbs_term_ansi.pas: MDL-free TTermAnsi
+- maketheme.pas: cfgtheme prompts Icon/Font paths, creates dirs
+
+### Content (mystic_rip/)
+
+- 32 display .rip files, 5 menu .rip files, 85 example .RIP art
+- 8 .icn icons, 10 .CHR fonts, HOWTO doc
+
 
 ## 5. OS/2 TARGET — source done, native link + live test outstanding
 

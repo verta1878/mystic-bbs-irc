@@ -3668,3 +3668,35 @@
   If uniqueness is ever re-added (behind a config toggle), the scan MUST skip
   deleted accounts (RecUser.Deleted, records.pas:818) so a deleted user's stale
   address does not block reuse.
+
+## RIPscrip integration decisions
+
+- **No MDL in new code.** All new units (bbs_ansi_console, bbs_term_ansi,
+  bbs_cfg_viewer, ans2rip, mystic_rip/*) use FPC RTL only. Existing Mystic
+  code that uses MDL stays, but all additions are pure FPC.
+
+- **Icon/Font paths are theme-only (RecTheme).** Not in RecConfig
+  (mystic.dat unchanged). Carved from RecTheme Reserved (188->26).
+  Record size unchanged, on-disk compatible.
+
+- **UseRipDetect carved from RecConfig Reserved (553->552).** Record
+  size unchanged, mystic.dat compatible.
+
+- **Server-side RIP rendering deferred.** Client-only for now.
+  mystic -L -R shows raw !| commands. Sysop tests with a RIP client.
+
+- **Theme path halt.** LoadThemeData checks all 5 theme paths (Text,
+  Menu, Script, Icon, Font). Empty or missing = halt with
+  'Run: maketheme cfgtheme' message. Prevents silent misconfiguration.
+
+- **maketheme cfgtheme creates directories.** AskPath checks if the
+  entered path exists and offers to create it (Y/n prompt).
+
+- **mterm deleted.** RIPscrip rendering consolidated into mystic_rip
+  framework (TTermRip parallels TTermAnsi).
+
+- **mripedit** (renamed from mripcfg). Standalone RIP scene editor.
+
+- **ans2rip uses PabloDraw patterns.** Base-36 mega-numbers, CRLF
+  line endings, line wrapping at 70 chars, ASCII 32-126 text only.
+  Credit to PabloDraw (MIT license).

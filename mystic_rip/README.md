@@ -1,78 +1,173 @@
-# mystic_rip — optional RIPscrip graphics example for Mystic A38
+# mystic_rip — RIPscrip v1.54 engine for Mystic BBS
 
-An **optional, separate example module**: a working RIPscrip 1.x terminal
-engine — the groundwork for RIP graphics support in the fork.  Like the other
-add-ons (`mystic_sdl/`, `mystic_spell/`, `mystic_crypt/`), nothing in the core
-depends on it, it uses **FPC RTL units only** (no `mdl/` units), and its one
-external library (SDL2, for the viewer only) is **runtime-loaded** through
-`../mystic_sdl/sdl_bind.pas` — never linked.
+An optional RIPscrip graphics engine for the Mystic BBS IRC fork.
+Interprets RIPscrip v1.54 commands and renders to a pluggable
+graphics backend. Uses **FPC RTL units only** (no MDL).
 
-## What RIP is
-
-RIPscrip (TeleGrafix, 1992) let a BBS send **vector graphics and clickable
-mouse buttons** to a caller instead of plain ANSI text: `!|` command
-sequences drawing lines, boxes, circles, fills and text on a 640x350 EGA
-canvas, plus "hot regions" that transmit a string to the host when clicked.
-This module interprets that protocol.
-
-## Design (see docs/RIP-INTEGRATION.md for the full mapping)
-
-- `rip_term.pas`    — **TTermRip**: the terminal class, deliberately shaped
-                     exactly like the ANSI class `TTermAnsi`
-                     (`mdl/m_term_ansi.pas`): `Create` / `Process` /
-                     `ProcessBuf` / `SetReplyClient`.  Feed it the byte
-                     stream; it interprets the RIPscrip level-1
-                     drawing/menu subset (`c W = m X L R B C O o F @ T M
-                     K e E`), CR-framed with `\` line continuation.
-- `rip_canvas.pas`  — **TRipCanvas**: the graphics seam TTermRip draws to
-                     (RIP is vector graphics, so it cannot render to the
-                     text-cell `TOutput`).  Abstract class; backends
-                     implement it.  Includes the EGA reference palette and
-                     the hot-region record.
-- `rip_surface.pas` — **TRipSurface**: a pure-software 640x350 raster
-                     backend (Bresenham, midpoint ellipses, flood fill,
-                     8x8 font) with a BMP export for headless testing.
-- `rip_window.pas`  — **TRipWindow**: SDL2 presenter (streaming ARGB
-                     texture, EGA aspect correction); maps clicks back to
-                     RIP coordinates and fires the hot regions.
-- `rip_sample.pas`  — the built-in sample screen the demos share.
-- `rip_render.pas`  — headless demo: `.RIP` → BMP.  No SDL, no display.
-- `rip_view.pas`    — GUI demo: `.RIP` in a window; clicking a RIP button
-                     prints the string it would send to the host.
-
-The engine derives from the maintainer's clean-room **ripterm client** —
-built once, used twice: the standalone client and this module share one
-engine, and this module's renderer is pixel-identical to the client's.
-
-## Try it
+## Architecture
 
 ```
-./build-rip.sh                   # or: ./build-rip.sh win32
-bin/rip_render --sample out.bmp  # headless render of the sample screen
-bin/rip_render screen.rip out.bmp
-bin/rip_view --sample            # same screen in a window (needs SDL2)
+  BBS byte stream
+       │
+  ┌────▼────┐
+  │ TTermRip │  rip_term.pas — parser + command dispatch
+  └────┬────┘
+       │ calls
+  ┌────▼──────┐
+  │ TRipCanvas │  rip_canvas.pas — abstract graphics interface (49 methods)
+  └────┬──────┘
+       │ implemented by
+  ┌────▼───────┐
+  │ TRipSurface │  rip_surface.pas — software 640x350 rasterizer
+  └────┬───────┘
+       │ displayed by
+  ┌────▼───────┐
+  │ TRipWindow  │  rip_window.pas — SDL2 presenter (optional)
+  └────────────┘
 ```
 
-## Promotion path (when RIP goes live in the core)
+TTermRip parallels TTermAnsi exactly: same Create / Process /
+ProcessBuf / SetReplyClient interface, same stream-interpreter role.
 
-This module is the staging ground.  The design (docs/RIP-INTEGRATION.md)
-maps the promotion: `rip_term.pas` becomes `mdl/m_term_rip.pas` beside
-`m_term_ansi.pas`; the reply callback (`TRipReplyProc`) swaps to `TIOBase`
-(the public shape already matches); the surface/presenter stay module-side.
-Any threading in the live hook-up uses **FPC's own TThread/cthreads**, the
-same way `mdl/m_socket_server.pas` already does — no custom thread layer.
+## Commands implemented (51 of 51)
 
-## Cross-platform / Darwin
+### Level 0 — drawing primitives
 
-Pure Pascal throughout; the only platform edge is SDL2 loading in
-`sdl_bind` (Windows / Linux / macOS names handled there).  As elsewhere in
-this fork, the Darwin build is maintained by code review and links on a
-real Mac.
+| Cmd | Name | Fields | Status |
+|-----|------|--------|--------|
+| `c` | Color | color | Done |
+| `W` | WriteMode | mode | Done |
+| `=` | LineStyle | style, pattern | Done |
+| `m` | Move | x, y | Done |
+| `X` | Pixel | x, y | Done |
+| `L` | Line | x0, y0, x1, y1 | Done |
+| `R` | Rectangle | x0, y0, x1, y1 | Done |
+| `B` | Bar (filled) | x0, y0, x1, y1 | Done |
+| `C` | Circle | x, y, radius | Done |
+| `O` | Oval | x, y, xr, yr | Done |
+| `o` | FilledOval | x, y, xr, yr | Done |
+| `F` | FloodFill | x, y, border | Done |
+| `@` | TextXY | x, y, text | Done |
+| `T` | Text | text | Done |
+| `M` | Mouse region | num, x0, y0, x1, y1, params, text | Done |
+| `K` | KillMouse | (none) | Done |
+| `e` | EraseWindow | (none) | Done |
+| `E` | EraseView | (none) | Done |
+| `v` | Viewport | x0, y0, x1, y1 | Done |
+| `w` | TextWindow | x0, y0, x1, y1, wrap | Done |
+| `*` | Reset | (none) | Done |
+| `g` | GotoXY | x, y | Done |
+| `H` | Home | (none) | Done |
+| `>` | EraseEOL | (none) | Done |
+| `Q` | SetPalette | 16 values | Done |
+| `a` | OnePalette | color, ega64 | Done |
+| `Y` | FontStyle | font, dir, size | Done |
+| `A` | Arc | x, y, stAng, endAng, radius | Done |
+| `V` | OvalArc | x, y, stAng, endAng, xr, yr | Done |
+| `I` | PieSlice | x, y, stAng, endAng, radius | Done |
+| `i` | OvalPieSlice | x, y, stAng, endAng, xr, yr | Done |
+| `Z` | Bezier | x1-x4, y1-y4, count | Done |
+| `S` | FillStyle | pattern, color | Done |
+| `s` | FillPattern | 8-byte pattern, color | Done |
+| `#` | NoMore | (none) | Done |
+| `P` | Polygon | points | Done |
+| `p` | FillPolygon | points | Done |
+| `l` | Polyline | points | Done |
+
+### Level 1 — buttons, text blocks, clipboard
+
+| Cmd | Name | Fields | Status |
+|-----|------|--------|--------|
+| `1B` | ButtonStyle | style params | Done |
+| `1U` | Button | x0, y0, x1, y1, hotkey, flags, text | Done |
+| `1T` | BeginText | x, y, w, h | Done |
+| `1t` | RegionText | justify, text | Done |
+| `1E` | EndText | (none) | Done |
+| `1C` | GetImage | x0, y0, x1, y1 | Done |
+| `1P` | PutImage | x, y, mode | Done |
+| `1W` | WriteIcon | filename | Done |
+| `1I` | LoadIcon | x, y, mode, clip, filename | Done |
+| `1G` | CopyRegion | x0, y0, x1, y1, dx, dy | Done |
+| `1M` | Mouse (L1) | same as level 0 | Done |
+| `1K` | KillMouse (L1) | (none) | Done |
+| `1Q` | Query | (none) → responds RIPSCRIP015400 | Done |
+| `1D` | Define | $ variable | Done |
+| `1R` | ReadScene | filename | Done |
+| `1F` | FileQuery | filename | Done |
+
+## Tools
+
+| Tool | Description |
+|------|-------------|
+| `ans2rip` | ANSI-to-RIP converter. PabloDraw-compatible output with base-36 encoding and line wrapping at 70 chars. |
+| `rip_render` | Headless .RIP to BMP renderer. No SDL needed. |
+| `rip_view` | GUI .RIP viewer with SDL2. Clickable mouse regions. |
+
+## File formats
+
+| Extension | Format |
+|-----------|--------|
+| `.rip` | RIPscrip scene — text file, `!|` commands |
+| `.icn` | RIPscrip icon — binary, BGI GetImage format, 24x24 EGA |
+| `.chr` | BGI vector font — binary, Borland stroked font format |
+
+## Build
+
+```bash
+./build-rip.sh              # Linux x86_64
+./build-rip.sh win32         # Windows cross-compile
+```
+
+## Content files
+
+### Display files (text/*.rip)
+
+32 RIPscrip display files for the default Mystic theme. These are the
+RIP equivalents of the standard .ans files. Mystic serves these to RIP
+terminals automatically (CheckFileInPath checks .rip before .ans).
+
+Key files: mainmenu.rip (main menu with buttons), logon.rip, logoff.rip,
+prelogon.rip (matrix), feedback.rip, newuser.rip, teleconf.rip.
+
+### Menu files (menus/*.rip)
+
+5 RIPscrip menu scenes with clickable mouse regions. Each .rip sits
+alongside its .mnu in the menus/ directory. Contains !|1U buttons and
+!|1M mouse regions that send hotkeys to the BBS.
+
+Files: main.rip, matrix.rip, email.rip, file.rip, message.rip.
+
+### Icons (text/icons/*.icn)
+
+8 RIPscrip icon files in BGI GetImage binary format (24x24 pixels, EGA
+16-color). Generated by mkicons.pas. Used by !|1I (LoadIcon) command.
+
+Files: chat.icn, door.icn, files.icn, logo.icn, mail.icn, quit.icn,
+sysinfo.icn, who.icn.
+
+### Fonts (text/fonts/*.CHR)
+
+10 BGI vector stroked fonts in Borland .CHR format. Standard set shipped
+with Free Pascal's Graph unit. Used by !|Y (FontStyle) command.
+
+Files: BOLD, EURO, GOTH, LCOM, LITT, SANS, SCRI, SIMP, TRIP, TSCR.
+
+### Examples (examples/*.RIP)
+
+85 real RIPscrip art files from the BBS era. These are reference scenes
+for testing the parser and renderer. Range from simple menus to complex
+artwork (FIERO.RIP at 56KB, FINISHLN.RIP at 99KB).
+
+## Credits
+
+- RIPscrip v1.54 protocol: TeleGrafix Communications (freely licensed)
+- PabloDraw (MIT): reference for RipWriter base-36 encoding and line wrapping
+- BGI vector fonts (.CHR): originally Borland International, freely available
+- Engine: maintainer's clean-room implementation, FPC RTL only, GPLv3
 
 ## Status
 
-Phase 1 (this module): parser + software raster + SDL viewer with working
-clickable hot regions; verified on linux i386 + win32; renderer output
-pixel-identical to the ripterm client reference.  Phase 2 (fills, fonts,
-buttons, the live hook-up, the emitter) and Phase 3 (long tail) are
-tracked in docs/TODO.md item 4.
+Phase 1 complete: parser + software raster + SDL viewer with clickable
+hot regions. Phase 2 (51 commands) complete: full Level 0 + Level 1
+command coverage. Phase 3 (polygon point arrays, Define/ReadScene/
+FileQuery, font rendering) tracked in docs/TODO.md.

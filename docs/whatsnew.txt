@@ -9,6 +9,49 @@
     !  bug fix / behavior change
  Upstream socket-layer history is in CHANGELOG.TXT (V. Chapman, 2013).
 
+----------------------------------------------------------------
+ RIPscrip v1.54 support (session July 2026)
+----------------------------------------------------------------
+
+ mystic_rip engine:
+   - 51/51 RIPscrip v1.54 commands implemented
+   - TTermRip parser parallels TTermAnsi (same interface)
+   - TRipCanvas (49 abstract methods) + TRipSurface (software rasterizer)
+   - SDL2 viewer (rip_view) and headless renderer (rip_render)
+   - ans2rip: ANSI-to-RIP converter (PabloDraw compatible)
+   - mkicons: .ICN icon generator
+   - 48 tests passing
+   - 85 example .RIP art files, 32 display .rip, 5 menu .rip
+   - 8 .icn icons, 10 .CHR fonts
+
+ Mystic BBS changes:
+   - records.pas: TERM_RIP=2, ThmAllowRIP, UseRipDetect (carved from
+     Reserved), IconPath/FontPath in RecTheme (carved from Reserved)
+   - bbs_core.pas: theme path halt (all 5 paths checked, empty or
+     missing = halt with 'maketheme cfgtheme' message)
+   - bbs_cfg_main.pas: Other menu (14 items), View Log Files using
+     TAnsiFileViewer class with ESC popup menu
+   - bbs_cfg_theme.pas: Icon Path + Font Path fields, Allow RIP flag
+   - bbs_cfg_syscfg.pas: Terminal toggle adds RIP (0-4)
+   - bbs_io.pas: UseRipTerm field, .rip file search before .ans
+   - bbs_user.pas: debug logging for new user email flow
+   - bbs_doors.pas: door drops use >= TERM_ANSI
+   - mystic.pas: -R flag forces RIPscrip mode
+   - maketheme.pas: cfgtheme prompts Icon/Font paths, creates dirs
+
+ New units (no MDL dependency):
+   - bbs_ansi_console.pas: TAbstractConsole + TAnsiEscConsole
+   - bbs_term_ansi.pas: MDL-free TTermAnsi (uses TAbstractConsole)
+   - bbs_cfg_viewer.pas: TAnsiFileViewer (scrollable file viewer)
+
+ Tools:
+   - mripedit: standalone RIPscrip scene editor (renamed from mripcfg)
+
+ Credits:
+   - PabloDraw (MIT): RipWriter encoding patterns
+   - Carl Gorringe / RIPtermJS (GPLv3): reference studied
+   - TeleGrafix Communications: RIPscrip protocol
+
  The 'IRC' name is short for Internet Relay Chat - a nod to the era that
  carried this scene forward (modems -> BBS -> IRC -> Discord).  It also
  marks why this fork exists at all: the open GPL release of the A38 source

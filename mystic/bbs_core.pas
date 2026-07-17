@@ -477,6 +477,7 @@ End;
 Function TBBSCore.LoadThemeData (Str: String) : Boolean;
 Var
   Count      : LongInt;
+  PathError  : Boolean;
   PromptFile : Text;
   Buffer     : Array[1..1024 * 8] of Char;
   Temp       : String;
@@ -492,6 +493,47 @@ Begin
     If strUpper(TempTheme.FileName) = strUpper(Str) Then Begin
       Result := True;
       Theme  := TempTheme;
+
+      { Check all theme paths exist - report all missing then halt }
+      PathError := False;
+      If (Theme.TextPath <> '') and Not DirExists(Theme.TextPath) Then Begin
+        SystemLog('ERROR: Text path not found: ' + Theme.TextPath);
+        WriteLn('  Text path: ' + Theme.TextPath);
+        PathError := True;
+      End;
+      If (Theme.MenuPath <> '') and Not DirExists(Theme.MenuPath) Then Begin
+        SystemLog('ERROR: Menu path not found: ' + Theme.MenuPath);
+        WriteLn('  Menu path: ' + Theme.MenuPath);
+        PathError := True;
+      End;
+      If (Theme.ScriptPath <> '') and Not DirExists(Theme.ScriptPath) Then Begin
+        SystemLog('ERROR: Script path not found: ' + Theme.ScriptPath);
+        WriteLn('  Script path: ' + Theme.ScriptPath);
+        PathError := True;
+      End;
+      If Theme.IconPath = '' Then Begin
+        SystemLog('ERROR: Icon path not configured for theme: ' + Theme.FileName);
+        WriteLn('  Icon path: (not set)');
+        PathError := True;
+      End Else If Not DirExists(Theme.IconPath) Then Begin
+        SystemLog('ERROR: Icon path not found: ' + Theme.IconPath);
+        WriteLn('  Icon path: ' + Theme.IconPath);
+        PathError := True;
+      End;
+      If Theme.FontPath = '' Then Begin
+        SystemLog('ERROR: Font path not configured for theme: ' + Theme.FileName);
+        WriteLn('  Font path: (not set)');
+        PathError := True;
+      End Else If Not DirExists(Theme.FontPath) Then Begin
+        SystemLog('ERROR: Font path not found: ' + Theme.FontPath);
+        WriteLn('  Font path: ' + Theme.FontPath);
+        PathError := True;
+      End;
+      If PathError Then Begin
+        WriteLn('ERROR: Theme paths missing for theme: ' + Theme.FileName);
+        WriteLn('Run: maketheme cfgtheme  to set the missing paths.');
+        Halt(1);
+      End;
 
       Break;
     End;

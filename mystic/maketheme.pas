@@ -246,6 +246,8 @@ Begin
     WriteLn ('     Text  : ' + CT.TextPath);
     WriteLn ('     Menu  : ' + CT.MenuPath);
     WriteLn ('     Script: ' + CT.ScriptPath);
+    WriteLn ('     Icon  : ' + CT.IconPath);
+    WriteLn ('     Font  : ' + CT.FontPath);
     WriteLn;
 
     Inc (Count);
@@ -266,7 +268,8 @@ Var
 
   Function AskPath (Name, Current: String) : String;
   Var
-    S : String;
+    S   : String;
+    Ans : String;
   Begin
     WriteLn;
     WriteLn ('  ' + Name);
@@ -275,17 +278,25 @@ Var
     ReadLn  (S);
 
     If S = '' Then
-      Result := Current
+      S := Current
     Else Begin
-      // keep whatever trailing separator the sysop typed (Windows '\' or
-      // Unix '/'); only add the native one if neither is present.  (Plain
-      // DirSlash would append the native separator even when the other style
-      // is already there, mangling cross-platform paths.)
       If (S[Length(S)] <> '\') and (S[Length(S)] <> '/') Then
         S := S + PathChar;
-
-      Result := S;
     End;
+
+    If (S <> '') and Not DirExists(S) Then Begin
+      Write ('    Directory does not exist. Create it? (Y/n): ');
+      ReadLn (Ans);
+      If (Ans = '') or (UpCase(Ans[1]) = 'Y') Then Begin
+        {$I-} MkDir(S); {$I+}
+        If IOResult = 0 Then
+          WriteLn ('    Created: ' + S)
+        Else
+          WriteLn ('    ERROR: Could not create ' + S);
+      End;
+    End;
+
+    Result := S;
   End;
 
 Begin
@@ -334,6 +345,8 @@ Begin
   CT.TextPath   := AskPath ('Text Path',   CT.TextPath);
   CT.MenuPath   := AskPath ('Menu Path',   CT.MenuPath);
   CT.ScriptPath := AskPath ('Script Path', CT.ScriptPath);
+  CT.IconPath   := AskPath ('Icon Path',   CT.IconPath);
+  CT.FontPath   := AskPath ('Font Path',   CT.FontPath);
 
   Seek  (TL, RecNum);
   Write (TL, CT);

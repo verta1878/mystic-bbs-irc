@@ -547,7 +547,9 @@ Begin
     If Copy(Temp, 1, 2) = '-X' Then
       Script := strReplace(Copy(ParamStr(Count), 3, Length(Temp)), '_', ' ')
     Else
-    If Temp = '-L' Then Session.LocalMode := True;
+    If Temp = '-L' Then Session.LocalMode := True
+    Else
+    If Temp = '-R' Then Session.io.Graphics := TERM_RIP;
   End;
 
   {$IFDEF UNIX}

@@ -45,6 +45,27 @@ Type
     FCurX      : Integer;
     FCurY      : Integer;
     FRegions   : Array of TRipMouseRegion;
+    FLineStyle : Integer;
+    FLineThick : Integer;
+    FFillStyle : Integer;
+    FFillPat   : Array[0..7] of Byte;
+    FFontNum   : Integer;
+    FFontDir   : Integer;
+    FFontSize  : Integer;
+    FViewX0    : Integer;
+    FViewY0    : Integer;
+    FViewX1    : Integer;
+    FViewY1    : Integer;
+    FTextX0    : Integer;
+    FTextY0    : Integer;
+    FTextX1    : Integer;
+    FTextY1    : Integer;
+    FTextCurX  : Integer;
+    FTextCurY  : Integer;
+    FClipboard : Array of TRipRGB;
+    FClipW     : Integer;
+    FClipH     : Integer;
+    FInText    : Boolean;
 
     Procedure PutPixel (X, Y: Integer; Const C: TRipRGB); Inline;
     Function  GetPixel (X, Y: Integer) : TRipRGB; Inline;
@@ -82,6 +103,37 @@ Type
     Procedure WriteText (X, Y: Integer; Const S: AnsiString); Override;
     Procedure AddMouseRegion (Const R: TRipMouseRegion); Override;
     Procedure KillMouseRegions; Override;
+    // Phase 2+3 additions
+    Procedure Arc (X, Y, StAngle, EndAngle, Radius: Integer); Override;
+    Procedure OvalArc (X, Y, StAngle, EndAngle, XRad, YRad: Integer); Override;
+    Procedure PieSlice (X, Y, StAngle, EndAngle, Radius: Integer); Override;
+    Procedure OvalPieSlice (X, Y, StAngle, EndAngle, XRad, YRad: Integer); Override;
+    Procedure Bezier (X1, Y1, X2, Y2, X3, Y3, X4, Y4, Count: Integer); Override;
+    Procedure Polygon (Var Points; NumPoints: Integer); Override;
+    Procedure FillPolygon (Var Points; NumPoints: Integer); Override;
+    Procedure Polyline (Var Points; NumPoints: Integer); Override;
+    Procedure SetFillStyle (Pattern: Integer; Color: TRipColor); Override;
+    Procedure SetFillPattern (Var Pattern; Color: TRipColor); Override;
+    Procedure SetFontStyle (Font, Direction, Size: Integer); Override;
+    Procedure SetPalette (Var Pal); Override;
+    Procedure SetOnePalette (Color, EGA64: Integer); Override;
+    Procedure SetViewPort (X0, Y0, X1, Y1: Integer; Clip: Boolean); Override;
+    Procedure TextWindow (X0, Y0, X1, Y1, Wrap: Integer); Override;
+    Procedure ResetWindows; Override;
+    Procedure GotoXY (X, Y: Integer); Override;
+    Procedure Home; Override;
+    Procedure EraseEOL; Override;
+    Procedure EraseWindow; Override;
+    Procedure EraseView; Override;
+    Procedure GetImage (X0, Y0, X1, Y1: Integer); Override;
+    Procedure PutImage (X, Y, Mode: Integer); Override;
+    Procedure WriteIcon (FileName: AnsiString); Override;
+    Procedure LoadIcon (X, Y: Integer; FileName: AnsiString); Override;
+    Procedure SetButtonStyle (Var Params); Override;
+    Procedure DrawButton (X0, Y0, X1, Y1: Integer; Const Params: AnsiString); Override;
+    Procedure BeginText (X, Y, W, H: Integer); Override;
+    Procedure RegionText (Justify: Integer; Const S: AnsiString); Override;
+    Procedure EndText; Override;
   End;
 
 Implementation
@@ -463,6 +515,185 @@ Function TRipSurface.Region (Idx: Integer) : TRipMouseRegion;
 Begin
   Result := FRegions[Idx];
 End;
+
+// ---- Phase 3 implementations ----
+
+Procedure TRipSurface.Arc (X, Y, StAngle, EndAngle, Radius: Integer);
+Var A: Integer; Rad: Double; PX, PY: Integer;
+Begin
+  For A := StAngle to EndAngle Do Begin
+    Rad := A * Pi / 180;
+    PX := X + Round(Radius * Cos(Rad));
+    PY := Y - Round(Radius * Sin(Rad));
+    PutPixel(PX, PY, RIP_EGA_PALETTE[FDraw]);
+  End;
+End;
+
+Procedure TRipSurface.OvalArc (X, Y, StAngle, EndAngle, XRad, YRad: Integer);
+Var A: Integer; Rad: Double; PX, PY: Integer;
+Begin
+  For A := StAngle to EndAngle Do Begin
+    Rad := A * Pi / 180;
+    PX := X + Round(XRad * Cos(Rad));
+    PY := Y - Round(YRad * Sin(Rad));
+    PutPixel(PX, PY, RIP_EGA_PALETTE[FDraw]);
+  End;
+End;
+
+Procedure TRipSurface.PieSlice (X, Y, StAngle, EndAngle, Radius: Integer);
+Var A: Integer; Rad: Double; PX, PY: Integer;
+Begin
+  For A := StAngle to EndAngle Do Begin
+    Rad := A * Pi / 180;
+    PX := X + Round(Radius * Cos(Rad));
+    PY := Y - Round(Radius * Sin(Rad));
+    RawLine(X, Y, PX, PY, RIP_EGA_PALETTE[FFill]);
+  End;
+End;
+
+Procedure TRipSurface.OvalPieSlice (X, Y, StAngle, EndAngle, XRad, YRad: Integer);
+Var A: Integer; Rad: Double; PX, PY: Integer;
+Begin
+  For A := StAngle to EndAngle Do Begin
+    Rad := A * Pi / 180;
+    PX := X + Round(XRad * Cos(Rad));
+    PY := Y - Round(YRad * Sin(Rad));
+    RawLine(X, Y, PX, PY, RIP_EGA_PALETTE[FFill]);
+  End;
+End;
+
+Procedure TRipSurface.Bezier (X1, Y1, X2, Y2, X3, Y3, X4, Y4, Count: Integer);
+Var I: Integer; T, T2, T3, MT, MT2, MT3: Double; PX, PY, LX, LY: Integer;
+Begin
+  If Count < 2 Then Count := 20;
+  LX := X1; LY := Y1;
+  For I := 1 to Count Do Begin
+    T := I / Count; T2 := T*T; T3 := T2*T;
+    MT := 1-T; MT2 := MT*MT; MT3 := MT2*MT;
+    PX := Round(MT3*X1 + 3*MT2*T*X2 + 3*MT*T2*X3 + T3*X4);
+    PY := Round(MT3*Y1 + 3*MT2*T*Y2 + 3*MT*T2*Y3 + T3*Y4);
+    RawLine(LX, LY, PX, PY, RIP_EGA_PALETTE[FDraw]);
+    LX := PX; LY := PY;
+  End;
+End;
+
+Procedure TRipSurface.Polygon (Var Points; NumPoints: Integer);
+Type TPtArr = Array[0..999] of Record X, Y: Integer; End;
+Var I: Integer;
+Begin
+  For I := 0 to NumPoints - 2 Do
+    RawLine(TPtArr(Points)[I].X, TPtArr(Points)[I].Y,
+            TPtArr(Points)[I+1].X, TPtArr(Points)[I+1].Y, RIP_EGA_PALETTE[FDraw]);
+  If NumPoints > 2 Then
+    RawLine(TPtArr(Points)[NumPoints-1].X, TPtArr(Points)[NumPoints-1].Y,
+            TPtArr(Points)[0].X, TPtArr(Points)[0].Y, RIP_EGA_PALETTE[FDraw]);
+End;
+
+Procedure TRipSurface.FillPolygon (Var Points; NumPoints: Integer);
+Begin
+  Polygon(Points, NumPoints); { outline only for now }
+End;
+
+Procedure TRipSurface.Polyline (Var Points; NumPoints: Integer);
+Type TPtArr = Array[0..999] of Record X, Y: Integer; End;
+Var I: Integer;
+Begin
+  For I := 0 to NumPoints - 2 Do
+    RawLine(TPtArr(Points)[I].X, TPtArr(Points)[I].Y,
+            TPtArr(Points)[I+1].X, TPtArr(Points)[I+1].Y, RIP_EGA_PALETTE[FDraw]);
+End;
+
+Procedure TRipSurface.SetFillStyle (Pattern: Integer; Color: TRipColor);
+Begin FFillStyle := Pattern; FFill := Color And 15; End;
+
+Procedure TRipSurface.SetFillPattern (Var Pattern; Color: TRipColor);
+Begin Move(Pattern, FFillPat, 8); FFill := Color And 15; End;
+
+Procedure TRipSurface.SetFontStyle (Font, Direction, Size: Integer);
+Begin FFontNum := Font; FFontDir := Direction; FFontSize := Size; End;
+
+Procedure TRipSurface.SetPalette (Var Pal);
+Begin { palette remapping - stub for now } End;
+
+Procedure TRipSurface.SetOnePalette (Color, EGA64: Integer);
+Begin { single palette entry - stub for now } End;
+
+Procedure TRipSurface.SetViewPort (X0, Y0, X1, Y1: Integer; Clip: Boolean);
+Begin FViewX0:=X0; FViewY0:=Y0; FViewX1:=X1; FViewY1:=Y1; End;
+
+Procedure TRipSurface.TextWindow (X0, Y0, X1, Y1, Wrap: Integer);
+Begin FTextX0:=X0; FTextY0:=Y0; FTextX1:=X1; FTextY1:=Y1; FTextCurX:=X0; FTextCurY:=Y0; End;
+
+Procedure TRipSurface.ResetWindows;
+Begin
+  FViewX0:=0; FViewY0:=0; FViewX1:=FW-1; FViewY1:=FH-1;
+  FTextX0:=0; FTextY0:=0; FTextX1:=FW-1; FTextY1:=FH-1;
+  FTextCurX:=0; FTextCurY:=0;
+  FDraw:=15; FFill:=0; FBg:=0; FWriteMode:=RIP_WM_COPY;
+  KillMouseRegions;
+  Clear;
+End;
+
+Procedure TRipSurface.GotoXY (X, Y: Integer);
+Begin FTextCurX := X; FTextCurY := Y; End;
+
+Procedure TRipSurface.Home;
+Begin FTextCurX := FTextX0; FTextCurY := FTextY0; End;
+
+Procedure TRipSurface.EraseEOL;
+Begin Bar(FTextCurX, FTextCurY, FTextX1, FTextCurY + 7); End;
+
+Procedure TRipSurface.EraseWindow;
+Begin Bar(FTextX0, FTextY0, FTextX1, FTextY1); End;
+
+Procedure TRipSurface.EraseView;
+Begin Bar(FViewX0, FViewY0, FViewX1, FViewY1); End;
+
+Procedure TRipSurface.GetImage (X0, Y0, X1, Y1: Integer);
+Var X, Y: Integer;
+Begin
+  FClipW := X1 - X0 + 1; FClipH := Y1 - Y0 + 1;
+  SetLength(FClipboard, FClipW * FClipH);
+  For Y := Y0 to Y1 Do
+    For X := X0 to X1 Do
+      FClipboard[(Y-Y0)*FClipW + (X-X0)] := GetPixel(X, Y);
+End;
+
+Procedure TRipSurface.PutImage (X, Y, Mode: Integer);
+Var PX, PY: Integer;
+Begin
+  If Length(FClipboard) = 0 Then Exit;
+  For PY := 0 to FClipH - 1 Do
+    For PX := 0 to FClipW - 1 Do
+      PutPixel(X + PX, Y + PY, FClipboard[PY * FClipW + PX]);
+End;
+
+Procedure TRipSurface.WriteIcon (FileName: AnsiString);
+Begin { write current clipboard to .ICN file - stub } End;
+
+Procedure TRipSurface.LoadIcon (X, Y: Integer; FileName: AnsiString);
+Begin { load .ICN file and blit at X,Y - stub } End;
+
+Procedure TRipSurface.SetButtonStyle (Var Params);
+Begin { button style parameters - stub } End;
+
+Procedure TRipSurface.DrawButton (X0, Y0, X1, Y1: Integer; Const Params: AnsiString);
+Begin
+  Rectangle(X0, Y0, X1, Y1);
+  RawLine(X0, Y0, X1, Y0, RIP_EGA_PALETTE[15]);
+  RawLine(X0, Y0, X0, Y1, RIP_EGA_PALETTE[15]);
+  RawLine(X1, Y0, X1, Y1, RIP_EGA_PALETTE[8]);
+  RawLine(X0, Y1, X1, Y1, RIP_EGA_PALETTE[8]);
+End;
+
+Procedure TRipSurface.BeginText (X, Y, W, H: Integer);
+Begin FTextX0:=X; FTextY0:=Y; FTextX1:=X+W; FTextY1:=Y+H; FTextCurX:=X; FTextCurY:=Y; FInText:=True; End;
+
+Procedure TRipSurface.RegionText (Justify: Integer; Const S: AnsiString);
+Begin WriteText(FTextCurX, FTextCurY, S); Inc(FTextCurY, 8); End;
+
+Procedure TRipSurface.EndText;
+Begin FInText := False; End;
 
 // 24-bit BMP writer - renders the surface to an image with no display
 Procedure TRipSurface.SaveBMP (Const FileName: String);
