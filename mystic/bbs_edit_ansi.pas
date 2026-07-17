@@ -128,10 +128,13 @@ Type
 Implementation
 
 Uses
+  m_Types,
   m_Strings,
   BBS_Records,
   BBS_Core,
-  BBS_Ansi_MenuBox;
+  BBS_Ansi_MenuBox,
+  bbs_cfg_viewer,
+  BBS_Common;
 
 Constructor TEditorANSI.Create (Var O: Pointer; TemplateFile: String);
 Begin
@@ -1305,28 +1308,158 @@ End;
 
 Procedure TEditorANSI.DrawCommands;
 Var
-  Ch : Char;
-Begin
-  Repeat
-    Session.io.OutFull ('|CR|09Draw Commands (?/Help): ');
+  Ch       : Char;
+  ColorStr : String;
+  Img      : TConsoleImageRec;
+  FG       : Byte;
+  BG       : Byte;
+  Row      : Byte;
+  Col      : Byte;
+  GSet     : Byte;
 
-    Ch := Session.io.OneKey ('?GQ', True);
+  Procedure DrawMenu;
+  Var C, G: Byte;
+  Begin
+    { Title }
+    WriteXY (18, 7, 15, strPadC('Draw Menu (ESC/Close)', 44, ' '));
+
+    { Foreground colors }
+    WriteXY (15, 8, 7, '  >> Foreground');
+    For C := 0 to 15 Do
+      WriteXY (15 + C * 2, 9, C + C * 16, #219#219);
+
+    { Background colors }
+    WriteXY (15, 11, 7, '     Background');
+    For C := 0 to 7 Do
+      WriteXY (15 + C * 2, 12, C * 16 + 15, #219#219);
+
+    { Highlight selected FG }
+    FG := CurAttr And 15;
+    BG := (CurAttr And $70) Shr 4;
+    WriteXY (15 + FG * 2, 10, 15, #24#24);
+    WriteXY (15 + BG * 2, 13, 15, #24#24);
+
+    { Glyph sets a-m }
+    For G := 1 to 10 Do Begin
+      If G <= 5 Then Begin
+        WriteXY (15, 13 + G, 7, Chr(96 + G) + '. ');
+        For C := 1 to 10 Do
+          WriteXY (17 + (C - 1) * 2, 13 + G, 15, GlyphTypeStr[G][C] + ' ');
+      End Else Begin
+        WriteXY (37, 8 + G, 7, Chr(96 + G) + '. ');
+        For C := 1 to 10 Do
+          WriteXY (39 + (C - 1) * 2, 8 + G, 15, GlyphTypeStr[G][C] + ' ');
+      End;
+    End;
+
+    { FG/BG display }
+    WriteXY (15, 20, 11, 'FG:' + strZero(FG));
+    WriteXY (24, 20, 11, 'color');
+    WriteXY (30, 20, CurAttr, #219#219#219);
+    WriteXY (34, 20, 11, 'BG:' + strZero(BG));
+
+    { Commands }
+    WriteXY (15, 22, 3, 'O Open File');
+    WriteXY (37, 22, 3, '# Keys Normal');
+    WriteXY (15, 23, 3, 'S Save File');
+    WriteXY (37, 23, 3, 'Q Quit Drawing');
+  End;
+
+Begin
+  Console.GetScreenImage (13, 6, 60, 24, Img);
+
+  Session.io.BufFlush;
+
+  { Draw box }
+  For Row := 6 to 24 Do
+    WriteXY (13, Row, 8 + 0 * 16, strRep(' ', 48));
+  { Border }
+  WriteXY (13, 6,  8, #218 + strRep(#196, 46) + #191);
+  WriteXY (13, 24, 8, #192 + strRep(#196, 46) + #217);
+  For Row := 7 to 23 Do Begin
+    WriteXY (13, Row, 8, #179);
+    WriteXY (60, Row, 8, #179);
+  End;
+
+  DrawMenu;
+  Session.io.BufFlush;
+
+  FG := CurAttr And 15;
+  BG := (CurAttr And $70) Shr 4;
+
+  Repeat
+    Ch := Session.io.GetKey;
 
     Case Ch of
-      '?' : Session.io.OutFullLn ('|CR(Q)uit Draw Mode   (G)lyph Mode');
-      'G' : Begin
-              GlyphMode := Not GlyphMode;
-
-              Exit;
-            End;
-      'Q' : Begin
+      #27 : Break; { ESC closes menu }
+      'Q', 'q' : Begin
               DrawMode   := False;
               InsertMode := SavedInsert;
-
-              Exit;
+              Done       := True;
+              Save       := False;
+              Break;
             End;
+      'G', 'g' : Begin
+              GlyphMode := Not GlyphMode;
+              Break;
+            End;
+      '#' : Begin
+              { Toggle normal key mode }
+              GlyphMode := False;
+              Break;
+            End;
+      'O', 'o' : Begin
+              Session.io.RemoteRestore(Img);
+              ColorStr := FilePickerDialog(bbsCfg.TextPath, '*.ans');
+              If (ColorStr <> '') and FileExist(ColorStr) Then Begin
+                { Load the ANSI file into the editor buffer }
+                Subject := ColorStr;
+              End;
+              Break;
+            End;
+      'S', 's' : Begin
+              Session.io.RemoteRestore(Img);
+              WriteXY(1, 1, 112, strPadR(' Save as: ', 80, ' '));
+              Session.io.AnsiGotoXY(11, 1);
+              ColorStr := Session.io.GetInput(60, 60, 11, Subject);
+              If ColorStr <> '' Then Begin
+                Subject := ColorStr;
+                Save := True;
+                Done := True;
+              End;
+              Break;
+            End;
+      { Foreground: 0-9 a-f select FG color }
+      '0'..'9' : Begin
+              FG := Ord(Ch) - Ord('0');
+              CurAttr := (CurAttr And $F0) Or FG;
+              DrawMenu;
+            End;
+      'a'..'f' : Begin
+              FG := Ord(Ch) - Ord('a') + 10;
+              CurAttr := (CurAttr And $F0) Or FG;
+              DrawMenu;
+            End;
+      'A'..'F' : Begin
+              FG := Ord(Ch) - Ord('A') + 10;
+              CurAttr := (CurAttr And $F0) Or FG;
+              DrawMenu;
+            End;
+      { Background: Alt+0 to Alt+7 or use arrow keys }
+      { For now: Shift+1 through Shift+8 (!@#$%^&*) }
+      '!' : Begin BG := 0; CurAttr := (CurAttr And $0F) Or (BG Shl 4); DrawMenu; End;
+      '@' : Begin BG := 1; CurAttr := (CurAttr And $0F) Or (BG Shl 4); DrawMenu; End;
+      '$' : Begin BG := 2; CurAttr := (CurAttr And $0F) Or (BG Shl 4); DrawMenu; End;
+      '%' : Begin BG := 3; CurAttr := (CurAttr And $0F) Or (BG Shl 4); DrawMenu; End;
+      '^' : Begin BG := 4; CurAttr := (CurAttr And $0F) Or (BG Shl 4); DrawMenu; End;
+      '&' : Begin BG := 5; CurAttr := (CurAttr And $0F) Or (BG Shl 4); DrawMenu; End;
+      '*' : Begin BG := 6; CurAttr := (CurAttr And $0F) Or (BG Shl 4); DrawMenu; End;
+      '(' : Begin BG := 7; CurAttr := (CurAttr And $0F) Or (BG Shl 4); DrawMenu; End;
     End;
   Until False;
+
+  Session.io.RemoteRestore (Img);
+  ReDrawTemplate (False);
 End;
 
 Procedure TEditorANSI.MessageUpload;

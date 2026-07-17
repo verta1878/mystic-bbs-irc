@@ -28,7 +28,8 @@ Uses
   BBS_Ansi_MenuBox,
   BBS_Ansi_MenuForm,
   BBS_DataBase,
-  BBS_Edit_Ansi;
+  BBS_Edit_Ansi,
+  bbs_cfg_viewer;
 
 Type
   TConfigEditor = Class(TEditorANSI)
@@ -115,6 +116,8 @@ Begin
 
   If FFileName = '' Then Exit;
 
+  FindLastLine;
+
   Assign (F, FFileName);
   {$I-} ReWrite (F); {$I+}
   If IOResult <> 0 Then Exit;
@@ -155,6 +158,7 @@ Begin
            strPadL(Pos, 14, ' '));
 End;
 
+
 Procedure TConfigEditor.EditorCommands;
 Var
   Box  : TAnsiMenuBox;
@@ -163,22 +167,22 @@ Var
   Res  : Char;
   NewFN: String;
 Begin
+  Console.GetScreenImage (24, 6, 52, 15, Img);
 
-  Console.GetScreenImage (20, 7, 52, 16, Img);
   Box := TAnsiMenuBox.Create;
-  Box.Open (20, 7, 52, 16);
+  Box.Open (24, 6, 52, 15);
 
   Form := TAnsiMenuForm.Create;
   Form.ExitOnFirst := True;
 
-  Form.AddNone ('C', ' C Continue',            22,  8, 22,  8, 28, '');
-  Form.AddNone ('?', ' ? Help',                22,  9, 22,  9, 28, '');
-  Form.AddNone ('\', ' \ Jump to first line',  22, 10, 22, 10, 28, '');
-  Form.AddNone ('/', ' / Jump to last line',   22, 11, 22, 11, 28, '');
-  Form.AddNone ('Q', ' Q Quit',               22, 12, 22, 12, 28, '');
-  Form.AddNone ('S', ' S Save',               22, 13, 22, 13, 28, '');
-  Form.AddNone ('A', ' A Save As...',          22, 14, 22, 14, 28, '');
-  Form.AddNone ('O', ' O Open...',             22, 15, 22, 15, 28, '');
+  Form.AddNone ('C', ' C Continue',            26,  7, 26,  7, 24, '');
+  Form.AddNone ('?', ' ? Help',                26,  8, 26,  8, 24, '');
+  Form.AddNone ('\', ' \ Jump to first line',  26,  9, 26,  9, 24, '');
+  Form.AddNone ('/', ' / Jump to last line',   26, 10, 26, 10, 24, '');
+  Form.AddNone ('Q', ' Q Quit',               26, 11, 26, 11, 24, '');
+  Form.AddNone ('S', ' S Save',               26, 12, 26, 12, 24, '');
+  Form.AddNone ('A', ' A Save As...',          26, 13, 26, 13, 24, '');
+  Form.AddNone ('O', ' O Open...',             26, 14, 26, 14, 24, '');
 
   Res := Form.Execute;
 
@@ -212,10 +216,7 @@ Begin
             DrawStatusBar;
           End;
     'O' : Begin
-            WriteXY (1, Session.User.ThisUser.ScreenSize, 112,
-                     strPadR(' Open file: ', 80, ' '));
-            Session.io.AnsiGotoXY (13, Session.User.ThisUser.ScreenSize);
-            NewFN := Session.io.GetInput (60, 60, 11, '');
+            NewFN := FilePickerDialog(bbsCfg.DataPath, '*.*');
             If (NewFN <> '') and FileExist(NewFN) Then Begin
               LoadFile (NewFN);
               ReDrawTemplate (True);
@@ -251,31 +252,36 @@ Function TConfigEditor.Edit : Boolean;
 Var
   Ch : Char;
 Begin
+  If DrawMode Then Begin
+    Result := Inherited Edit;
+    Exit;
+  End;
+
   Session.io.AllowArrow := True;
 
-  Session.io.OutRaw (#27 + '[2J');
-  DrawStatusBar;
+  Begin
+    Session.io.OutRaw (#27 + '[2J');
+    DrawStatusBar;
 
-  WinY1   := 2;
-  WinY2   := Session.User.ThisUser.ScreenSize - 1;
-  WinSize := WinY2 - WinY1 + 1;
-  WinX1   := 1;
-  WinX2   := 79;
-  RowSize := WinX2 - WinX1 + 1;
+    WinY1   := 2;
+    WinY2   := Session.User.ThisUser.ScreenSize - 1;
+    WinSize := WinY2 - WinY1 + 1;
+    WinX1   := 1;
+    WinX2   := 79;
+    RowSize := WinX2 - WinX1 + 1;
 
-  InsertMode := True;
-  DrawMode   := False;
-  GlyphMode  := False;
-  WrapMode   := False;
-  ClearEOL   := True;
-  CurAttr    := 7;
-  TopLine    := 0;
-  CurLine    := 0;
-  CurX       := WinX1;
-  CurY       := WinY1;
+    InsertMode := True;
+    WrapMode   := False;
+    ClearEOL   := True;
+    CurAttr    := 7;
+    TopLine    := 0;
+    CurLine    := 0;
+    CurX       := WinX1;
+    CurY       := WinY1;
 
-  DrawPage (WinY1, WinY2, False);
-  LocateCursor;
+    DrawPage (WinY1, WinY2, False);
+    LocateCursor;
+  End;
 
   Done := False;
   Save := False;

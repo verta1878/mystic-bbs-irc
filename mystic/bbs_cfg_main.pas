@@ -77,16 +77,34 @@ Begin
   Session.io.RemoteRestore(TmpImage);
 End;
 
-Procedure Configuration_EditFile (FName: String);
+Procedure Configuration_AnsiEditor;
 Var
-  Viewer : TAnsiFileViewer;
+  Editor : TConfigEditor;
   TmpImg : TConsoleImageRec;
 Begin
   Console.GetScreenImage (1, 1, 79, 24, TmpImg);
-  Viewer := TAnsiFileViewer.Create(Pointer(Session), False);
-  If (FName = '') or Viewer.LoadFile(FName) Then
-    Viewer.Run;
-  Viewer.Free;
+  Editor := TConfigEditor.Create(Pointer(Session));
+  Editor.DrawMode   := True;
+  Editor.InsertMode := False;
+  Editor.GlyphMode  := False;
+  Editor.MaxMsgCols := 79;
+  Editor.ReDrawTemplate(True);
+  Editor.Edit;
+  Editor.Free;
+  Session.io.RemoteRestore(TmpImg);
+End;
+
+Procedure Configuration_EditFile (FName: String);
+Var
+  Editor : TConfigEditor;
+  TmpImg : TConsoleImageRec;
+Begin
+  Console.GetScreenImage (1, 1, 79, 24, TmpImg);
+  Editor := TConfigEditor.Create(Pointer(Session));
+  If FName <> '' Then
+    Editor.LoadFile(FName);
+  Editor.Edit;
+  Editor.Free;
   Session.io.RemoteRestore(TmpImg);
 End;
 
@@ -424,7 +442,7 @@ Begin
               End;
             End Else
               Case Res of
-                'A' : Configuration_EditFile('');
+                'A' : Configuration_AnsiEditor;
                 'T' : Configuration_EditFile('');
                 'L' : Configuration_ViewLogs;
                 'R' : Configuration_RIPEditor;

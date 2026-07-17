@@ -74,9 +74,12 @@ Type
     Property ReadOnly : Boolean Read FReadOnly Write FReadOnly;
   End;
 
+Function FilePickerDialog (APath, AMask: String) : String;
+
 Implementation
 
 Uses
+  DOS,
   BBS_DataBase;
 
 Constructor TAnsiFileViewer.Create (AOwner: Pointer; AReadOnly: Boolean);
@@ -296,11 +299,11 @@ Begin
   Form := TAnsiMenuForm.Create;
   Form.ExitOnFirst := True;
 
-  Form.AddNone ('C', ' C Continue',            22,  8, 22,  8, 26, '');
-  Form.AddNone ('?', ' ? Help',                22,  9, 22,  9, 26, '');
-  Form.AddNone ('\', ' \ Jump to first line',  22, 10, 22, 10, 26, '');
-  Form.AddNone ('/', ' / Jump to last line',   22, 11, 22, 11, 26, '');
-  Form.AddNone ('Q', ' Q Quit',               22, 12, 22, 12, 26, '');
+  Form.AddNone ('C', ' C Continue',            26,  9, 26,  9, 22, '');
+  Form.AddNone ('?', ' ? Help',                26, 10, 26, 10, 22, '');
+  Form.AddNone ('\', ' \ Jump to first line',  26, 11, 26, 11, 22, '');
+  Form.AddNone ('/', ' / Jump to last line',   26, 12, 26, 12, 22, '');
+  Form.AddNone ('Q', ' Q Quit',               26, 13, 26, 13, 22, '');
 
   Res := Form.Execute;
 
@@ -371,6 +374,107 @@ Begin
   Until FDone;
 
   Session.io.RemoteRestore (FSaveImage);
+End;
+
+Function FilePickerDialog (APath, AMask: String) : String;
+Var
+  Box     : TAnsiMenuBox;
+  Img     : TConsoleImageRec;
+  DirInfo : SearchRec;
+  Files   : Array[1..50] of String[80];
+  IsDir   : Array[1..50] of Boolean;
+  Count   : Integer;
+  Pick    : Integer;
+  Top     : Integer;
+  MaxShow : Integer;
+  Row     : Integer;
+  Ch      : Char;
+  CurPath : String;
+  Done    : Boolean;
+
+  Procedure ScanDir;
+  Begin
+    Count := 0;
+    Inc(Count); Files[Count] := '..'; IsDir[Count] := True;
+    FindFirst(CurPath + '*.*', $10, DirInfo);
+    While (DosError = 0) and (Count < 45) Do Begin
+      If (DirInfo.Attr And $10 <> 0) and (DirInfo.Name <> '.') and (DirInfo.Name <> '..') Then Begin
+        Inc(Count); Files[Count] := '[' + DirInfo.Name + ']'; IsDir[Count] := True;
+      End;
+      FindNext(DirInfo);
+    End;
+    FindClose(DirInfo);
+    FindFirst(CurPath + AMask, $27, DirInfo);
+    While (DosError = 0) and (Count < 50) Do Begin
+      If DirInfo.Attr And $10 = 0 Then Begin
+        Inc(Count); Files[Count] := DirInfo.Name; IsDir[Count] := False;
+      End;
+      FindNext(DirInfo);
+    End;
+    FindClose(DirInfo);
+  End;
+
+  Procedure DrawList;
+  Var I, Attr: Integer;
+  Begin
+    WriteXY(10, 5, 15, strPadR(' ' + CurPath, 40, ' '));
+    For I := 1 to MaxShow Do Begin
+      If Top + I <= Count Then Begin
+        If Top + I = Pick Then Attr := 112 Else If IsDir[Top + I] Then Attr := 11 Else Attr := 7;
+        WriteXY(10, 5 + I, Attr, strPadR(' ' + Files[Top + I], 40, ' '));
+      End Else
+        WriteXY(10, 5 + I, 7, strRep(' ', 41));
+    End;
+  End;
+
+Begin
+  Result  := '';
+  CurPath := APath;
+  MaxShow := 15;
+  Done    := False;
+
+  Console.GetScreenImage(8, 4, 52, 5 + MaxShow + 1, Img);
+  Box := TAnsiMenuBox.Create;
+  Box.Open(8, 4, 52, 5 + MaxShow + 1);
+
+  ScanDir;
+  Pick := 1;
+  Top  := 0;
+  DrawList;
+
+  Repeat
+    Ch := Session.io.GetKey;
+    Case Ch of
+      #27 : Begin Done := True; End;
+      #00 : Case Session.io.GetKey of
+              #72 : If Pick > 1 Then Begin Dec(Pick); If Pick <= Top Then Dec(Top); DrawList; End;
+              #80 : If Pick < Count Then Begin Inc(Pick); If Pick > Top + MaxShow Then Inc(Top); DrawList; End;
+              #73 : Begin Pick := Pick - MaxShow; If Pick < 1 Then Pick := 1; Top := Pick - 1; If Top < 0 Then Top := 0; DrawList; End;
+              #81 : Begin Pick := Pick + MaxShow; If Pick > Count Then Pick := Count; Top := Pick - MaxShow; If Top < 0 Then Top := 0; DrawList; End;
+            End;
+      #13 : Begin
+              If IsDir[Pick] Then Begin
+                If Files[Pick] = '..' Then Begin
+                  If Length(CurPath) > 1 Then Begin
+                    Delete(CurPath, Length(CurPath), 1);
+                    While (Length(CurPath) > 0) and (CurPath[Length(CurPath)] <> '/') and
+                          (CurPath[Length(CurPath)] <> '\\') Do
+                      Delete(CurPath, Length(CurPath), 1);
+                  End;
+                End Else
+                  CurPath := CurPath + Copy(Files[Pick], 2, Length(Files[Pick]) - 2) + PathChar;
+                ScanDir; Pick := 1; Top := 0; DrawList;
+              End Else Begin
+                Result := CurPath + Files[Pick];
+                Done := True;
+              End;
+            End;
+    End;
+  Until Done;
+
+  Box.Close;
+  Box.Free;
+  Session.io.RemoteRestore(Img);
 End;
 
 End.

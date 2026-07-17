@@ -394,6 +394,33 @@ Begin
 	maCloseFile;
 End;
 
+Procedure CreateSysopAccount (DataPath: String);
+Var
+  UserFile : File of RecUser;
+  User     : RecUser;
+Begin
+  FillChar(User, SizeOf(User), 0);
+
+  User.Handle     := 'Sysop';
+  User.RealName   := 'System Operator';
+  User.Security   := 255;
+  User.StartMenu  := 'main';
+  User.ScreenSize := 25;
+  User.ScreenCols := 80;
+  User.EditType   := 1;
+  User.DateType   := 1;
+  User.HotKeys    := True;
+  User.PermIdx    := 1;
+  User.Theme      := 'default';
+
+  Assign(UserFile, DataPath + 'users.dat');
+  {$I-} ReWrite(UserFile); {$I+}
+  If IOResult = 0 Then Begin
+    Write(UserFile, User);
+    Close(UserFile);
+  End;
+End;
+
 Procedure UpdateDataFiles;
 Var
 	CfgFile 	: File of RecConfig;
@@ -424,12 +451,18 @@ Begin
   Cfg.TextPath     := Lang.TextPath;
   Cfg.InBoundPath  := Config.InBoundPath;
   Cfg.OutBoundPath := Config.OutBoundPath;
-  Cfg.UserIdxPos  := 0;
-  Cfg.SystemCalls := 0;
+  Cfg.UserIdxPos   := 1;
+  Cfg.SystemCalls  := 0;
+  Cfg.SysopName    := 'Sysop';
+  Cfg.FeedbackTo   := 'Sysop';
+  Cfg.NewUserEmail := True;
 
 	Reset (CfgFile);
 	Write (CfgFile, Cfg);
 	Close (CfgFile);
+
+  { Create default Sysop account with security 255 }
+  CreateSysopAccount(Config.DataPath);
 
 	Assign (MBaseFile, Config.DataPath + 'mbases.dat');
 	Reset  (MBaseFile);
@@ -469,6 +502,8 @@ Begin
 		TLang.MenuPath     := Lang.MenuPath;
     TLang.TemplatePath := Lang.TextPath; // retired field
     TLang.ScriptPath   := Config.ScriptPath;
+    TLang.IconPath     := Lang.TextPath + 'icon' + PathChar;
+    TLang.FontPath     := Lang.TextPath + 'font' + PathChar;
 
 		Seek	(LangFile, FilePos(LangFile) - 1);
 		Write (LangFile, TLang);
