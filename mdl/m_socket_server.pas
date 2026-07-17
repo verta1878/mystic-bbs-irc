@@ -36,6 +36,12 @@ Type
   TServerClient     = Class;
   TServerCreateProc = Function (Manager: TServerManager; Client: TIOSocket): TServerClient;
 
+  // A51: auto-ban tracking — records recent connection timestamps per IP
+  TBanTrack = Record
+    IP   : String[45];
+    Time : LongInt;
+  End;
+
   TServerManager = Class(TThread)
     Critical      : TRTLCriticalSection;
     Server        : TIOSocket;
@@ -51,12 +57,17 @@ Type
     ClientActive  : LongInt;
     Port          : LongInt;
     TextPath      : String[80];
+    BanMaxConns   : Byte;     // A51: max connections in window (0=disabled)
+    BanTimeSecs   : Word;     // A51: time window in seconds
+    BanTrack      : Array[0..255] of TBanTrack;
+    BanTrackCount : Word;
 
     Constructor Create (PortNum, Max: Word; CreateProc: TServerCreateProc);
     Destructor  Destroy; Override;
     Procedure   Execute; Override;
     Function    CheckIP (IP, Mask: String) : Boolean;
     Function    IsBlockedIP (Var Client: TIOSocket) : Boolean;
+    Function    IsFloodIP (IP: String) : Boolean;
     Function    DuplicateIPs (Var Client: TIOSocket) : Byte;
     Procedure   Status (Str: String);
   End;
@@ -104,6 +115,10 @@ Begin
     ClientList.Add(NIL);
 
   FreeOnTerminate := False;
+
+  BanMaxConns   := 0;
+  BanTimeSecs   := 0;
+  BanTrackCount := 0;
 End;
 
 Procedure TServerManager.Status (Str: String);
@@ -129,14 +144,11 @@ Begin
       ServerStatus.Add(strRep(' ', 14) + Copy(Res, 75, 255));
     End Else
       ServerStatus.Add(Res);
-  Except
-    { ignore exceptions here -- happens when socketstatus is NIL}
-    { need to review criticals now that they are in FP's RTL}
+
+    StatusUpdated := True;
+  Finally
+    LeaveCriticalSection(Critical);
   End;
-
-  StatusUpdated := True;
-
-  LeaveCriticalSection(Critical);
 End;
 
 Function TServerManager.CheckIP (IP, Mask: String) : Boolean;
@@ -197,6 +209,41 @@ Begin
   Close (TF);
 End;
 
+// A51: auto-ban IP — track connection rate and return True if IP exceeds
+// BanMaxConns connections within BanTimeSecs seconds.
+Function TServerManager.IsFloodIP (IP: String) : Boolean;
+Var
+  Count   : Word;
+  Now     : LongInt;
+  Hits    : Byte;
+Begin
+  Result := False;
+
+  If (BanMaxConns = 0) or (BanTimeSecs = 0) Then Exit;
+
+  Now  := DateDos2Unix(CurDateDos);
+  Hits := 0;
+
+  // Count recent connections from this IP within the time window
+  For Count := 0 to BanTrackCount - 1 Do
+    If (BanTrack[Count].IP = IP) and ((Now - BanTrack[Count].Time) <= BanTimeSecs) Then
+      Inc(Hits);
+
+  // Add this connection to the tracker (circular buffer)
+  If BanTrackCount < 256 Then Begin
+    BanTrack[BanTrackCount].IP   := IP;
+    BanTrack[BanTrackCount].Time := Now;
+    Inc(BanTrackCount);
+  End Else Begin
+    // Wrap around — overwrite oldest entry
+    Move(BanTrack[1], BanTrack[0], SizeOf(TBanTrack) * 255);
+    BanTrack[255].IP   := IP;
+    BanTrack[255].Time := Now;
+  End;
+
+  Result := (Hits >= BanMaxConns);
+End;
+
 Function TServerManager.DuplicateIPs (Var Client: TIOSocket) : Byte;
 Var
   Count : Byte;
@@ -240,6 +287,12 @@ Begin
       If Not NewClient.WriteFile('', TextPath + 'blocked.txt') Then NewClient.WriteLine('BLOCKED');
       NewClient.Free;
     End Else
+    // A51: auto-ban IP if they connect too many times within the time window
+    If IsFloodIP(NewClient.PeerIP) Then Begin
+      Inc (ClientBlocked);
+      Status('FLOOD: ' + NewClient.PeerIP + ' (auto-banned)');
+      NewClient.Free;
+    End Else
     If (ClientMaxIPs > 0) and (DuplicateIPs(NewClient) > ClientMaxIPs) Then Begin
       Inc (ClientRefused);
       Status('MULTI: ' + NewClient.PeerIP + ' (' + NewClient.PeerName + ')');
@@ -279,8 +332,16 @@ Begin
     ClientList.Pack;
   End;
 
-  ClientList.Free;
+  // A51: nil ServerStatus inside critical section so Status() from other
+  // threads sees NIL and exits safely before we free the object.
+  EnterCriticalSection(Critical);
   ServerStatus.Free;
+  ServerStatus := NIL;
+  LeaveCriticalSection(Critical);
+
+  DoneCriticalSection(Critical);
+
+  ClientList.Free;
   Server.Free;
 
   Inherited Destroy;
@@ -293,11 +354,18 @@ Begin
   Manager := Owner;
   Client  := CliSock;
 
-  For Count := 0 to Manager.ClientMax - 1 Do
-    If Manager.ClientList[Count] = NIL Then Begin
-      Manager.ClientList[Count] := Self;
-      Break;
-    End;
+  // A51: protect ClientList access — multiple threads can create/destroy
+  // clients simultaneously, racing on the same list.
+  EnterCriticalSection(Manager.Critical);
+  Try
+    For Count := 0 to Manager.ClientMax - 1 Do
+      If Manager.ClientList[Count] = NIL Then Begin
+        Manager.ClientList[Count] := Self;
+        Break;
+      End;
+  Finally
+    LeaveCriticalSection(Manager.Critical);
+  End;
 
   Inherited Create(False);
 

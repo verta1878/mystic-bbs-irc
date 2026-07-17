@@ -65,6 +65,7 @@ Const
   Header_MSGPACK    = 'PackMessageBases';
   Header_MSGPOST    = 'PostTextFiles';
   Header_NODELIST   = 'MergeNodeLists';
+  Header_FILETOSS   = 'ImportFileToss';
 
 Procedure Log                (Level: Byte; Code: Char; Str: String);
 Procedure LogClose;

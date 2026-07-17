@@ -48,6 +48,7 @@ Uses
   mUtil_MsgPost,
   mUtil_EchoExport,
   mUtil_EchoImport,
+  mUtil_FileToss,
   mUtil_NodeList,
   bbs_DataBase;
 
@@ -186,6 +187,7 @@ Var
   DoMsgPost    : Boolean;
   DoImportMB   : Boolean;
   DoNodeList   : Boolean;
+  DoFileToss   : Boolean;
 Begin
   ApplicationStartup;
 
@@ -206,6 +208,7 @@ Begin
   DoMsgPack    := CheckProcess(Header_MSGPACK);
   DoMsgPost    := CheckProcess(Header_MSGPOST);
   DoNodeList   := CheckProcess(Header_NODELIST);
+  DoFileToss   := CheckProcess(Header_FILETOSS);
 
   // Exit with an error if nothing is configured
 
@@ -226,6 +229,7 @@ Begin
   If DoTopLists   Then uTopLists;
   If DoAllFiles   Then uAllFilesList;
   If DoEchoImport Then uEchoImport;
+  If DoFileToss   Then uFileToss;
   If DoEchoExport Then uEchoExport;
   If DoMsgPurge   Then uPurgeMessageBases;
   If DoMsgPack    Then uPackMessageBases;

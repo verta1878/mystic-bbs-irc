@@ -300,18 +300,20 @@ Begin
 
   Box.Header := ' Internet Servers ';
 
-  Box.Open (16, 9, 64, 20);
+  Box.Open (16, 8, 64, 21);
 
-  VerticalLine (31, 11, 18);
+  VerticalLine (31, 10, 19);
 
-  Form.AddStr  ('D', ' Domain',          23, 11, 33, 11,  8, 25, 25, @bbsCfg.inetDomain, Topic + 'Internet domain name');
-  Form.AddStr  ('I', ' Interface',       20, 12, 33, 12, 11, 23, 23, @bbsCfg.inetInterface, Topic + 'Network interface IP address');
-  Form.AddBol  ('B', ' IP Blocking',     18, 13, 33, 13, 13, 3, @bbsCfg.inetIPBlocking, Topic + 'Enable IP blocking');
-  Form.AddBol  ('L', ' Logging',         22, 14, 33, 14,  9, 3, @bbsCfg.inetLogging, Topic + 'Enable server logging');
-  Form.AddBol  ('S', ' DNSBL Lookup',    18, 15, 33, 15, 13, 3, @bbsCfg.inetUseDNSBL, Topic + 'Block connections listed on a DNS blacklist');
-  Form.AddStr  ('H', ' DNSBL Host',      20, 16, 33, 16, 11, 25, 40, @bbsCfg.inetDNSBL, Topic + 'DNSBL server hostname (e.g. xbl.spamhaus.org)');
-  Form.AddBol  ('C', ' DNSCC Lookup',    18, 17, 33, 17, 13, 3, @bbsCfg.inetUseDNSCC, Topic + 'Identify or block connections by country');
-  Form.AddStr  ('O', ' DNSCC Host',      20, 18, 33, 18, 11, 25, 40, @bbsCfg.inetDNSCC, Topic + 'DNSCC server hostname (e.g. zz.countries.nerd.dk)');
+  Form.AddStr  ('D', ' Domain',          23, 10, 33, 10,  8, 25, 25, @bbsCfg.inetDomain, Topic + 'Internet domain name');
+  Form.AddStr  ('I', ' Interface',       20, 11, 33, 11, 11, 23, 23, @bbsCfg.inetInterface, Topic + 'Network interface IP address');
+  Form.AddBol  ('B', ' IP Blocking',     18, 12, 33, 12, 13, 3, @bbsCfg.inetIPBlocking, Topic + 'Enable IP blocking');
+  Form.AddBol  ('L', ' Logging',         22, 13, 33, 13,  9, 3, @bbsCfg.inetLogging, Topic + 'Enable server logging');
+  Form.AddBol  ('S', ' DNSBL Lookup',    18, 14, 33, 14, 13, 3, @bbsCfg.inetUseDNSBL, Topic + 'Block connections listed on a DNS blacklist');
+  Form.AddStr  ('H', ' DNSBL Host',      20, 15, 33, 15, 11, 25, 40, @bbsCfg.inetDNSBL, Topic + 'DNSBL server hostname (e.g. xbl.spamhaus.org)');
+  Form.AddBol  ('C', ' DNSCC Lookup',    18, 16, 33, 16, 13, 3, @bbsCfg.inetUseDNSCC, Topic + 'Identify or block connections by country');
+  Form.AddStr  ('O', ' DNSCC Host',      20, 17, 33, 17, 11, 25, 40, @bbsCfg.inetDNSCC, Topic + 'DNSCC server hostname (e.g. zz.countries.nerd.dk)');
+  Form.AddByte ('A', ' Auto-ban Conns',  16, 18, 33, 18, 15, 3, 0, 255, @bbsCfg.inetBanIP, Topic + 'Ban IP after this many connects (0=off)');
+  Form.AddWord ('W', ' Auto-ban Secs',   17, 19, 33, 19, 14, 5, 0, 65535, @bbsCfg.inetBanSecs, Topic + 'Time window in seconds (0=off)');
 
   Form.Execute;
 

@@ -778,6 +778,18 @@ Begin
               BuildAreaList;
               ReDraw := True;
             End;
+      #21 : Begin
+              // A51: CTRL+U updates lastread pointer to last message
+              If GetMBaseByIndex(strS2I(strWordGet(6, ListBox.List[ListBox.Picked]^.Name, #0)), TempBase) Then Begin
+                If MBaseOpenCreate(MsgBase, TempBase, Session.TempPath) Then Begin
+                  MsgBase^.SetLastRead(Session.User.UserNum, MsgBase^.GetHighMsgNum);
+                  MsgBase^.CloseMsgBase;
+                  Dispose (MsgBase, Done);
+                  BuildAreaList;
+                End;
+              End;
+              ReDraw := True;
+            End;
       #26 : Begin
               Session.io.OutFile ('ansimidxhelp', True, 0);
               ReDraw := True;

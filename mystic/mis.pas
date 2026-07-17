@@ -52,7 +52,8 @@ Uses
   MIS_Client_BINKP,
   MIS_Events,
   BBS_Records,
-  BBS_DataBase;
+  BBS_DataBase,
+  utrayit;
 
 Const
   FocusTelnet = 0;
@@ -79,6 +80,7 @@ Var
   BarPos       : Integer;
   NodeData     : TNodeData;
   DaemonMode   : Boolean = False;
+  TrayMode     : Boolean = False;
 
 {$I MIS_ANSIWFC.PAS}
 
@@ -375,11 +377,9 @@ Begin
   If MysLoc <> '' Then MysLoc := DirSlash(MysLoc);
 
   If fpStat(MysLoc + 'mis', Info) = 0 Then Begin
-    // A45: drop root privileges after binding ports.  On Linux, fpSetUID from
-    // root sets real+effective+saved UID, so files received by BINKP etc. will
-    // have ownership matching the MIS binary, not root.
-    // TODO: when fpc264irc adds fpSetEUID/fpSetEGID wrappers, switch to those
-    // for proper effective-only privilege drop.
+    // A45: drop root privileges after binding ports.
+    // fpSetUID/fpSetGID from root sets real+effective+saved UID on Linux,
+    // so files received by BINKP etc. have ownership matching MIS binary.
     fpSetGID (Info.st_GID);
     fpSetUID (Info.st_UID);
   End;
@@ -431,7 +431,9 @@ Begin
 
     TelnetServer.Server.FTelnetServer := True;
     TelnetServer.ClientMaxIPs         := bbsCfg.InetTNDupes;
-    TelnetServer.LogFile              := 'telnet';
+
+    TelnetServer.BanMaxConns         := bbsCfg.inetBanIP;
+    TelnetServer.BanTimeSecs         := bbsCfg.inetBanSecs;    TelnetServer.LogFile              := 'telnet';
 
     Result := True;
   End;
@@ -441,7 +443,9 @@ Begin
 
     SMTPServer.Server.FTelnetServer := False;
     SMTPServer.ClientMaxIPs         := bbsCfg.INetSMTPDupes;
-    SMTPServer.LogFile              := 'smtp';
+
+    SMTPServer.BanMaxConns         := bbsCfg.inetBanIP;
+    SMTPServer.BanTimeSecs         := bbsCfg.inetBanSecs;    SMTPServer.LogFile              := 'smtp';
 
     Result := True;
   End;
@@ -451,7 +455,9 @@ Begin
 
     POP3Server.Server.FTelnetServer := False;
     POP3Server.ClientMaxIPs         := bbsCfg.inetPOP3Dupes;
-    POP3Server.LogFile              := 'pop3';
+
+    POP3Server.BanMaxConns         := bbsCfg.inetBanIP;
+    POP3Server.BanTimeSecs         := bbsCfg.inetBanSecs;    POP3Server.LogFile              := 'pop3';
 
     Result := True;
   End;
@@ -461,7 +467,9 @@ Begin
 
     FTPServer.Server.FTelnetServer := False;
     FTPServer.ClientMaxIPs         := bbsCfg.inetFTPDupes;
-    FTPServer.LogFile              := 'ftp';
+
+    FTPServer.BanMaxConns         := bbsCfg.inetBanIP;
+    FTPServer.BanTimeSecs         := bbsCfg.inetBanSecs;    FTPServer.LogFile              := 'ftp';
 
     Result := True;
   End;
@@ -471,7 +479,9 @@ Begin
 
     NNTPServer.Server.FTelnetServer := False;
     NNTPServer.ClientMaxIPs         := bbsCfg.inetNNTPDupes;
-    NNTPServer.LogFile              := 'nntp';
+
+    NNTPServer.BanMaxConns         := bbsCfg.inetBanIP;
+    NNTPServer.BanTimeSecs         := bbsCfg.inetBanSecs;    NNTPServer.LogFile              := 'nntp';
 
     Result := True;
   End;
@@ -481,7 +491,9 @@ Begin
 
     BINKPServer.Server.FTelnetServer := False;
     BINKPServer.ClientMaxIPs         := bbsCfg.inetBINKPDupes;
-    BINKPServer.LogFile              := 'binkp';
+
+    BINKPServer.BanMaxConns         := bbsCfg.inetBanIP;
+    BINKPServer.BanTimeSecs         := bbsCfg.inetBanSecs;    BINKPServer.LogFile              := 'binkp';
 
     Result := True;
   End;
@@ -592,10 +604,14 @@ Const
 
 Var
   Count : Integer;
+  Tray  : TTrayIt;
 Begin
   {$IFDEF UNIX}
     DaemonMode := Pos('-D', strUpper(ParamStr(1))) > 0;
   {$ENDIF}
+
+  // -T flag: minimize to system tray (Windows) or iconify terminal (Unix)
+  TrayMode := Pos('-T', strUpper(ParamStr(1))) > 0;
 
   Randomize;
 
@@ -626,6 +642,14 @@ Begin
   Count := 0;
 
   DrawStatusScreen;
+
+  // Tray mode: minimize to system tray (Windows) or iconify (Unix)
+  Tray := TTrayIt.Create;
+
+  If TrayMode Then Begin
+    If Not Tray.TrayConsole(WinTitle + ' - ' + bbsCfg.BBSName) Then
+      TrayMode := False;  // tray not supported, continue normally
+  End;
 
   FocusCurrent := FocusMax;
 
@@ -718,6 +742,10 @@ Begin
   BINKPServer.Free;
 
   Console.WriteLine (' (DONE)');
+
+  // Restore console from tray before exit
+  If TrayMode Then Tray.UnTrayConsole;
+  Tray.Free;
 
   NodeData.Free;
 

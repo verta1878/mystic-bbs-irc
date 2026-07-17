@@ -43,6 +43,7 @@ Type
     KeyBuffer : Array[0..KeyBufferSize - 1] of Char;
     KeyPut,
     KeySend   : LongInt;
+    IsConsole : Boolean;  // A45: True when running on local console (stdin is TTY)
 
     Function    ttyRecvChar : Char;
     Procedure   PushKey (Ch : Char);
@@ -65,8 +66,15 @@ Uses
   m_DateTime;
 
 Constructor TInputLinux.Create;
+Var
+  PGrp : LongInt;
 Begin
   Inherited Create;
+
+  // A45: detect if stdin is a local console (TTY) or a socket (telnet).
+  // fpIOCtl with TIOCGPGRP succeeds on a TTY, fails on a socket.
+  PGrp := 0;
+  IsConsole := (fpIOCtl(0, $540F, @PGrp) = 0);  // TIOCGPGRP = $540F
 End;
 
 Destructor TInputLinux.Destroy;
@@ -351,7 +359,9 @@ Begin
      if State=1 then
       PushKey(ch);
    end;
-  #127: PushKey(#8);
+  // A45: on local console, #127 is backspace (map to #8).
+  // On remote (telnet), #127 is delete (map to extended #83).
+  #127: If IsConsole Then PushKey(#8) Else PushExt(83);
   else PushKey(ch);
   End;
   ReadKey:=PopKey;

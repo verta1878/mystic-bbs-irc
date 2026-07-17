@@ -470,6 +470,10 @@ Begin
                      HaveHeader := False;
                      NeedHeader := True;
 
+                     // A48: reset timeout on active data receipt to prevent
+                     // random timeouts during large file transfers.
+                     TimeOut := TimerSet(SetTimeOut);
+
                      If InPos = InSize Then Begin
                        // fix time, escape filename
 
@@ -527,6 +531,9 @@ Begin
 
                      BlockRead     (OutFile, OutBuf, SizeOf(OutBuf), OutSize);
                      SendDataFrame (OutBuf, OutSize);
+
+                     // A48: reset timeout on active data send
+                     TimeOut := TimerSet(SetTimeOut);
 
                      If OutSize < SizeOf(OutBuf) Then Begin
                        Close (OutFile);

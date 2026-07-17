@@ -46,6 +46,12 @@ Type
   TServerClient     = Class;
   TServerCreateProc = Function (Manager: TServerManager; Cfg: RecConfig; ND: TNodeData; Client: TIOSocket): TServerClient;
 
+  // A51: auto-ban tracking
+  TBanTrack = Record
+    IP   : String[45];
+    Time : LongInt;
+  End;
+
   TServerManager = Class(TThread)
     Critical      : TRTLCriticalSection;
     NodeInfo      : TNodeData;
@@ -64,6 +70,10 @@ Type
     ClientActive  : LongInt;
     Port          : LongInt;
     TextPath      : String[80];
+    BanMaxConns   : Byte;
+    BanTimeSecs   : Word;
+    BanTrack      : Array[0..255] of TBanTrack;
+    BanTrackCount : Word;
 
     Constructor Create       (Cfg: RecConfig; PortNum: Word; CliMax: Word; ND: TNodeData; CreateProc: TServerCreateProc);
     Destructor  Destroy;     Override;
@@ -71,6 +81,7 @@ Type
     Procedure   Status       (ProcID: LongInt; Str: String);
     Function    CheckIP      (IP, Mask: String) : Boolean;
     Function    IsBlockedIP  (Var Client: TIOSocket) : Boolean;
+    Function    IsFloodIP    (IP: String) : Boolean;
     Function    DuplicateIPs (Var Client: TIOSocket) : Byte;
   End;
 
@@ -118,6 +129,10 @@ Begin
     ClientList.Add(NIL);
 
   FreeOnTerminate := False;
+
+  BanMaxConns   := 0;
+  BanTimeSecs   := 0;
+  BanTrackCount := 0;
 End;
 
 Function TServerManager.CheckIP (IP, Mask: String) : Boolean;
@@ -233,6 +248,31 @@ Begin
   End;
 End;
 
+Function TServerManager.IsFloodIP (IP: String) : Boolean;
+Var
+  Count : Word;
+  Now   : LongInt;
+  Hits  : Byte;
+Begin
+  Result := False;
+  If (BanMaxConns = 0) or (BanTimeSecs = 0) Then Exit;
+  Now  := DateDos2Unix(CurDateDos);
+  Hits := 0;
+  For Count := 0 to BanTrackCount - 1 Do
+    If (BanTrack[Count].IP = IP) and ((Now - BanTrack[Count].Time) <= BanTimeSecs) Then
+      Inc(Hits);
+  If BanTrackCount < 256 Then Begin
+    BanTrack[BanTrackCount].IP   := IP;
+    BanTrack[BanTrackCount].Time := Now;
+    Inc(BanTrackCount);
+  End Else Begin
+    Move(BanTrack[1], BanTrack[0], SizeOf(TBanTrack) * 255);
+    BanTrack[255].IP   := IP;
+    BanTrack[255].Time := Now;
+  End;
+  Result := (Hits >= BanMaxConns);
+End;
+
 Function TServerManager.DuplicateIPs (Var Client: TIOSocket) : Byte;
 Var
   Count : Byte;
@@ -282,14 +322,11 @@ Begin
         Close (T);
       End;
     End;
-  Except
-    { ignore exceptions here -- happens when socketstatus is NIL}
-    { need to review criticals now that they are in FP's RTL}
+
+    StatusUpdated := True;
+  Finally
+    LeaveCriticalSection(Critical);
   End;
-
-  StatusUpdated := True;
-
-  LeaveCriticalSection(Critical);
 End;
 
 Procedure TServerManager.Execute;
@@ -341,6 +378,13 @@ Begin
         NewClient.WriteLine('BLOCKED');
 
       WaitMS(3000);
+
+      NewClient.Free;
+    End Else
+    If IsFloodIP(NewClient.PeerIP) Then Begin
+      Inc (ClientBlocked);
+
+      Status(-1, 'FLOOD: ' + NewClient.PeerIP + ' (auto-banned)');
 
       NewClient.Free;
     End Else

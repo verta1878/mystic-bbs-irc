@@ -188,9 +188,24 @@ Begin
 End;
 
 Procedure TIOSocket.Disconnect;
+Var
+  Buf    : Array[1..512] of Byte;
+  Res    : LongInt;
+  Waited : Byte;
 Begin
   If FSocketHandle <> -1 Then Begin
-    fpShutdown(FSocketHandle, 2);
+    // A51: ensure all pending data is sent before terminating the connection.
+    // Half-close the write side first (SHUT_WR=1), then drain any remaining
+    // incoming data so the remote end sees a clean close, not a RST.
+    fpShutdown(FSocketHandle, 1);
+
+    Waited := 0;
+
+    Repeat
+      Res := fpRecv(FSocketHandle, @Buf, SizeOf(Buf), 0);
+      Inc(Waited);
+    Until (Res <= 0) or (Waited > 10);
+
     CloseSocket(FSocketHandle);
 
     FSocketHandle := -1;
