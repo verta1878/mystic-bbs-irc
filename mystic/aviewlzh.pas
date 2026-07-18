@@ -64,7 +64,11 @@ End;
 
 Procedure TLzhArchive.GetHeader (Var SR: ArcSearchRec);
 Var
-  NR : LongInt;
+  NR       : LongInt;
+  Level    : Byte;
+  ExtSize  : Word;
+  ExtType  : Byte;
+  NameLen  : Byte;
 Begin
   FillChar (SR, SizeOf(SR), 0);
   Seek     (ArcFile, _SL);
@@ -75,9 +79,31 @@ Begin
 
   If _FHdr.HeadSize = 0 Then Exit;
 
-  Inc (_SL, _FHdr.HeadSize);
-  Inc (_SL, 2);
-  Inc (_SL, _FHdr.PackSize);
+  // A60: determine LZH header level from byte after method ID
+  // Level is at offset HeadSize+2+5 (after HeadSize, HeadChk, HeadID[5])
+  // For simplicity, detect level from the header structure:
+  // Level 0: HeadSize includes filename, skip HeadSize+2 bytes
+  // Level 1: HeadSize is base header, followed by extended headers
+  // Level 2: HeadSize is total header size (2-byte LE at offset 0)
+  Level := 0;
+  If (_FHdr.HeadSize >= 24) and (_FHdr.HeadChk = 0) Then
+    Level := 2
+  Else
+  If (_FHdr.HeadSize > 2) and (_FHdr.FileName[0] > #0) Then
+    Level := 0;
+
+  Case Level of
+    0, 1: Begin
+            Inc (_SL, _FHdr.HeadSize);
+            Inc (_SL, 2);
+            Inc (_SL, _FHdr.PackSize);
+          End;
+    2:    Begin
+            // Level 2: HeadSize is the TOTAL header size (stored as Word)
+            Inc (_SL, Word(_FHdr.HeadSize) + Word(_FHdr.HeadChk) * 256);
+            Inc (_SL, _FHdr.PackSize);
+          End;
+  End;
 
   If _FHdr.HeadSize <> 0 Then
     UnPackTime (_FHdr.FileTime, _FHdr.DT);

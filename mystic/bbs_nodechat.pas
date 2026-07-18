@@ -192,6 +192,13 @@ Begin
                 End;
           End;
 
+          // A58: node-specific prompt codes for chat messages
+          // &2 = node number, &3 = low node color, &4 = high (bright) node color
+          // Colors cycle: 1=blue, 2=cyan, 3=red, 4=magenta, 5=yellow, 6=white, 7=blue...
+          Str := strReplace(Str, '|&2', strI2S(Msg.FromNode));
+          Str := strReplace(Str, '|&3', '|' + strZero((Msg.FromNode MOD 8) + 1));
+          Str := strReplace(Str, '|&4', '|' + strZero((Msg.FromNode MOD 8) + 9));
+
           If Full Then Begin
             StrLen := Length(Str);
             Indent := Length(strStripMCI(Str));

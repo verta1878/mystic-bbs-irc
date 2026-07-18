@@ -35,7 +35,7 @@ Uses
 
 Const
   MaxAttentionLen = 32;
-  ZMaxBlockSize   = 8192;
+  ZMaxBlockSize   = 32768;  // A60: increased from 8192 to 32KB
   ZHandshakeWait  = 3000;
 
   DefFinishWait  : Word = 100;       {Wait time for ZFins, 10 secs}

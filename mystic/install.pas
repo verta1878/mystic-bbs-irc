@@ -557,6 +557,14 @@ Begin
     Screen.WriteLine ('Type "./mystic" to login (do this first to make your SysOp account)');
     Screen.WriteLine ('Type "./mystic -cfg" to run the configuration utility');
   {$ENDIF}
+  {$IFDEF FREEBSD}
+    Screen.WriteLine ('Please read linux.install.txt for installation instructions');
+    Screen.WriteLine('');
+    Screen.WriteLine ('Set your terminal to 80x25 lines with an IBM characterset font!');
+    Screen.WriteLine('');
+    Screen.WriteLine ('Type "./mystic" to login (do this first to make your SysOp account)');
+    Screen.WriteLine ('Type "./mystic -cfg" to run the configuration utility');
+  {$ENDIF}
 
   Screen.WriteLine('');
   Screen.WriteStr('Press any key to close');

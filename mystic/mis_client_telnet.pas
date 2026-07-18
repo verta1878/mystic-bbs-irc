@@ -37,12 +37,7 @@ Interface
   {$ENDIF}
 
   {$IFDEF USEFORK}
-    {$IFDEF CPU32}
-      {$LinkLib libutil.a}
-    {$ENDIF}
-    {$IFDEF CPU64}
-      {$LinkLib libutil.a}
-    {$ENDIF}
+    // uforkpty replaces libutil.a — pure FPC syscalls, no libc needed
   {$ENDIF}
 {$ENDIF}
 
@@ -54,6 +49,9 @@ Uses
   {$IFDEF UNIX}
     BaseUnix,
     Unix,
+    {$IFDEF USEFORK}
+    uforkpty,
+    {$ENDIF}
   {$ENDIF}
   {$IFDEF WINDOWS}
     Windows,
@@ -72,7 +70,7 @@ Uses
   BBS_DataBase;
 
 {$IFDEF USEFORK}
-  function forkpty(__amaster:Plongint; __name:Pchar; __termp:Pointer; __winp:Pointer):longint;cdecl;external 'c' name 'forkpty';
+  // forkpty now provided by uforkpty unit — pure FPC, no libc
 {$ENDIF}
 
 Function CreateTelnet (Owner: TServerManager; Config: RecConfig; ND: TNodeData; CliSock: TIOSocket) : TServerClient;
@@ -174,7 +172,7 @@ Begin
 
   Num := ND.GetFreeNode;
 
-  PID := ForkPTY (@PTYFD, NIL, NIL, NIL);
+  PID := ForkPTY_Pure (@PTYFD, NIL, NIL, NIL);
 
   If PID = 0 Then Begin
     fpSetSID;

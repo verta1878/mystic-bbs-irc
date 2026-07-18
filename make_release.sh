@@ -1,139 +1,139 @@
 #!/usr/bin/env bash
 # ============================================================
-#  make_release.sh - build a PER-TARGET release into its platform directory.
-#
-#  Usage:  ./make_release.sh <tag> <bin-dir> [full|upgrade|both] [out-dir]
-#          tag  = win | lnx | os2 | mac | dos    (the target platform)
-#          mode = both (default) | full | upgrade
-#
-#  LAYOUT - each target gets its own directory under <out-dir> (default
-#  "release"), named by the platform tag, holding its FULL install and its
-#  UPGRADE bundle:
-#
-#     release/<tag>/mystic<tag>full.zip   FULL  - install + install_data.mys + docs
-#     release/<tag>/mystic<tag>upd.zip   UPGRADE - binaries + docs, no payload
-#
-#     e.g. release/os2/mysticos2full.zip + release/os2/mysticos2upd.zip
-#
-#  FULL     : all 14 binaries + install_data.mys + docs + FILE_ID.DIZ "<tag> FULL"
-#  UPGRADE  : all 14 binaries + docs + FILE_ID.DIZ "<tag> UPGRADE" (no payload) -
-#             a drop-in over an existing install.
-#
-#  FILE_ID.DIZ is generated from file_id.<tag> with the title's "<tag> BINARIES"
-#  replaced by "<tag> FULL"/"<tag> UPGRADE", written CRLF (BBS/DOS convention).
-#
-#  Examples:
-#     ./make_release.sh os2 out/bin-os2            # both -> release/os2/
-#     ./make_release.sh win out/bin-win full       # FULL only -> release/win/
-#     ./make_release.sh mac out_darwin/bin both dist
+#  Mystic 1.10 A38irc-A63 — Release package builder
+#  Creates FULL (installer) and UPD (binary update) packages
 # ============================================================
-set -e
-cd "$(dirname "$0")"
+set -u
+ROOT="$(cd "$(dirname "$0")" && pwd)"; cd "$ROOT"
+DATE=$(date +%m-%d-%Y)
+VER="1.10a38irc-a63"
 
-T="$1"; BIN="$2"; MODE="${3:-both}"; OUTROOT="${4:-release}"
-[ -z "$T" ] || [ -z "$BIN" ] && {
-  echo "usage: $0 <win|lnx|os2|mac|dos> <bin-dir> [full|upgrade|both] [out-dir]"; exit 1; }
-case "$MODE" in full|upgrade|both) ;; *) echo "mode = full|upgrade|both"; exit 1;; esac
+echo "=================================================="
+echo " Mystic BBS $VER Release Builder"
+echo " $(date)"
+echo "=================================================="
+echo ""
 
-FID="mystic/file_id.$T"
-[ -f "$FID" ] || { echo "missing $FID (per-target DIZ template)"; exit 1; }
-[ -d "$BIN" ] || { echo "no such bin dir: $BIN"; exit 1; }
+INSTALL_DATA="${INSTALL_DATA:-/mnt/user-data/uploads/install_data.mys}"
+if [ ! -f "$INSTALL_DATA" ]; then
+    echo "ERROR: install_data.mys not found at $INSTALL_DATA"
+    echo "Set INSTALL_DATA=/path/to/install_data.mys"
+    exit 1
+fi
 
-# Release version string used in archive names: mystic-<VER>-<tag>-<mode>.zip
-# Bump this when the fork's alpha changes (e.g. 1.10a40irc). Overridable via env.
-VER="${VER:-1.10a38irc}"
+# Clean
+rm -rf out-linux out-win32 out-dos release
+find . -name '*.ppu' -not -path "*/fpc264irc/*" -delete 2>/dev/null
+find . -name '*.o' -not -path "*/fpc264irc/*" -delete 2>/dev/null
 
-# STAMP distinguishes an in-progress import (dated build) from a completed one.
-# While still importing an alpha's fixes, leave STAMP as the date (default =
-# today, MM-DD-YYYY e.g. 07-10-2026).  Once ALL of that alpha's fixes are
-# imported, build with STAMP=FINAL to stamp the release as done:
-#   in-progress -> mystic-1.10a38irc-win-full-07-10-2026.zip
-#   completed   -> mystic-1.10a38irc-win-full-FINAL.zip
-STAMP="${STAMP:-$(date +%m-%d-%Y)}"
+# Build all platforms
+echo "--- Building Linux ---"
+./build-linux.sh 2>&1 | tail -1
+echo "--- Building Win32 ---"
+./build-win32.sh 2>&1 | tail -1
+echo "--- Building DOS ---"
+./build-dos.sh 2>&1 | tail -1
+echo ""
 
-# per-target output directory, named by platform tag
-TARGDIR="$OUTROOT/$T"
-mkdir -p "$TARGDIR"
-TARGABS="$(cd "$TARGDIR" && pwd)"
+# Compile MPL scripts
+echo "--- Compiling MPL scripts ---"
+if [ -x out-linux/bin/mplc ]; then
+    ./out-linux/bin/mplc scripts/appendtext_demo.mps 2>/dev/null && echo "  OK appendtext_demo.mpx" || echo "  FAIL"
+    ./out-linux/bin/mplc scripts/chatcheck_demo.mps 2>/dev/null && echo "  OK chatcheck_demo.mpx" || echo "  FAIL"
+fi
+echo ""
 
-# ---- helper: build one archive in a given mode ----
-build_one () {
-  local mode="$1" label zipname
-  case "$mode" in
-    full)    label="FULL";    zipname="mystic-${VER}-${T}-full-${STAMP}.zip" ;;
-    upgrade) label="UPGRADE"; zipname="mystic-${VER}-${T}-update-${STAMP}.zip" ;;
-  esac
+mkdir -p release
 
-  local STAGE; STAGE="$(mktemp -d)"
-  cp -r "$BIN"/. "$STAGE"/
-  # strip build intermediates - only runnable binaries + content ship
-  find "$STAGE" \( -name '*.o' -o -name '*.ppu' -o -name '*.a' \
-                   -o -name '*.s' -o -name '*.out' \) -delete 2>/dev/null || true
+# ============================================================
+# FULL packages — 5 files only: install + install_data.mys
+#   + COPYING + FILE_ID.DIZ + whatsnew.txt
+# User runs install, it extracts everything from install_data.mys
+# ============================================================
 
-  # FILE_ID.DIZ: relabel the title's "<tag> BINARIES" -> "<tag> FULL/UPGRADE",
-  # then RE-PAD the title line so the box interior stays a fixed width and the
-  # right-hand border '|' remains aligned regardless of label length.
-  # Interior width is taken from the top border line ('.---...---.').
-  awk -v tag="$T" -v label="$label" -v stamp="$STAMP" '
-    {
-      line = $0
-      sub(/\r$/, "", line)                                 # normalise CRLF FIRST
-    }
-    NR==1 { inner = length(line) - 2 }                     # width between the dots
-    {
-      if (line ~ ("\\| .*" tag " BINARIES \\|")) {
-        # rebuild the title line at the exact interior width
-        content = line
-        sub(/^\| /, "", content); sub(/ \|$/, "", content)  # strip borders
-        sub(tag " BINARIES", tag " " label, content)        # swap the label
-        # pad or trim the content to (inner-2) so " " + content + " " == inner
-        w = inner - 2
-        while (length(content) < w) content = content " "
-        content = substr(content, 1, w)
-        line = "| " content " |"
-      }
-      printf "%s\r\n", line
-    }
-    END {
-      # last line = release date (or FINAL when the alpha import is complete)
-      printf " Released: %s\r\n", stamp
-    }
-  ' "$FID" > "$STAGE/FILE_ID.DIZ"
+echo "--- Packaging Win32 FULL ---"
+mkdir -p release/full-win32
+cp out-win32/bin/install.exe release/full-win32/
+cp "$INSTALL_DATA" release/full-win32/
+cp COPYING release/full-win32/
+cp mystic/file_id.win release/full-win32/FILE_ID.DIZ
+cp mystic/whatsnew.txt release/full-win32/
+cd release/full-win32
+zip -9 "$ROOT/release/mystic-${VER}-win32-full-${DATE}.zip" * 2>&1 | tail -1
+cd "$ROOT"
 
-  # release docs (already CRLF in repo)
-  for extra in whatsnew.txt upgrade.txt; do
-    [ -f "mystic/$extra" ] && cp "mystic/$extra" "$STAGE"/
-  done
-  # per-version update notes: updatea40.txt (and any future updatea41.txt, ...)
-  for u in mystic/update*.txt; do
-    [ -f "$u" ] && cp "$u" "$STAGE"/
-  done
-  # payload only in FULL
-  if [ "$mode" = full ] && [ -f "mystic/install_data.mys" ]; then
-    cp "mystic/install_data.mys" "$STAGE"/
-    # The 14 program binaries are ALREADY inside install_data.mys (the installer
-    # unpacks them), so they are redundant loose in the FULL archive.  Remove
-    # them, keeping ONLY install.exe (the installer the user actually runs).
-    for b in mystic mis mutil mplc mide mbbsutil fidopoll nodespy qwkpoll \
-             mystpack install_make maketheme 109to110; do
-      rm -f "$STAGE/$b" "$STAGE/$b.exe"
-    done
-  fi
-  [ -f COPYING ] && cp COPYING "$STAGE"/
+echo "--- Packaging Linux FULL ---"
+mkdir -p release/full-linux
+cp out-linux/bin/install release/full-linux/
+cp "$INSTALL_DATA" release/full-linux/
+cp COPYING release/full-linux/
+cp mystic/file_id.lnx release/full-linux/FILE_ID.DIZ
+cp mystic/whatsnew.txt release/full-linux/
+cd release/full-linux
+tar czf "$ROOT/release/mystic-${VER}-linux-full-${DATE}.tar.gz" *
+cd "$ROOT"
 
-  # Package inside a top-level folder named after the archive, so extracting the
-  # FULL and UPDATE archives side by side does NOT merge their loose files.
-  local FOLDER="${zipname%.zip}"
-  local ARC="$TARGABS/$zipname"
-  rm -f "$ARC"
-  local WRAP; WRAP="$(mktemp -d)"
-  mkdir -p "$WRAP/$FOLDER"
-  cp -r "$STAGE"/. "$WRAP/$FOLDER"/
-  ( cd "$WRAP" && zip -qr "$ARC" "$FOLDER" )
-  rm -rf "$STAGE" "$WRAP"
-  echo "  $mode -> $TARGDIR/$zipname  (folder: $FOLDER/, DIZ \"$T $label\", payload=$([ $mode = full ] && echo yes || echo no))"
-}
+echo "--- Packaging DOS FULL ---"
+mkdir -p release/full-dos
+cp out-dos/bin/install.exe release/full-dos/
+cp "$INSTALL_DATA" release/full-dos/
+cp COPYING release/full-dos/
+cp mystic/file_id.dos release/full-dos/FILE_ID.DIZ
+cp mystic/whatsnew.txt release/full-dos/
+cd release/full-dos
+zip -9 "$ROOT/release/mystic-${VER}-dos-full-${DATE}.zip" * 2>&1 | tail -1
+cd "$ROOT"
 
-echo "Release: $T -> $TARGDIR/"
-[ "$MODE" = both ] || [ "$MODE" = full ]    && build_one full
-[ "$MODE" = both ] || [ "$MODE" = upgrade ] && build_one upgrade
+# ============================================================
+# UPD packages — all binaries + install_data.mys + COPYING
+#   + FILE_ID.DIZ + whatsnew.txt + upgrade.txt
+# Drop binaries into existing Mystic install
+# ============================================================
+
+echo "--- Packaging Win32 UPD ---"
+mkdir -p release/upd-win32
+cp out-win32/bin/*.exe release/upd-win32/
+cp "$INSTALL_DATA" release/upd-win32/
+cp COPYING release/upd-win32/
+cp mystic/file_id.win release/upd-win32/FILE_ID.DIZ
+cp mystic/whatsnew.txt release/upd-win32/
+cp mystic/upgrade.txt release/upd-win32/
+cd release/upd-win32
+zip -9 "$ROOT/release/mystic-${VER}-win32-upd-${DATE}.zip" * 2>&1 | tail -1
+cd "$ROOT"
+
+echo "--- Packaging Linux UPD ---"
+mkdir -p release/upd-linux
+cp out-linux/bin/* release/upd-linux/
+cp "$INSTALL_DATA" release/upd-linux/
+cp COPYING release/upd-linux/
+cp mystic/file_id.lnx release/upd-linux/FILE_ID.DIZ
+cp mystic/whatsnew.txt release/upd-linux/
+cp mystic/upgrade.txt release/upd-linux/
+cd release/upd-linux
+tar czf "$ROOT/release/mystic-${VER}-linux-upd-${DATE}.tar.gz" *
+cd "$ROOT"
+
+echo "--- Packaging DOS UPD ---"
+mkdir -p release/upd-dos
+cp out-dos/bin/* release/upd-dos/
+cp "$INSTALL_DATA" release/upd-dos/
+cp COPYING release/upd-dos/
+cp mystic/file_id.dos release/upd-dos/FILE_ID.DIZ
+cp mystic/whatsnew.txt release/upd-dos/
+cp mystic/upgrade.txt release/upd-dos/
+cd release/upd-dos
+zip -9 "$ROOT/release/mystic-${VER}-dos-upd-${DATE}.zip" * 2>&1 | tail -1
+cd "$ROOT"
+
+echo ""
+echo "=================================================="
+echo " Release packages:"
+ls -la release/mystic-${VER}-* 2>/dev/null | awk '{printf "  %-55s %6dKB\n", $NF, $5/1024}'
+echo "=================================================="
+
+# Copy to outputs
+cp release/mystic-${VER}-*.zip release/mystic-${VER}-*.tar.gz /mnt/user-data/outputs/ 2>/dev/null
+
+# Cleanup
+rm -rf release out-linux out-win32 out-dos

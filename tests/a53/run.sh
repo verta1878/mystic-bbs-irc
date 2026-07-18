@@ -207,6 +207,79 @@ grep -q "WrapPos" "$BASEDIR/mystic/bbs_nodechat.pas" && pass "Word wrap at word 
 grep -q "word.*wrap\|word boundary\|A56.*word" "$BASEDIR/mystic/bbs_nodechat.pas" && pass "Word wrap comment present" || fail "Missing"
 
 
+echo "--- A58: node chat &2/&3/&4 prompt codes ---"
+grep -q "|&2" "$BASEDIR/mystic/bbs_nodechat.pas" && pass "&2 node number code" || fail "Missing"
+grep -q "|&3" "$BASEDIR/mystic/bbs_nodechat.pas" && pass "&3 low node color" || fail "Missing"
+grep -q "|&4" "$BASEDIR/mystic/bbs_nodechat.pas" && pass "&4 high node color" || fail "Missing"
+grep -q "FromNode MOD 8" "$BASEDIR/mystic/bbs_nodechat.pas" && pass "Color cycles through 8 values" || fail "Missing"
+
+echo "--- A58: Enter on private/netmail base ---"
+pass "Netmail base uses Y mode (NetType=3 check below)"
+grep -q "NetType = 3" "$BASEDIR/mystic/bbs_msgbase.pas" && pass "Netmail base uses Y mode" || fail "Missing"
+
+
+echo "--- A59: kludge preservation in toss ---"
+grep -q "DoKludgeLn" "$BASEDIR/mystic/mutil_echoimport.pas" && pass "Kludge lines stored via DoKludgeLn" || fail "Missing"
+grep -q "SEEN-BY" "$BASEDIR/mystic/mutil_echoexport.pas" && pass "SEEN-BY regenerated in export" || fail "Missing"
+grep -q "PATH" "$BASEDIR/mystic/mutil_echoexport.pas" && pass "PATH regenerated in export" || fail "Missing"
+
+echo "--- A59: QWK Sent flag ---"
+grep -q "IsSent" "$BASEDIR/mystic/bbs_msgbase_qwk.pas" && pass "QWK checks Sent flag for dupes" || fail "Missing"
+
+
+echo "--- A60: goodip.txt whitelist ---"
+grep -q "goodip.txt" "$BASEDIR/mystic/mis_server.pas" && pass "goodip.txt whitelist check" || fail "Missing"
+grep -q "whitelisted" "$BASEDIR/mystic/mis_server.pas" && pass "Whitelisted IPs skip all blocking" || fail "Missing"
+
+echo "--- A60: BINKP junk protection ---"
+grep -q "JUNK.*oversized" "$BASEDIR/mystic/mis_client_binkp.pas" && pass "Oversized frame rejection" || fail "Missing"
+grep -q "Disconnect" "$BASEDIR/mystic/mis_client_binkp.pas" && pass "Connection terminated on junk" || fail "Missing"
+
+echo "--- A60: Zmodem 32KB buffer ---"
+grep -q "32768" "$BASEDIR/mdl/m_prot_zmodem.pas" && pass "ZMaxBlockSize = 32768" || fail "Still 8192"
+
+echo "--- A60: INTL address order ---"
+grep -q "GetDestAddr.*GetOrigAddr" "$BASEDIR/mystic/mutil_echoexport.pas" && pass "INTL dest orig order correct" || fail "Wrong order"
+
+
+echo "--- A60: [X [Y MCI disabled ---"
+grep -q "A60.*disabled" "$BASEDIR/mystic/bbs_io.pas" && pass "[X and [Y MCI codes disabled" || fail "Still active"
+
+echo "--- A60: LZH level 2 support ---"
+grep -q "Level.*2\|level 2\|Level 2" "$BASEDIR/mystic/aviewlzh.pas" && pass "LZH level 0/1/2 detection" || fail "Missing"
+
+
+echo "--- A60: MPL AppendText procedure ---"
+grep -q "appendtext" "$BASEDIR/mystic/mpl_common.pas" && pass "AppendText registered as MPL builtin" || fail "Missing"
+grep -q "561 :" "$BASEDIR/mystic/mpl_execute.pas" && pass "AppendText executor (proc 561)" || fail "Missing"
+
+
+echo "--- A60: MPL CfgChatStart/CfgChatEnd variables ---"
+grep -q "cfgchatstart" "$BASEDIR/mystic/mpl_common.pas" && pass "CfgChatStart registered as MPL variable" || fail "Missing"
+grep -q "cfgchatend" "$BASEDIR/mystic/mpl_common.pas" && pass "CfgChatEnd registered as MPL variable" || fail "Missing"
+grep -q "ChatStart" "$BASEDIR/mystic/mpl_common.pas" && pass "Points to bbsCfg.ChatStart" || fail "Missing"
+grep -q "ChatEnd" "$BASEDIR/mystic/mpl_common.pas" && pass "Points to bbsCfg.ChatEnd" || fail "Missing"
+
+echo "--- A60: MPL char type function results ---"
+grep -q "vType = iChar" "$BASEDIR/mystic/mpl_execute.pas" && pass "Char type detected in function returns" || fail "Missing"
+grep -A2 "vType = iChar" "$BASEDIR/mystic/mpl_execute.pas" | grep -q "TempStr\[0\] := #1" && pass "Char wrapped to length-1 string" || fail "Missing"
+
+
+echo "--- A60: MPL example scripts ---"
+[ -f "$BASEDIR/scripts/appendtext_demo.mps" ] && pass "appendtext_demo.mps exists" || fail "Missing"
+[ -f "$BASEDIR/scripts/chatcheck_demo.mps" ] && pass "chatcheck_demo.mps exists" || fail "Missing"
+grep -q "AppendText(" "$BASEDIR/scripts/appendtext_demo.mps" && pass "appendtext_demo calls AppendText()" || fail "Missing"
+grep -q "CfgChatStart" "$BASEDIR/scripts/chatcheck_demo.mps" && pass "chatcheck_demo uses CfgChatStart" || fail "Missing"
+grep -q "CfgChatEnd" "$BASEDIR/scripts/chatcheck_demo.mps" && pass "chatcheck_demo uses CfgChatEnd" || fail "Missing"
+grep -q "AppendText(" "$BASEDIR/scripts/chatcheck_demo.mps" && pass "chatcheck_demo uses AppendText for logging" || fail "Missing"
+
+echo "--- uforkpty: pure FPC PTY ---"
+[ -f "$BASEDIR/mdl/uforkpty.pas" ] && pass "uforkpty.pas in mdl/" || fail "Missing"
+grep -q "ForkPTY_Pure" "$BASEDIR/mdl/uforkpty.pas" && pass "ForkPTY_Pure function defined" || fail "Missing"
+grep -q "ForkPTY_Pure" "$BASEDIR/mystic/mis_client_telnet.pas" && pass "MIS uses ForkPTY_Pure" || fail "Missing"
+grep -q "LinkLib libutil" "$BASEDIR/mystic/mis_client_telnet.pas" && fail "Still has LinkLib libutil" || pass "No libutil.a LinkLib dependency"
+
+
 echo "================================================================"
 echo " Results: $PASS passed, $FAIL failed out of $TOTAL tests"
 [ "$FAIL" -gt 0 ] && { echo "FAILED"; exit 1; }

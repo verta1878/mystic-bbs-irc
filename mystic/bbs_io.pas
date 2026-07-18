@@ -866,12 +866,15 @@ Begin
                     FmtType   := 15;
                   End;
             'X' : Begin
-                    FmtString := True;
-                    FmtType   := 6;
+                    // A60: [X is disabled — could move cursor to arbitrary
+                    // positions when parsed from message text.
+                    // FmtString := True;
+                    // FmtType   := 6;
                   End;
             'Y' : Begin
-                    FmtString := True;
-                    FmtType   := 7;
+                    // A60: [Y is disabled — same reason as [X.
+                    // FmtString := True;
+                    // FmtType   := 7;
                   End;
           End;
   Else

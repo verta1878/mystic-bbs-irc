@@ -1,11 +1,11 @@
-# Mystic BBS 1.10 A38irc-A52 — Community Fork (IRC)
+# Mystic BBS 1.10 A38irc-A63 — Community Fork (IRC)
 
-> **Release: 2026-07-17** — base **Mystic 1.10 A38irc-A52**, with all
-> **A41–A52** features ported from g00r00's whatsnew. Zero deferrals.
+> **Release: 2026-07-18** — base **Mystic 1.10 A38irc-A63**, with all
+> **A41–A63 + final 1.10** features ported from g00r00's whatsnew.
 > BINKP FTS-1026 compliant. TIC file tosser per FTS-5006.001. Built-in
 > ZIP archiver (marc). System tray support (utrayit). RIPscrip v1.54
 > integration. Builds **7/7 core + 27/27 mdl/** with
-> **FPC 2.6.4irc r3.1** across 6 targets.
+> **FPC 2.6.4irc r5.1** across 6 targets.
 
 A community fork of the **Mystic BBS 1.10 Alpha 38** source, released under the
 **GNU General Public License v3**. The goal is a clean, buildable, well-documented
@@ -18,7 +18,7 @@ that attribution and all GPL notices; see [COPYING](COPYING).
 
 ## Compiler
 
-**FPC 2.6.4irc r3.1** (fork: [verta1878/fpc264irc](https://github.com/verta1878/fpc264irc))
+**FPC 2.6.4irc r5.1** (fork: [verta1878/fpc264irc](https://github.com/verta1878/fpc264irc))
 
 - Native linker fixed for modern binutils (ld stall bug)
 - Prebuilt PPUs for md5/crc/zipper/netdb/process
@@ -41,7 +41,7 @@ that attribution and all GPL notices; see [COPYING](COPYING).
 | mdl/ | ✅ 27/27 | Core library (with SDL/SDL_TTF headers) |
 | mystic_rip/ | ✅ 13/13 | RIPscrip engine + tools |
 
-## Alpha Features Ported (A41–A52)
+## Alpha Features Ported (A41–A63)
 
 ### A41 — FidoNet Enhancements (11 items) ✅
 CTRL-A→@ in quotes, FMPT/TOPT kludges, PKT passwords (export+import),
@@ -149,6 +149,7 @@ menu display with ANSI fallback, door drop files report GR for RIP.
 |-------|-------|--------|
 | `tests/marc/run.sh` | ZIP round-trip, FILE_ID.DIZ, FidoNet .pkt, QWK | ✅ |
 | `tests/deferred9/run.sh` | 54 tests across 9 items, FTS/FSC/RFC verified | ✅ 54/54 |
+| `tests/a53/run.sh` | 98 tests: A52-A56 + CIADraw + utrayit + mouse + modem | ✅ 98/98 |
 | `tests/a40/run.sh` | Record anchors, log stamps | ✅ |
 
 ## FTS/FSC/RFC References
@@ -182,3 +183,42 @@ GNU General Public License v3.0 — see [COPYING](COPYING).
 
 New files by the fork maintainer: Copyright 2026 by Antonio Rico.
 Original Mystic BBS: Copyright 1997-2013 by James Coyle.
+
+
+## Build & Release
+
+### Build scripts
+- `build-linux.sh` — 15/15 ELF 32-bit linked
+- `build-win32.sh` — 15/15 PE32 .exe cross-compiled
+- `build-dos.sh` — 9/9 DOS go32v2
+- `build-os2.sh` — compiles, EMX linker needs emxbind
+
+### Release scripts
+- `make_release.sh` — builds FULL + UPD packages for all platforms
+- `make_install_data.sh` — builds `install_data.mys` from a Mystic directory
+- `make_all_releases.sh` — builds all platforms at once
+
+### Package types
+- **FULL** (5 files): `install` + `install_data.mys` + `COPYING` + `FILE_ID.DIZ` + `whatsnew.txt`
+- **UPD** (20 files): all 15 binaries + `install_data.mys` + `COPYING` + `FILE_ID.DIZ` + `whatsnew.txt` + `upgrade.txt`
+
+### Cross-compile status (fpc264irc r5.1)
+| Platform | Build | Link | Notes |
+|----------|-------|------|-------|
+| Linux i386 | 15/15 ✅ | 15/15 ✅ | — |
+| Windows | 15/15 ✅ | 15/15 ✅ | — |
+| DOS go32v2 | 9/9 ✅ | 9/9 ✅ | — |
+| OS/2 EMX | ✅ compiles | ⚠️ emxbind | Needs emxl.exe |
+| FreeBSD | 3/15 | 3/15 | m_ops.pas fixed, console units need work |
+| Darwin | — | — | Missing base RTL PPUs |
+
+### New subsystems
+- `uforkpty.pas` — pure FPC forkpty(), zero libc dependency
+- `utextmouse.pas` — xterm/Win32/INT 33h mouse (ANSI editor only)
+- `mutil_filetoss.pas` — TIC tosser per FTS-5006.001
+- `netmodem_fossil.pas` — FOSSIL INT 14h serial test for DOS
+
+### Documentation
+- `docs/INSTALL-MAKE.md` — how to build install_data.mys
+- `docs/CREATING-THE-INSTALLER.md` — full installer/release workflow
+- `docs/BUILDING.md` — build instructions

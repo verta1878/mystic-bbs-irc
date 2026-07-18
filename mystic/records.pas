@@ -68,6 +68,13 @@ Const
     OSType   = 2;
   {$ENDIF}
 
+  {$IFDEF FREEBSD}
+    PathChar = '/';
+    LineTerm = #10;
+    OSID     = 'FreeBSD';
+    OSType   = 6;
+  {$ENDIF}
+
   // OSTYPE 3 = RESERVED FOR "ALL" OS TYPES IN CONFIGURATION
 
   {$IFDEF OS2}

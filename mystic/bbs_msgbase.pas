@@ -770,6 +770,11 @@ Begin
 
                 If NoIndexReader Then TempStr := '/NOIDX' Else TempStr := '';
 
+                // A58: for netmail bases, use 'Y' (yours) mode so pressing
+                // Enter shows the user's own messages.
+                If (TempBase.NetType = 3) Then
+                  ReadMessages('Y', TempStr, '')
+                Else
                 If (strS2I(strWordGet(4, ListBox.List[ListBox.Picked]^.Name, #0)) > 0) Then
                   ReadMessages('N', TempStr, '')
                 Else

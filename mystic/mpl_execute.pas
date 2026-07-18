@@ -118,6 +118,7 @@ Type
  // BBS DATA ACCESS FUNCTIONS
     Procedure FileReadLine  (Var F: File; Var Str: String);
     Procedure FileWriteLine (Var F: File; Str: String);
+    Procedure AppendText (FileName, Text: String);
 
     Procedure GetUserVars     (Var U: RecUser);
     Procedure PutUserVars     (Var U: RecUser);
@@ -1292,6 +1293,24 @@ Begin
   IoError := IoResult;
 End;
 
+// A60: AppendText(FileName, Text) — append a line to a text file.
+// Creates the file if it doesn't exist. Self-contained — no persistent
+// file handle needed.
+Procedure TInterpEngine.AppendText (FileName, Text: String);
+Var
+  TextFileOut : Text;
+Begin
+  Assign (TextFileOut, FileName);
+  {$I-} Append(TextFileOut); {$I+}
+  If IoResult <> 0 Then Begin
+    {$I-} ReWrite(TextFileOut); {$I+}
+  End;
+  If IoResult = 0 Then Begin
+    WriteLn(TextFileOut, Text);
+    Close(TextFileOut);
+  End;
+End;
+
 Procedure TInterpEngine.ClassCreate (Var Num: LongInt; Str: String);
 Var
   Count : LongInt;
@@ -2138,6 +2157,8 @@ Begin
             Console.GetScreenImage (Param[2].B, Param[3].B, Param[4].B, Param[5].B, TConsoleImageRec(ClassData[Param[1].L].ClassPtr^));
     560 : If ClassValid(Param[1].L, mplClass_Image) Then
             Session.io.RemoteRestore(TConsoleImageRec(ClassData[Param[1].L].ClassPtr^));
+    // A60: AppendText(FileName, Text)
+    561 : AppendText(Param[1].S, Param[2].S);
   End;
 End;
 

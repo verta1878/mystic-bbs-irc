@@ -670,3 +670,119 @@
    the NetMail straight to that node without consulting Route Info; only if
    there is no direct match does it fall back to matching each node's Route Info
    in order.
+
+================================================================
+ A51 through A60 — ported from g00r00's 1.10 Alpha 51-60
+ (2026-07-18)
+================================================================
+
+--- Alpha 51 ---
+ + [A51] Auto-ban IP: configurable via mystic -cfg Internet Servers
+   (Auto-ban Conns / Auto-ban Secs, 0=off). 256-entry circular
+   buffer in mis_server.pas. goodip.txt whitelist exempts from all
+   blocking (badip, DNSBL, DNSCC, auto-ban).
+ ! [A51] MIS crash fix: Try/Finally + ClientList critical section +
+   Destroy safe-nil in both m_socket_server.pas and mis_server.pas.
+ ! [A51] Socket shutdown flush: SHUT_WR + drain loop before close.
+ + [A51] CTRL+U in area index updates lastread pointer to last message.
+
+--- Alpha 52 ---
+ + [A52] CTRL-P posts message from area index reader.
+ + [A52] |SS/|RS screen save/restore (SavedScreen + GetScreenImage).
+ ! [A52] FS editor reformat on DELETE key (TextReformat).
+ ! [A52] JAM REPLY kludge: only exact "REPLY:" is subfield 5.
+ ! [A52] Unsecured BINKP pathing fix (DirLast).
+ + [A52] BINKP file conflict Rename/Skip (auto-rename, M_GOT for same-size).
+ + [A52] Group list/exclude groups in ansimidx (reads group_g.dat).
+ + [A52] Mouse support infrastructure (ESC[M parsing, MouseEnable/Disable).
+   Mouse only enabled inside ANSI editor, disabled on exit.
+ + [A52] Squish seconds preserved in HH:MM:SS format.
+
+--- Alpha 53 ---
+ + [A53] Area index snap to new (relative CTRL-N).
+ ! [A53] Strip pipe codes from username/alias (strStripPipe).
+ ! [A53] /ME only same chat room (type 6 checks Msg.Room).
+ ! [A53] Backspace fix (cursor-at-end check).
+ + [A53] &X MCI recalc (OutFile ansimrd after EditMessage).
+ ! [A53] Unsecure BINKP pathing (DirLast).
+ + [A53] BufFlush before ThemeMessageBox.
+
+--- Alpha 54 ---
+ ! [A54] Group membership bug: IgnoreGroup restored after BuildAreaList.
+
+--- Alpha 55 ---
+ ! [A55] Record locking fix: file listing uses ioReset with fmRWDN.
+ ! [A55] X hotkey conflict: Timer Type changed from 'X' to 'T'.
+ + [A55] BINKP_DEBUG define (commented out by default).
+
+--- Alpha 56 ---
+ ! [A56] BINKP Argus non-secure auth: M_PWD '-' treated as empty password.
+ + [A56] Kludge #1 replaced with @ in V command display.
+ ! [A56] QWK corruption fix: Chunks already LongInt (overflow at 64KB).
+ + [A56] BINKP 1.0 NR: advertises OPT NR in M_NUL handshake.
+ + [A56] MUTIL logs log level at startup.
+ ! [A56] Date past 2070: consistent < 80 pivot in m_datetime.pas.
+ + [A56] Node chat word wrap at word boundary (WrapPos).
+ + [A56] /QUIT, /EMOTE, /TELL, /REPLY commands (LastPrivateFrom tracking).
+
+--- Alpha 57 ---
+   Packaging error fix (N/A — our code already correct).
+
+--- Alpha 58 ---
+ + [A58] Node chat &2/&3/&4 prompt codes: node number, low color
+   (MOD 8 + 1), high color (MOD 8 + 9). Colors cycle per node.
+ ! [A58] Enter on private/netmail base uses ReadMessages('Y') mode.
+ - [A58] BINKP debug removed (BINKP_DEBUG commented out).
+ - [A58] BINKP identifies as 1.0+NR (1.1 disabled for compatibility).
+
+--- Alpha 59 ---
+ ! [A59] Kludge lines preserved in toss: DoKludgeLn on import,
+   SEEN-BY/PATH regenerated on export.
+ + [A59] QWK Sent flag check prevents duplicate import.
+
+--- Alpha 60 ---
+ + [A60] goodip.txt whitelist: IPs exempt from all blocking.
+ + [A60] BINKP junk protection: oversized frames trigger disconnect.
+ + [A60] Zmodem buffer increased from 8KB to 32KB (ZMaxBlockSize).
+ ! [A60] [X and [Y MCI codes disabled (cursor positioning exploit).
+ + [A60] LZH/LHA level 0/1/2 header support in archive viewer.
+ + [A60] MPL AppendText(FileName, Text: String) — new built-in procedure
+   #561. Appends a line to a text file, creates if not exists.
+   Implemented as TInterpEngine.AppendText method.
+   Requires: Uses CFG; for file paths.
+ + [A60] MPL CfgChatStart/CfgChatEnd variables — read-only Byte, points
+   to bbsCfg.ChatStart/ChatEnd via AddPointer.
+   Requires: Uses CFG;
+ ! [A60] MPL char type function results verified fixed.
+ + [A60] INTL address order verified correct (dest orig per FTS-0001).
+
+--- New Subsystems ---
+ + uforkpty.pas: pure FPC replacement for libc forkpty(). No
+   libutil.a or libc dependency. Uses fpOpen/fpIOCtl/fpFork/
+   fpSetSid/fpDup2. MIS telnet now links without any C library.
+ + utextmouse.pas: cross-platform mouse support (xterm ESC[M,
+   Win32 Console API, DOS INT 33h, OS/2 stub). Only enabled
+   inside the ANSI editor.
+ + mutil_filetoss.pas: TIC file tosser per FTS-5006.001/FSC-0087.
+ + netmodem_fossil.pas: FOSSIL INT 14h serial test for DOS.
+
+--- MPL Example Scripts ---
+ + scripts/appendtext_demo.mps: demonstrates AppendText procedure.
+   Logs user visits, simple guestbook. Requires: Uses CFG, USER;
+ + scripts/chatcheck_demo.mps: demonstrates CfgChatStart/CfgChatEnd.
+   Checks chat availability, logs page attempts. Uses CFG, USER;
+
+--- Code Audit ---
+ ! PostType does not exist in RecMessageBase — fixed to NetType=3.
+ ! SaveGroup/TempStr scope fix in BuildAreaList (declared after
+   nested procedure — moved to local vars SaveGrp/TmpStr).
+ ! TF renamed to TextFileOut for clarity in AppendText method.
+ + FreeBSD platform detection added to m_ops.pas ({$IFDEF FREEBSD}).
+
+--- Build ---
+ + build-linux.sh: 15/15 ELF 32-bit linked
+ + build-win32.sh: 15/15 PE32 .exe cross-compiled
+ + build-dos.sh: 9/9 DOS go32v2
+ + build-os2.sh: compiles, EMX linker needs emxbind
+ + 188 automated tests (134 a53 + 54 deferred9)
+ + Built with fpc264irc r5.1 (18b3de9c)

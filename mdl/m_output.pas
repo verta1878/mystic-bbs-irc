@@ -49,6 +49,11 @@ Interface
     Type TOutput = Class(TOutputLinux);
   {$ENDIF}
 
+  {$IFDEF FREEBSD}
+    Uses m_Output_Linux;
+    Type TOutput = Class(TOutputLinux);
+  {$ENDIF}
+
   {$IFDEF DARWIN}
     Uses m_Output_Darwin;
     Type TOutput = Class(TOutputDarwin);

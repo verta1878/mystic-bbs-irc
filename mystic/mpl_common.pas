@@ -345,6 +345,7 @@ Begin
           AddProc    ({$IFDEF MPLPARSER} 'inputenter',     {$ENDIF} 'lbbbs',     iBool);    // 558
           AddProc    ({$IFDEF MPLPARSER} 'imageget',       {$ENDIF} 'lbbbb',     iNone);    // 559
           AddProc    ({$IFDEF MPLPARSER} 'imageput',       {$ENDIF} 'l',         iNone);    // 560
+          AddProc    ({$IFDEF MPLPARSER} 'appendtext',     {$ENDIF} 'ss',        iNone);    // 561 A60
 
 { END OF PROCEDURE DEFINITIONS }
 
@@ -419,6 +420,8 @@ Begin
           AddPointer ({$IFDEF MPLPARSER} 'cfgtimeout',     {$ENDIF} iWord,   4,              {$IFNDEF MPLPARSER} @bbsCfg.Inactivity     {$ELSE} NIL {$ENDIF});
           AddPointer ({$IFDEF MPLPARSER} 'cfgseeinvis',    {$ENDIF} iString, 20,             {$IFNDEF MPLPARSER} @bbsCfg.AcsSeeInvis    {$ELSE} NIL {$ENDIF});
           AddPointer ({$IFDEF MPLPARSER} 'cfgtnnodes',     {$ENDIF} iByte,    1,             {$IFNDEF MPLPARSER} @bbsCfg.INetTNNodes    {$ELSE} NIL {$ENDIF});
+          AddPointer ({$IFDEF MPLPARSER} 'cfgchatstart',   {$ENDIF} iByte,    1,             {$IFNDEF MPLPARSER} @bbsCfg.ChatStart      {$ELSE} NIL {$ENDIF});  // A60
+          AddPointer ({$IFDEF MPLPARSER} 'cfgchatend',     {$ENDIF} iByte,    1,             {$IFNDEF MPLPARSER} @bbsCfg.ChatEnd        {$ELSE} NIL {$ENDIF});  // A60
 
           AddPointer ({$IFDEF MPLPARSER} 'cfgnetdesc',     {$ENDIF} iString, 30 * 25 - 1, {$IFNDEF MPLPARSER} @bbsCfg.NetDesc {$ELSE} NIL {$ENDIF});
           CV[X]^.ArrPos := 1;

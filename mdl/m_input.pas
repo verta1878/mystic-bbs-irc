@@ -53,6 +53,11 @@ Interface
     Type TInput = Class(TInputLinux);
   {$ENDIF}
 
+  {$IFDEF FREEBSD}
+    Uses m_Input_Linux;
+    Type TInput = Class(TInputLinux);
+  {$ENDIF}
+
   {$IFDEF DARWIN}
     Uses m_Input_Darwin;
     Type TInput = Class(TInputDarwin);

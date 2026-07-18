@@ -373,6 +373,14 @@ Begin
 
     RxBufSize := (Word(CharHi) SHL 8) + Word(CharLo);
 
+    // A60: junk protection — if a remote sends a frame with an absurd
+    // size, terminate the connection. Prevents CPU 100% on garbage data.
+    If (RxBufSize AND ($8000 - 1)) > BinkPMaxBufferSize Then Begin
+      StatusUpdate(Owner, 1, 'JUNK: oversized frame (' + strI2S(RxBufSize) + ' bytes), disconnecting');
+      Client.Disconnect;
+      Exit;
+    End;
+
     If Byte(CharHi) AND $80 = 0 Then Begin
       RxCommand   := M_DATA;
       RxFrameType := Data;

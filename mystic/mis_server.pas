@@ -181,6 +181,24 @@ Begin
   Result   := False;
   FileMode := 66;
 
+  // A60: goodip.txt whitelist — exempt from badip, DNSBL, DNSCC, and auto-ban
+  Assign     (TF, TextPath + 'goodip.txt');
+  SetTextBuf (TF, Buffer);
+  {$I-} Reset (TF); {$I+}
+
+  If IoResult = 0 Then Begin
+    While Not Eof(TF) Do Begin
+      ReadLn (TF, Str);
+
+      If CheckIP (Client.PeerIP, Str) Then Begin
+        Close (TF);
+        Exit;  // whitelisted — skip all blocking checks
+      End;
+    End;
+
+    Close (TF);
+  End;
+
   Assign     (TF, TextPath + 'badip.txt');
   SetTextBuf (TF, Buffer);
   Reset      (TF);
