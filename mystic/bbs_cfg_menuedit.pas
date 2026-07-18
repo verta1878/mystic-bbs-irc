@@ -396,7 +396,7 @@ Begin
   Form.AddByte ('X', 'X'              , 14, 12, 20, 12,  1,  2,  0, 80, @Menu.Item[Num]^.X,   Topic + 'X coordinate of lightbar');
   Form.AddByte ('Y', 'Y'              , 16, 12, 23, 12,  1,  2,  0, 50, @Menu.Item[Num]^.Y,   Topic + 'Y coordinate of lightbar');
   Form.AddWord ('M', ' Timer'         , 11, 13, 20, 13,  7,  5,  0, 65535, @Menu.Item[Num]^.Timer, Topic + 'Timer interval (seconds)');
-  Form.AddTog  ('X', ' Timer Type'    ,  6, 14, 20, 14, 12,  9,  0, 2, 'Interval OnlyOnce PerRedraw', @Menu.Item[Num]^.TimerType, Topic + 'TIMER event execution type');
+  Form.AddTog  ('T', ' Timer Type'    ,  6, 14, 20, 14, 12,  9,  0, 2, 'Interval OnlyOnce PerRedraw', @Menu.Item[Num]^.TimerType, Topic + 'TIMER event execution type');
 
   Form.AddBol  ('W', ' Redraw'        , 33, 14, 43, 14,  8,  3,  @Menu.Item[Num]^.ReDraw, Topic + 'Redraw menu after running this command?');
 

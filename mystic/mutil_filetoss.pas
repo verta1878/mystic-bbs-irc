@@ -416,6 +416,7 @@ Var
   FileCRC      : LongInt;
   TotalTossed  : LongInt;
   TotalFailed  : LongInt;
+  FBaseFile    : File of RecFileBase;
 
   Procedure ScanDirectory (Path: String);
   Begin
@@ -465,16 +466,44 @@ Var
 
       // Find the file base matching the area tag
       If Not FindBaseByTag(TIC.Area, FBase) Then Begin
-        Log(2, '!', '   No file base for area: ' + TIC.Area);
+        // A52: auto_create — create a new file base for unknown area tags
+        If AutoCreate Then Begin
+          Log(2, '+', '   Auto-creating file base for area: ' + TIC.Area);
 
-        If BadDir <> '' Then Begin
-          FileCopy(SrcPath + TIC.FileName, DirLast(BadDir) + TIC.FileName);
-          FileCopy(TicPath, DirLast(BadDir) + DirInfo.Name);
+          FillChar(FBase, SizeOf(FBase), 0);
+
+          If TIC.AreaDesc <> '' Then
+            FBase.Name := TIC.AreaDesc
+          Else
+            FBase.Name := TIC.Area;
+
+          FBase.EchoTag  := TIC.Area;
+          FBase.FileName := 'fecho_' + Copy(TIC.Area, 1, 30);
+          FBase.Path     := DirLast(bbsCfg.DataPath) + 'fecho' + PathChar + TIC.Area + PathChar;
+          FBase.Created  := CurDateDos;
+
+          DirCreate(FBase.Path);
+
+          // Append to fbases.dat and get the index
+          Assign(FBaseFile, bbsCfg.DataPath + 'fbases.dat');
+          {$I-} Reset(FBaseFile); {$I+}
+          If IoResult <> 0 Then ReWrite(FBaseFile);
+          FBase.Index := FileSize(FBaseFile);
+          Seek(FBaseFile, FBase.Index);
+          Write(FBaseFile, FBase);
+          Close(FBaseFile);
+        End Else Begin
+          Log(2, '!', '   No file base for area: ' + TIC.Area);
+
+          If BadDir <> '' Then Begin
+            FileCopy(SrcPath + TIC.FileName, DirLast(BadDir) + TIC.FileName);
+            FileCopy(TicPath, DirLast(BadDir) + DirInfo.Name);
+          End;
+
+          Inc(TotalFailed);
+          FindNext(DirInfo);
+          Continue;
         End;
-
-        Inc(TotalFailed);
-        FindNext(DirInfo);
-        Continue;
       End;
 
       // Import the file into the base

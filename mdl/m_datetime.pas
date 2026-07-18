@@ -271,7 +271,8 @@ Begin
   Day   := strS2I(Copy(Str, 4, 2));
   Year  := strS2I(Copy(Str, 7, 2));
 
-  If Year < 20 Then
+  // A56: consistent 2-digit year pivot (same as DateStr2Dos)
+  If Year < 80 Then
     Inc(Year, 2000)
   Else
     Inc(Year, 1900);
@@ -292,6 +293,8 @@ Begin
 
   DT.Year := strS2I(Copy(Str, 7, 2));
 
+  // A56: 2-digit year pivot. Years 00-79 map to 2000-2079,
+  // years 80-99 map to 1980-1999. Fixes dates past 2070.
   If Dt.Year < 80 Then
     Inc(DT.Year, 2000)
   Else

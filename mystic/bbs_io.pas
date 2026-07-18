@@ -104,6 +104,8 @@ Type
     Procedure   AnsiMoveY        (Y: Byte);
     Procedure   AnsiColor        (A: Byte);
     Procedure   AnsiClear;
+    Procedure   MouseEnable;       // A53: enable xterm mouse tracking
+    Procedure   MouseDisable;      // A53: disable xterm mouse tracking
     Procedure   AnsiClrEOL;
     Procedure   OutPipe          (Str: String);
     Procedure   OutPipeLn        (Str: String);
@@ -935,6 +937,10 @@ Begin
           Param2    := GetParam('#');
           Count     := Count + 1;
 
+          // A53: flush output buffer before drawing theme box to prevent
+          // partial rendering when the box overwrites buffered output
+          BufFlush;
+
           Case FmtType of
             18 : ThemeMessageBox(TBBSCore(Core).Theme, 0, Param1, Param2);
             19 : ThemeMessageBox(TBBSCore(Core).Theme, 1, Param1, Param2);
@@ -1246,6 +1252,25 @@ Begin
     BufAddChar (#12);
 
   PausePtr := 1;
+End;
+
+// A53: enable xterm mouse tracking (normal mode — button press/release)
+// Works with NetRunner, SyncTERM, xterm, and other compatible terminals.
+Procedure TBBSIO.MouseEnable;
+Begin
+  If Graphics > 0 Then Begin
+    BufAddStr (#27 + '[?1000h');
+    BufFlush;
+  End;
+End;
+
+// A53: disable xterm mouse tracking
+Procedure TBBSIO.MouseDisable;
+Begin
+  If Graphics > 0 Then Begin
+    BufAddStr (#27 + '[?1000l');
+    BufFlush;
+  End;
 End;
 
 Function TBBSIO.OutYN (Y: Boolean) : String;
@@ -2160,7 +2185,10 @@ Begin
       Case Ch of
         #02 : ReDraw;
         #08 : If StrPos > 1 Then Begin
-                If (Default <> '') And (Str = Default) Then Begin
+                // A53: only clear the default string on backspace when the
+                // cursor is at the end (meaning the user hasn't edited it).
+                // Previously this cleared on ANY backspace if Str=Default.
+                If (Default <> '') And (Str = Default) And (StrPos > Length(Str)) Then Begin
                   Clear;
 
                   Continue;

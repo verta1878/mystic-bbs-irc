@@ -192,6 +192,7 @@ Begin
   ApplicationStartup;
 
   Log (1, '+', '=> Startup using ' + JustFile(INI.FileName));
+  Log (1, '+', '   Log level: ' + strI2S(LogLevel));
 
   // Build process list
 

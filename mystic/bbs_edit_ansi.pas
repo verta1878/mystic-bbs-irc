@@ -1484,6 +1484,7 @@ End;
 
 Procedure TEditorANSI.DrawCommands;
 Var
+  Box      : TAnsiMenuBox;
   Ch       : Char;
   ColorStr : String;
   Img      : TConsoleImageRec;
@@ -1550,16 +1551,9 @@ Begin
 
   Session.io.BufFlush;
 
-  { Draw box }
-  For Row := 6 to 24 Do
-    WriteXY (13, Row, 8 + 0 * 16, strRep(' ', 48));
-  { Border }
-  WriteXY (13, 6,  8, #218 + strRep(#196, 46) + #191);
-  WriteXY (13, 24, 8, #192 + strRep(#196, 46) + #217);
-  For Row := 7 to 23 Do Begin
-    WriteXY (13, Row, 8, #179);
-    WriteXY (60, Row, 8, #179);
-  End;
+  { Use Mystic's themed box for the frame }
+  Box := TAnsiMenuBox.Create;
+  Box.Open (13, 6, 60, 24);
 
   DrawMenu;
   Session.io.BufFlush;
@@ -1574,6 +1568,31 @@ Begin
     Ch := Session.io.GetKey;
 
     Case Ch of
+      #0  : Begin { Arrow keys for CiADraw-style navigation }
+              Ch := Session.io.GetKey;
+              Case Ch of
+                #75 : Begin { Left: FG backward }
+                        FG := (CurAttr - 1) And $0F;
+                        CurAttr := (CurAttr And $F0) Or FG;
+                        DrawMenu;
+                      End;
+                #77 : Begin { Right: FG forward }
+                        FG := (CurAttr + 1) And $0F;
+                        CurAttr := (CurAttr And $F0) Or FG;
+                        DrawMenu;
+                      End;
+                #72 : Begin { Up: BG forward }
+                        BG := ((CurAttr Shr 4) + 1) And $07;
+                        CurAttr := (CurAttr And $0F) Or (BG Shl 4);
+                        DrawMenu;
+                      End;
+                #80 : Begin { Down: BG backward }
+                        BG := ((CurAttr Shr 4) - 1) And $07;
+                        CurAttr := (CurAttr And $0F) Or (BG Shl 4);
+                        DrawMenu;
+                      End;
+              End;
+            End;
       #27 : Break; { ESC closes menu }
       'Q', 'q' : Begin
               DrawMode   := False;
@@ -1661,6 +1680,8 @@ Begin
     End;
   Until False;
 
+  Box.Close;
+  Box.Free;
   Session.io.RemoteRestore (Img);
   Session.io.BufFlush;
   ReDrawTemplate (False);
@@ -1783,6 +1804,10 @@ Begin
   QuoteCurLine := 0;
   QuoteTopPage := 1;
 
+  // A55: enable mouse tracking for CIADraw-style drawing in the editor.
+  // Only active inside the editor — disabled on exit.
+  Session.io.MouseEnable;
+
   ReDrawTemplate(True);
 
   Repeat
@@ -1868,6 +1893,41 @@ Begin
 
                  DrawPage (CurY, WinSize, False);
                End;
+        ^A   : Begin { CiADraw ALT-A: cycle FG color forward }
+                 If DrawMode Then Begin
+                   CurAttr := (CurAttr And $F0) Or ((CurAttr + 1) And $0F);
+                   ReDrawTemplate(False);
+                 End;
+               End;
+        ^P   : Begin { CiADraw ALT-P: pickup attribute under cursor }
+                 If DrawMode Then Begin
+                   CurAttr := ANSI.Data[TopLine + CurLine + 1][CurX].Attr;
+                   ReDrawTemplate(False);
+                 End;
+               End;
+        ^E   : Begin { CiADraw: cycle BG color forward }
+                 If DrawMode Then Begin
+                   CurAttr := (CurAttr And $0F) Or (((CurAttr Shr 4) + 1) And $07) Shl 4;
+                   ReDrawTemplate(False);
+                 End;
+               End;
+        ^D   : Begin { CiADraw: cycle FG color backward }
+                 If DrawMode Then Begin
+                   CurAttr := (CurAttr And $F0) Or ((CurAttr - 1) And $0F);
+                   ReDrawTemplate(False);
+                 End;
+               End;
+        ^N   : Begin { CiADraw: clear canvas }
+                 If DrawMode Then Begin
+                   ANSI.Clear;
+                   TopLine := 0;
+                   CurLine := 0;
+                   CurX    := 1;
+                   CurY    := WinY1;
+                   DrawPage(WinY1, WinY2, False);
+                   ReDrawTemplate(False);
+                 End;
+               End;
         ^X   : Begin { Ctrl+X - exit, ask to save if changed }
                  If FileMode and FileChanged Then Begin
                    If ShowMsgBox(1, 'Save changes before exit?') Then
@@ -1902,6 +1962,9 @@ Begin
   Until Done;
 
   Session.io.AllowArrow := False;
+
+  // A55: disable mouse tracking on exit — must always be turned off
+  Session.io.MouseDisable;
 
   If Save Then FindLastLine;
 

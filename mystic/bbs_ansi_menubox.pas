@@ -316,6 +316,7 @@ Begin
   Case BoxType of
     0 : Begin
           WriteXY (Len + Len2 + 2, 14, Theme.BoxOKAttr, ' OK ');
+          Session.io.BufFlush;
           Session.io.GetKey;
         End;
   End;
@@ -356,6 +357,7 @@ Begin
     0 : Begin
           Len2 := (Length(Str) - 4) DIV 2;
           WriteXY (Len + Len2 + 2, 14, 30, ' OK ');
+          Session.io.BufFlush;
           Ch := Session.io.GetKey;
         End;
     1 : Repeat
@@ -369,6 +371,7 @@ Begin
           Else
             WriteXY (Len + Len2 + 7, 14, 30, ' NO ');
 
+          Session.io.BufFlush;
           Ch := UpCase(Session.io.GetKey);
 
           If Session.io.IsArrow Then

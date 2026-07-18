@@ -701,7 +701,7 @@ Begin
     End;
   Until Str <> '';
 
-  ThisUser.RealName := Str;
+  ThisUser.RealName := strStripPipe(Str);
 End;
 
 Procedure TBBSUser.GetAlias (Edit: Boolean; Def: String);
@@ -723,7 +723,7 @@ Begin
     End;
   Until Str <> '';
 
-  ThisUser.Handle := Str;
+  ThisUser.Handle := strStripPipe(Str);
 End;
 
 Procedure TBBSUser.GetAddress (Edit: Boolean);
@@ -1027,6 +1027,10 @@ Begin
   If ExecuteMPL (NIL, 'newuserapp') > 0 Then Begin
     If ThisUser.RealName = '' Then ThisUser.RealName := ThisUser.Handle;
     If ThisUser.Handle   = '' Then ThisUser.Handle   := ThisUser.RealName;
+
+    // A53: strip pipe codes from user names to prevent formatting exploits
+    ThisUser.RealName := strStripPipe(ThisUser.RealName);
+    ThisUser.Handle   := strStripPipe(ThisUser.Handle);
 
     If { Test validity of user data }
       FindUser(ThisUser.RealName, False) or

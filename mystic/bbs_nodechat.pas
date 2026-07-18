@@ -41,12 +41,13 @@ Uses
   BBS_Core;
 
 Var
-  ChatSize   : Integer;
-  ChatUpdate : LongInt;
-  TextPos    : Integer;
-  TopPage    : Integer;
-  LinePos    : Integer;
-  Full       : Boolean;
+  ChatSize        : Integer;
+  ChatUpdate      : LongInt;
+  TextPos         : Integer;
+  TopPage         : Integer;
+  LinePos         : Integer;
+  Full            : Boolean;
+  LastPrivateFrom : String[30];  // A56: last user who sent a private message (/REPLY)
 
 Procedure FullReDraw;
 Var
@@ -136,6 +137,7 @@ Var
   StrLen  : Integer;
   Indent  : Integer;
   Lines   : Integer;
+  WrapPos : Integer;  // A56: word wrap position
   OldAttr : Byte;
   OldX    : Byte;
   OldY    : Byte;
@@ -170,9 +172,15 @@ Begin
                   Str := strReplace(Session.GetPrompt(181), '|&1', Msg.FromWho)
                 Else
                   Continue;
-            4 : Str := strReplace(Session.GetPrompt(218), '|&1', Msg.FromWho);
+            4 : Begin
+                  Str := strReplace(Session.GetPrompt(218), '|&1', Msg.FromWho);
+                  LastPrivateFrom := Msg.FromWho;  // A56: track for /REPLY
+                End;
             5 : Str := Session.GetPrompt(226);
-            6 : Str := strReplace(Session.GetPrompt(229), '|&1', Msg.FromWho);
+            6 : If (Msg.Room = 0) or (Msg.Room = Session.CurRoom) Then
+                  Str := strReplace(Session.GetPrompt(229), '|&1', Msg.FromWho)
+                Else
+                  Continue;
             7 : Begin
                   Reset (Session.RoomFile);
                   Seek  (Session.RoomFile, Session.CurRoom - 1);
@@ -193,9 +201,17 @@ Begin
               Inc (Lines);
 
               If Length(Str + Msg.Message) > 79 Then Begin
-                Str := Str + Copy(Msg.Message, 1, 79 - StrLen);
+                // A56: word wrap at word boundary instead of hard chop
+                WrapPos := 79 - StrLen;
+                While (WrapPos > 1) and (Msg.Message[WrapPos] <> ' ') Do
+                  Dec(WrapPos);
+                If WrapPos <= 1 Then WrapPos := 79 - StrLen;  // no space found, hard chop
+                Str := Str + Copy(Msg.Message, 1, WrapPos);
                 AddText(Str);
-                Delete (Msg.Message, 1, 79 - StrLen);
+                Delete (Msg.Message, 1, WrapPos);
+                // Strip leading space from wrapped line
+                If (Length(Msg.Message) > 0) and (Msg.Message[1] = ' ') Then
+                  Delete(Msg.Message, 1, 1);
                 Str := strRep(' ', Indent);
               End Else Begin
                 AddText(Str + Msg.Message);
@@ -387,6 +403,8 @@ Var
 Begin
   Full := Session.User.ThisUser.UseFullChat And (Session.io.Graphics > 0);
 
+  LastPrivateFrom := '';  // A56: reset reply target on chat entry
+
   Set_Node_Action (Session.GetPrompt(347));
 
   Avail                  := Session.Chat.Available;
@@ -456,8 +474,17 @@ Begin
       If Str2 = '/Q' Then
         Break
       Else
+      If Str2 = '/QUIT' Then    // A56: /QUIT alias for /Q
+        Break
+      Else
       If Str2 = '/ME' Then Begin
         Str := Copy(Str, 5, Length(Str));
+
+        If Str <> '' Then
+          Send_Node_Message (6, '0;' + Str, Session.CurRoom);
+      End Else
+      If Str2 = '/EMOTE' Then Begin  // A56: /EMOTE alias for /ME
+        Str := Copy(Str, 8, Length(Str));
 
         If Str <> '' Then
           Send_Node_Message (6, '0;' + Str, Session.CurRoom);
@@ -465,6 +492,16 @@ Begin
       If Str2 = '/MSG' Then
         Send_Private_Message(Str)
       Else
+      If (Str2 = '/T') or (Str2 = '/TELL') Then  // A56: /T and /TELL alias for /MSG
+        Send_Private_Message(Str)
+      Else
+      If (Str2 = '/R') or (Str2 = '/REPLY') Then Begin  // A56: /R and /REPLY
+        If LastPrivateFrom <> '' Then Begin
+          Str := Copy(Str, Length(Str2) + 2, Length(Str));
+          If Str <> '' Then
+            Send_Node_Message (4, '0;' + Str, 0);
+        End;
+      End Else
       If Str2 = '/NAMES' Then
         Show_Users_In_Chat
       Else

@@ -187,6 +187,11 @@ Begin
 
       If (TempStr[1] = #1) And (Not ShowKludge) Then Continue;
 
+      // A56: when showing kludge lines, change #1 (kludge marker) to @
+      // for a cleaner display in the message reader
+      If ShowKludge and (TempStr[1] = #1) Then
+        TempStr[1] := '@';
+
       // A41: replace CTRL-A (kludge marker) with @ in quote data so raw
       // control characters don't leak into the quoted text.
       While Pos(#1, TempStr) > 0 Do
@@ -588,6 +593,10 @@ Var
   ShowNewAtTop  : Boolean;
   SnapToNew     : Boolean;
   NoIndexReader : Boolean;
+  UseGroupList  : Boolean;
+  ExcludeGroups : String;
+  GrpFile       : File of RecGroup;
+  TempGroup     : RecGroup;
   ListBox       : TAnsiListBox;
   BaseFile      : TFileBuffer;
   TempBase      : RecMessageBase;
@@ -606,9 +615,11 @@ Var
 
   Procedure BuildAreaList;
   Var
-    LastDiv : LongInt;
-    CurDiv  : LongInt;
-    Count   : LongInt;
+    LastDiv    : LongInt;
+    CurDiv     : LongInt;
+    Count      : LongInt;
+    SaveGrp    : Boolean;   // A54: local copy for IgnoreGroup save/restore
+    TmpStr     : String;    // A53: temp string for group name lookup
   Begin
     Session.io.OutFullLn(Session.Template.Prompt[8]);
 
@@ -629,6 +640,7 @@ Var
       Exit;
     End;
 
+    SaveGrp := Session.User.IgnoreGroup;
     Session.User.IgnoreGroup := True;
 
     // skip email but make it an option?
@@ -650,6 +662,11 @@ Var
 
     BaseFile.Free;
 
+    // A54: restore group filtering after building the area list.
+    // IgnoreGroup was set True at line 636 so all bases show in the index,
+    // but must be restored so group-based access works normally afterward.
+    Session.User.IgnoreGroup := SaveGrp;
+
     ListBox.Sort (1, ListBox.ListMax);
 
     If ShowDivisions Then Begin
@@ -661,7 +678,26 @@ Var
         If CurDiv <> LastDiv Then Begin
           LastDiv := CurDiv;
 
-          ListBox.Insert(Count, #2 + bbsCfg.NetDesc[LastDiv], 2);
+          // A53: group_list option — categorize by group name instead of
+          // network description.  exclude_groups skips specified group numbers.
+          If UseGroupList Then Begin
+            If Pos(strI2S(LastDiv), ExcludeGroups) = 0 Then Begin
+              // Read group name from group_g.dat
+              TmpStr := 'Group ' + strI2S(LastDiv);
+              Assign(GrpFile, bbsCfg.DataPath + 'group_g.dat');
+              {$I-} Reset(GrpFile); {$I+}
+              If IoResult = 0 Then Begin
+                If (LastDiv > 0) and (LastDiv <= FileSize(GrpFile)) Then Begin
+                  Seek(GrpFile, LastDiv - 1);
+                  Read(GrpFile, TempGroup);
+                  TmpStr := TempGroup.Name;
+                End;
+                Close(GrpFile);
+              End;
+              ListBox.Insert(Count, #2 + TmpStr, 2);
+            End;
+          End Else
+            ListBox.Insert(Count, #2 + bbsCfg.NetDesc[LastDiv], 2);
         End;
       End;
     End;
@@ -689,6 +725,8 @@ Begin
   ShowNewAtTop  := Template.ReadBoolean(TemplateOptions, 'new_at_top', True);
   SnapToNew     := Template.ReadBoolean(TemplateOptions, 'snap_new', True);
   NoIndexReader := Template.ReadBoolean(TemplateOptions, 'no_index', False);
+  UseGroupList  := Template.ReadBoolean(TemplateOptions, 'group_list', False);
+  ExcludeGroups := Template.ReadString (TemplateOptions, 'exclude_groups', '');
 
   Template.Free;
 
@@ -1830,7 +1868,7 @@ Begin
 
   Repeat
     Session.io.PromptInfo[1] := MsgBase^.GetTo;
-    Session.io.PromptInfo[2] := MsgBase^.GetSubj;
+    Session.io.PromptInfo[2] := strStripPipe(MsgBase^.GetSubj);
     Session.io.PromptInfo[3] := Session.io.OutYN(MsgBase^.IsSent);
 
     If MBase.NetType = 3 Then Begin
@@ -2463,6 +2501,8 @@ Var
                   End;
             'E' : Begin
                     EditMessage;
+                    // A53: force template redisplay to recalculate &X MCI codes
+                    Session.io.OutFile ('ansimrd', True, 0);
                     Break;
                   End;
             'F' : Begin

@@ -904,8 +904,9 @@ Begin
     AreaSize  := 0;
 
     Assign (FDirFile, bbsCfg.DataPath + FBase.FileName + '.dir');
-    {$I-} Reset (FDirFile); {$I+}
-    If IoResult = 0 Then Begin
+    // A55: use shared read mode to prevent record locking conflicts
+    // when another node is uploading while this node lists files
+    If ioReset(FDirFile, SizeOf(RecFileList), fmRWDN) Then Begin
       Assign (DF, bbsCfg.DataPath + FBase.FileName + '.des');
       {$I-} Reset (DF, 1); {$I+}
 

@@ -44,6 +44,9 @@ Type
     KeyPut,
     KeySend   : LongInt;
     IsConsole : Boolean;  // A45: True when running on local console (stdin is TTY)
+    MouseX    : Byte;     // A53: last mouse click X position (1-based)
+    MouseY    : Byte;     // A53: last mouse click Y position (1-based)
+    MouseBtn  : Byte;     // A53: last mouse button (0=left, 1=middle, 2=right, 3=release)
 
     Function    ttyRecvChar : Char;
     Procedure   PushKey (Ch : Char);
@@ -268,6 +271,15 @@ Begin
                'K' : PushExt(79);
                'U' : PushExt(81); //syncterm nonsense
                'V' : PushExt(73); //syncterm nonsense
+               'M' : Begin  // A53: xterm mouse event — ESC[M btn x y
+                       If sysKeyPressed Then Begin
+                         MouseBtn := Ord(ttyRecvChar) - 32;
+                         If sysKeyPressed Then MouseX := Ord(ttyRecvChar) - 32;
+                         If sysKeyPressed Then MouseY := Ord(ttyRecvChar) - 32;
+                         // Push a synthetic key so callers can detect mouse
+                         PushExt(200);  // extended key 200 = mouse event
+                       End;
+                     End;
                '1' : State:=4;
                '2' : State:=5;
                '3' : State:=6;

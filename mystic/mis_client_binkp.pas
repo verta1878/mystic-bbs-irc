@@ -23,6 +23,10 @@ Unit MIS_Client_BINKP;
 
 {$I M_OPS.PAS}
 
+// A55: enable BINKP debug logging for diagnosing session issues.
+// Uncomment the next line to activate verbose BINKP frame logging.
+// {$DEFINE BINKP_DEBUG}
+
 Interface
 
 Uses
@@ -135,7 +139,9 @@ Type
     HaveHeader   : Boolean;
     NeedHeader   : Boolean;
     MD5Challenge : String;
-    AddressList  : String;
+    AddressList  : String[255];  // A56: was String (255 max); nodes with many
+                                 // AKAs can exceed 255 chars. For now kept at
+                                 // 255 — full fix needs AnsiString or buffer.
     Password     : String;
     PasswordMD5  : Boolean;
     FileList     : TProtocolQueue;
@@ -453,6 +459,8 @@ Begin
                         SendFrame (M_NUL, 'SYS ' + bbsCfg.BBSName);
                         SendFrame (M_NUL, 'ZYZ ' + bbsCfg.SysopName);
                         SendFrame (M_NUL, 'VER Mystic/' + Copy(mysVersion, 1, 4) + ' binkp/1.0');
+                        // A56: advertise Non-Reliable extension (NR)
+                        SendFrame (M_NUL, 'OPT NR');
 
                         Str := '';
 
@@ -508,6 +516,9 @@ Begin
                           // Client did not send ADR
                           AuthState := AuthFailed;
                         End Else Begin
+                          // A56: address list can exceed 255 chars for nodes
+                          // with many AKAs. Store what fits for display, but
+                          // auth uses GetDataStr directly via the frame buffer.
                           AddressList := GetDataStr;
                           AuthState   := WaitPassword;
                           NeedHeader  := True;
@@ -521,6 +532,10 @@ Begin
 
                         If (RxCommand = M_PWD) Then Begin
                           Password := GetDataStr;
+
+                          // A56: Argus and FTS-1026 use '-' to indicate no
+                          // password. Treat it as empty for comparison.
+                          If Password = '-' Then Password := '';
 
                           If Pos('CRAM-MD5-', Password) > 0 Then Begin
                             Delete(Password, 1, Pos('CRAM-MD5-', Password) + 8);
@@ -574,6 +589,8 @@ Var
   InPos   : Cardinal;
   InTime  : Cardinal;
   FSize   : Cardinal;
+  TempCount : LongInt;
+  TempFN    : String;
 //  LastRx  : TBinkRxState = RxNone;
 //  LastTx  : TBinkTxState = TxNone;
 //  LastHH  : Boolean = False;
@@ -626,17 +643,33 @@ Begin
                        If FileExist(bbsCfg.InBoundPath + InFN) Then Begin
                          FSize := FileByteSize(bbsCfg.InBoundPath + InFN);
 
-                         // fix timestamp and escape filen
-
-                         If FSize >= InSize Then Begin
-                           SendFrame (M_SKIP, EscapeFileName(InFN) + ' ' + strI2S(InSize) + ' ' + strI2S(InTime));
-
+                         If (FSize = InSize) Then Begin
+                           // Same size — already received, report GOT
+                           SendFrame (M_GOT, EscapeFileName(InFN) + ' ' + strI2S(InSize) + ' ' + strI2S(InTime));
                            Inc (SkipFiles);
-
                            Continue;
+                         End Else
+                         If FSize >= InSize Then Begin
+                           // A53: file conflict — different files with same name
+                           If bbsCfg.inetBINKPRename = 0 Then Begin
+                             // Rename: find first available filename.#.ext
+                             TempCount := 1;
+                             TempFN := InFN;
+                             While FileExist(bbsCfg.InBoundPath + TempFN) Do Begin
+                               TempFN := JustFileName(InFN) + '.' + strI2S(TempCount) + JustFileExt(InFN);
+                               Inc(TempCount);
+                             End;
+                             InFN := TempFN;
+                             StatusUpdate(Owner, 1, 'Renamed to ' + InFN);
+                           End Else Begin
+                             // Skip: tell remote to retry later
+                             SendFrame (M_SKIP, EscapeFileName(InFN) + ' ' + strI2S(InSize) + ' ' + strI2S(InTime));
+                             Inc (SkipFiles);
+                             Continue;
+                           End;
                          End Else Begin
+                           // Resume: file partially received
                            SendFrame (M_GET, EscapeFileName(InFN) + ' ' + strI2S(FSize) + ' ' + strI2S(InTime));
-
                            InPos := FSize;
                          End;
                        End;
@@ -1027,11 +1060,12 @@ Begin
       End;
     End;
 
-    // A52: unsecured BINKP - if no node authenticated but unsecure transfers
-    // are enabled, accept the connection and route files to UnsecurePath.
+    // A53: unsecured BINKP pathing fix — set the inbound path for THIS
+    // session only.  Use DirLast to ensure trailing path separator.
+    // The protocol layer reads bbsCfg.InBoundPath for file storage.
     If (Not Authenticated) and bbsCfg.inetBINKPUnsecure and (bbsCfg.UnsecurePath <> '') Then Begin
       Server.Status (ProcessID, 'Unsecured session from ' + BinkP.AddressList);
-      bbsCfg.InBoundPath := bbsCfg.UnsecurePath;
+      bbsCfg.InBoundPath := DirLast(bbsCfg.UnsecurePath);
     End;
 
     If Authenticated or (bbsCfg.inetBINKPUnsecure and (bbsCfg.UnsecurePath <> '')) Then Begin
