@@ -202,11 +202,11 @@ Original Mystic BBS: Copyright 1997-2013 by James Coyle.
 - **FULL** (5 files): `install` + `install_data.mys` + `COPYING` + `FILE_ID.DIZ` + `whatsnew.txt`
 - **UPD** (20 files): all 15 binaries + `install_data.mys` + `COPYING` + `FILE_ID.DIZ` + `whatsnew.txt` + `upgrade.txt`
 
-### Cross-compile status (fpc264irc r5.1)
+### Cross-compile status (fpc264irc r6.1)
 | Platform | Build | Link | Notes |
 |----------|-------|------|-------|
 | Linux i386 | 15/15 ✅ | 15/15 ✅ | — |
-| Windows | 15/15 ✅ | 15/15 ✅ | — |
+| Windows | 15/15 ✅ | 15/15 ✅ | Wine-tested, RT216 crash fixed in r6.1 |
 | DOS go32v2 | 9/9 ✅ | 9/9 ✅ | — |
 | OS/2 EMX | ✅ compiles | ⚠️ emxbind | Needs emxl.exe |
 | FreeBSD | 3/15 | 3/15 | m_ops.pas fixed, console units need work |

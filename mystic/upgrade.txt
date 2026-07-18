@@ -45,6 +45,34 @@
 Optional stuff:
 - Note the new "strip_seenby" option in mutil.ini you want want to use it.
 
+ .---------------------------------------,
+ | UPGRADING FROM ALPHA 40 TO ALPHA 60    |-------------------------------
+ `---------------------------------------'
+- Stop all Mystic programs (mystic, mis, mutil)
+- BACKUP your entire BBS directory
+- Replace *ALL* executables with the new A63 build
+- Recompile all MPL programs (mplc -all in scripts directory)
+
+New features that may require attention:
+- [A51] Auto-ban IP: configure via mystic -cfg -> Internet Servers
+  New fields: Auto-ban Conns, Auto-ban Secs (0=off)
+- [A51] goodip.txt: create data/goodip.txt to whitelist IPs from
+  all blocking (badip, DNSBL, DNSCC, auto-ban). Same format as badip.txt.
+- [A56] Node chat: new commands /QUIT, /EMOTE, /TELL, /REPLY available
+  Update telehelp.asc in text directory to document them.
+- [A56] Node chat: prompt #181 now supports &2 (node#), &3 (low color),
+  &4 (high color) for per-node color coding.
+- [A60] MPL: new procedure AppendText(FileName, Text: String) available.
+  New variables CfgChatStart, CfgChatEnd available. Both require Uses CFG;
+- [A60] LZH: archive viewer now handles level 0, 1, and 2 LZH files.
+
+No record size changes — mystic.dat and users.dat are compatible.
+No new prompts required beyond what A40 added (#515).
+
+Built with fpc264irc r6.1 — Win32 Runtime Error 216 crash fixed.
+MIS telnet now uses pure FPC uforkpty (no libutil.a dependency).
+
+
 UPGRADING FROM ALPHA 36 TO ALPHA 37
 ===================================
 - Replace *ALL* executables

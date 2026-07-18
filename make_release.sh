@@ -22,9 +22,7 @@ if [ ! -f "$INSTALL_DATA" ]; then
 fi
 
 # Clean
-rm -rf out-linux out-win32 out-dos release
-find . -name '*.ppu' -not -path "*/fpc264irc/*" -delete 2>/dev/null
-find . -name '*.o' -not -path "*/fpc264irc/*" -delete 2>/dev/null
+./make_clean.sh
 
 # Build all platforms
 echo "--- Building Linux ---"
