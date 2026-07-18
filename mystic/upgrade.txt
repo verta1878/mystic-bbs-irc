@@ -69,7 +69,7 @@ New features that may require attention:
 No record size changes — mystic.dat and users.dat are compatible.
 No new prompts required beyond what A40 added (#515).
 
-Built with fpc264irc r6.1 — Win32 Runtime Error 216 crash fixed.
+Built with fpc264irc r3.1+ — Win32 Runtime Error 216 crash fixed.
 MIS telnet now uses pure FPC uforkpty (no libutil.a dependency).
 
 

@@ -1,6 +1,6 @@
 # Building the fork (all targets)
 
-Compiler: **FPC 2.6.4irc, release r6.1, i386** (the default project compiler).
+Compiler: **FPC 2.6.4irc, release r3.1+, i386** (the default project compiler).
 The 7 core shipped binaries are: `mystic`, `mis`, `mutil`, `mplc`, `fidopoll`,
 `qwkpoll`, `maketheme`. Additional utilities (`mide`, `mbbsutil`, `nodespy`,
 `mystpack`, `install`, `install_make`, `109to110`) and the built-in archiver
@@ -10,7 +10,7 @@ The 7 core shipped binaries are: `mystic`, `mis`, `mutil`, `mplc`, `fidopoll`,
 > it ships its own assembler/linker/archiver and prebuilt package units for all
 > 6 targets). Unpack it and point `FPC=` at its `bin/ppc386`.
 >
-> **r6.1 ships prebuilt PPUs** for `md5`, `crc`, `zipper`, `netdb`, `process`
+> **r3.1+ ships prebuilt PPUs** for `md5`, `crc`, `zipper`, `netdb`, `process`
 > (and more) — no extra `-Fu` source paths are needed. The earlier `cNetDB` unit
 > (fcl-net) has been retired; the fork uses the pure-Pascal `netdb` unit instead.
 >
@@ -18,7 +18,7 @@ The 7 core shipped binaries are: `mystic`, `mis`, `mutil`, `mplc`, `fidopoll`,
 > layout / anchors are unaffected.
 
 Compile-verified: **7/7 core targets** + all utilities + `marc` build clean with
-r6.1 using only `-Fubin/units/<target>`.
+r3.1+ using only `-Fubin/units/<target>`.
 
 > **`marc`** (the built-in archiver) must compile in **`-Mobjfpc` mode** (the
 > paszlib units require it; everything else is `-Mdelphi`). `build.sh` handles

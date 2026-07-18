@@ -785,13 +785,13 @@
  + build-dos.sh: 9/9 DOS go32v2
  + build-os2.sh: compiles, EMX linker needs emxbind
  + 188 automated tests (134 a53 + 54 deferred9)
- + Built with fpc264irc r5.1 (18b3de9c)
+ + Built with fpc264irc r3.1+ (18b3de9c)
 
---- Compiler (fpc264irc r6.1) ---
- ! [r6.1] Win32 Runtime Error 216 crash FIXED. Root cause: Win32 RTL
+--- Compiler (fpc264irc r3.1+) ---
+ ! [r3.1+] Win32 Runtime Error 216 crash FIXED. Root cause: Win32 RTL
    was compiled with ad-hoc include paths instead of FPC's Makefile.
    Fix: full RTL+packages rebuild using make all + make packages.
    291 Win32 PPUs from clean build. Wine-tested, zero crashes.
- + [r6.1] 2,888 total PPUs across 8 platforms.
- + [r6.1] Lazarus LCL backported to 4 platforms (Linux, Win32,
+ + [r3.1+] 2,888 total PPUs across 8 platforms.
+ + [r3.1+] Lazarus LCL backported to 4 platforms (Linux, Win32,
    FreeBSD, x86_64-Linux). GUI apps possible without Lazarus IDE.

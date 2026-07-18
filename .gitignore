@@ -67,3 +67,7 @@ mystic_*/binwin/
 release/
 mystic-*.zip
 out-*/
+
+# Keep third-party binaries
+!thirdparty/**/*.exe
+!utilities/**/*.exe
