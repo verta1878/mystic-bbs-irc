@@ -63,7 +63,7 @@ Begin
 
   Form.AddStr  ('D', ' Description' , 13,  8, 28,  8, 13, 30, 40, @Event.Name, '');
   Form.AddBol  ('A', ' Active'      , 18,  9, 28,  9,  8,  3, @Event.Active, '');
-  Form.AddTog  ('Y', ' Exec Type'   , 15, 10, 28, 10, 11, 9, 0, 2, 'BBS Semaphore Shell', @Event.ExecType, '');
+  Form.AddTog  ('Y', ' Exec Type'   , 15, 10, 28, 10, 11, 9, 0, 3, 'BBS Semaphore Shell Hourly', @Event.ExecType, '');
   Form.AddByte ('E', ' Exec Hour'   , 15, 11, 28, 11, 11, 2, 0, 23, @Hour, '');
   Form.AddByte ('M', ' Exec Min'    , 16, 12, 28, 12, 10, 2, 0, 59, @Min, '');
   Form.AddStr  ('H', ' Shell'       , 19, 13, 28, 13,  7, 30, 80, @Event.Shell, '');
@@ -124,7 +124,7 @@ Var
         0 : TypeStr := 'BBS';
         1 : TypeStr := 'Semaphore';
         2 : TypeStr := 'Shell';
-        3 : TypeStr := 'Interval';
+        3 : TypeStr := 'Hourly';
       Else
         TypeStr := 'Unknown';
       End;

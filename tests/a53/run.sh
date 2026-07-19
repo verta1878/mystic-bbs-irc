@@ -66,7 +66,7 @@ grep -q "CiADraw.*clear canvas\|clear canvas" "$BASEDIR/mystic/bbs_edit_ansi.pas
 grep -q "Box.Close" "$BASEDIR/mystic/bbs_edit_ansi.pas" && pass "Box cleanup on exit" || fail "Missing"
 
 echo "--- utrayit / MIS tray ---"
-[ -f "$BASEDIR/mdl/utrayit.pas" ] && pass "utrayit.pas in mdl/" || fail "Missing"
+[ -f "$BASEDIR/mystic/utrayit.pas" ] && pass "utrayit.pas in mystic/" || fail "Missing"
 grep -q "utrayit" "$BASEDIR/mystic/mis.pas" && pass "utrayit in MIS uses" || fail "Missing"
 grep -q "TrayMode" "$BASEDIR/mystic/mis.pas" && pass "TrayMode flag" || fail "Missing"
 grep -q "TrayConsole" "$BASEDIR/mystic/mis.pas" && pass "TrayConsole on startup" || fail "Missing"

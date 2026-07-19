@@ -481,6 +481,8 @@ Begin
     Cols := Data.Info.DispCols;
 
   If ShowMenu And (Cols > 0) Then Begin
+    Session.io.Buffer.Start;  // A61
+
     Case Cols of
       1 : Format := 79;
       2 : Format := 39;
@@ -526,6 +528,7 @@ Begin
     If Listed MOD Cols <> 0 Then
       TBBSCore(Owner).io.OutFullLn ('');
 
+    Session.io.Buffer.Stop;  // A61
     TBBSCore(Owner).io.BufFlush;
   End;
 

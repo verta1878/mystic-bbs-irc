@@ -218,7 +218,11 @@ Begin
 
             Break;
           End;
-      3 : If (EventExecTime(Event) <= 0) and (EventExecTime(Event) <> -1000000) Then Begin
+      // A61: Hourly event — execute when the current minute matches
+      // the event's minute and it hasn't already run this hour.
+      // ExecTime stores hour*60+min from config, so use MOD 60.
+      // LastRan stores the hour (TimerMinutes DIV 60) of last execution.
+      3 : If (TimerMinutes MOD 60 = Event.ExecTime MOD 60) and (Event.LastRan <> TimerMinutes DIV 60) Then Begin
             Result := True;
 
             Break;
@@ -228,7 +232,7 @@ Begin
 
   If Result Then Begin
     If Event.ExecType = 3 Then
-      Event.LastRan := TimerMinutes
+      Event.LastRan := TimerMinutes DIV 60  // A61: store current hour
     Else
       Event.LastRan := CurDateDos;
 
@@ -343,11 +347,16 @@ Begin
   Result := -1000000;
 
   Case WhichEvent.ExecType of
+    // A61: Hourly event type. ExecTime stores hour*60+min from config.
+    // Only the minute part matters. Executes once per hour at that minute.
     3 : Begin
-          If WhichEvent.ExecTime = 0 Then Exit;
-
           Result := 0;
-          Temp   := WhichEvent.LastRan + WhichEvent.ExecTime;
+          Temp := TimerMinutes MOD 60;
+
+          If Temp <= (WhichEvent.ExecTime MOD 60) Then
+            Result := (WhichEvent.ExecTime MOD 60) - Temp
+          Else
+            Result := 60 - Temp + (WhichEvent.ExecTime MOD 60);
         End;
   Else
     Temp := WhichEvent.ExecTime;

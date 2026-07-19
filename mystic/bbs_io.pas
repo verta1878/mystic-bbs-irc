@@ -39,7 +39,8 @@ Uses
   m_FileIO,
   m_Strings,
   m_Term_Ansi,
-  BBS_Records;
+  BBS_Records,
+  BBS_Ansi_Buffer;
 
 Const
   TBBSIOBufferSize = 4 * 1024 - 1;
@@ -59,7 +60,7 @@ Type
     InMacro        : Boolean;
     InMacroPos     : Byte;
     InMacroStr     : String;
-    BaudEmulator   : Byte;
+    BaudEmulator   : LongInt;
     AllowPause     : Boolean;
     AllowMCI       : Boolean;
     LocalInput     : Boolean;
@@ -83,6 +84,7 @@ Type
     LastSecond     : LongInt;
     OutBuffer      : Array[0..TBBSIOBufferSize] of Char;
     OutBufPos      : SmallInt;
+    Buffer         : TAnsiBuffer;  // A61: output buffering for batch operations
     RangeValue     : LongInt;
 
     {$IFDEF WINDOWS}
@@ -263,6 +265,7 @@ Begin
   {$ENDIF}
 
   Term := TTermAnsi.Create(Console);
+  Buffer := TAnsiBuffer.Create;  // A61
 End;
 
 Destructor TBBSIO.Destroy;
@@ -272,6 +275,7 @@ Begin
   {$ENDIF}
 
   Term.Free;
+  Buffer.Free;  // A61
 
   Inherited Destroy;
 End;
@@ -335,6 +339,9 @@ End;
 
 Procedure TBBSIO.BufFlush;
 Begin
+  // A61: suppress intermediate flushes during buffered operations
+  If Buffer.Paused Then Exit;
+
   {$IFDEF WINDOWS}
   If OutBufPos > 0 Then Begin
     If Not TBBSCore(Core).LocalMode Then
@@ -415,7 +422,8 @@ Begin
 
   OutFull (TBBSCore(Core).GetPrompt(132));
 
-  Ch := OneKey('YNC' + #13, False);
+  // A61: Q key now exits the viewer (in addition to N and Escape)
+  Ch := OneKey('YQNC' + #13, False);
 
   OutBS     (Console.CursorX, True);
   AnsiColor (SavedAttr);
@@ -1392,13 +1400,39 @@ Begin
   Ch           := #0;
   BaudEmulator := Speed;
 
+  // A61: Map DI## value to actual baud rate for accurate emulation
+  // 00 = full speed, 01-09 = 300, 10-19 = 1200, 20-29 = 2400,
+  // 30-39 = 4800, 40-49 = 9600, 50-59 = 19200, 60-69 = 28800,
+  // 70-79 = 38400, 80-89 = 57600, 90-99 = 115200
+  Case BaudEmulator DIV 10 of
+    0 : BaudEmulator := 0;      // full speed (DI00) or 300 (DI01-09 handled below)
+    1 : BaudEmulator := 1200;
+    2 : BaudEmulator := 2400;
+    3 : BaudEmulator := 4800;
+    4 : BaudEmulator := 9600;
+    5 : BaudEmulator := 19200;
+    6 : BaudEmulator := 28800;
+    7 : BaudEmulator := 38400;
+    8 : BaudEmulator := 57600;
+    9 : BaudEmulator := 115200;
+  End;
+
+  // DI01-DI09 = 300 baud (DIV 10 = 0, but Speed > 0)
+  If (BaudEmulator = 0) and (Speed > 0) Then BaudEmulator := 300;
+
   While Not Done Do Begin
     Ch := GetChar;
 
     If BaudEmulator > 0 Then Begin
       BufFlush;
 
-      If BufPos MOD BaudEmulator = 0 Then WaitMS(6);
+      // Wait proportional to baud rate: 10 bits per byte (start+8data+stop)
+      // ms per byte = 10000 / baud. Delay every byte for low rates,
+      // every few bytes for higher rates to avoid excessive waits.
+      If BaudEmulator <= 2400 Then
+        WaitMS(10000 DIV BaudEmulator)
+      Else If BufPos MOD (BaudEmulator DIV 960) = 0 Then
+        WaitMS(10);
     End;
 
     If AllowAbort And (BufPos MOD 128 = 0) And Not Session.LocalMode Then
@@ -1420,7 +1454,8 @@ Begin
 
               If (PausePtr = TBBSCore(Core).User.ThisUser.ScreenSize) and (AllowPause) Then
                 Case MorePrompt of
-                  'N' : Break;
+                  'N',
+                  'Q' : Break;
                   'C' : AllowPause := False;
                 End;
             End;
@@ -1507,7 +1542,21 @@ Begin
                         FmtString := False;
                       End;
                   16: Begin
-                        BaudEmulator := FmtLen;
+                        // A61: map DI## value to baud rate
+                        Case FmtLen DIV 10 of
+                          0 : BaudEmulator := 0;
+                          1 : BaudEmulator := 1200;
+                          2 : BaudEmulator := 2400;
+                          3 : BaudEmulator := 4800;
+                          4 : BaudEmulator := 9600;
+                          5 : BaudEmulator := 19200;
+                          6 : BaudEmulator := 28800;
+                          7 : BaudEmulator := 38400;
+                          8 : BaudEmulator := 57600;
+                          9 : BaudEmulator := 115200;
+                        End;
+                        If (BaudEmulator = 0) and (FmtLen > 0) Then
+                          BaudEmulator := 300;
                         FmtString    := False;
                       End;
                   17: Begin

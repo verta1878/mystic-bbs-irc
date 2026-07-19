@@ -1921,6 +1921,16 @@ Begin
                 ReadText;
             End;
       'Q' : Begin
+              // A61: if this is an echomail that was already sent out
+              // through the network, warn the user before resaving
+              If (MBase.NetType > 0) and MsgBase^.IsSent Then Begin
+                If Not Session.io.GetYN(Session.GetPrompt(494), False) Then
+                  Continue;
+
+                // Reset sent flag so it will be re-exported
+                MsgBase^.SetSent(False);
+              End;
+
               If Session.io.GetYN(Session.GetPrompt(300), True) Then Begin
                 MsgBase^.EditMsgInit;
 
@@ -2136,6 +2146,11 @@ Var
     Assign  (TF, FN);
     {$I-} ReWrite (TF); {$I+}
     If IoResult = 0 Then Begin
+      // A61: export messages in DOS CRLF format even on Linux.
+      // BBS networks and Windows users expect CRLF line endings.
+      {$IFDEF UNIX}
+      SetTextLineEnding(TF, #13#10);
+      {$ENDIF}
       WriteLn (TF, 'From: ' + MsgBase^.GetFrom);
       WriteLn (TF, '  To: ' + MsgBase^.GetTo);
       WriteLn (TF, 'Subj: ' + MsgBase^.GetSubj);
@@ -2310,7 +2325,13 @@ Var
     If ListMode = 1 Then
       Session.io.AnsiClrEOL;
 
-    Session.io.OutRawLn('');
+    // A61: when a message line is exactly 80 characters, the terminal
+    // automatically wraps to the next line. Adding CR/LF would create
+    // a blank line. Only output CR/LF for lines shorter than 80.
+    If Length(Str) < 80 Then
+      Session.io.OutRawLn('')
+    Else
+      Session.io.OutRaw('');
   End;
 
   Procedure RemoveNewScan (PromptNumber: SmallInt);
@@ -2346,6 +2367,8 @@ Var
       A    : SmallInt;
       Temp : String;
     Begin
+      Session.io.Buffer.Start;  // A61
+
       PageEnd := PageStart;
 
       Session.io.AnsiGotoXY (1, Session.io.ScreenInfo[1].Y);
@@ -2372,6 +2395,9 @@ Var
         Session.io.AnsiGotoXY (Session.io.ScreenInfo[5].X, Session.io.ScreenInfo[5].Y);
         Session.io.OutFull    (Temp);
       End;
+
+      Session.io.Buffer.Stop;  // A61
+      Session.io.BufFlush;
     End;
 
   Var
@@ -2692,6 +2718,7 @@ Var
     Var
       A : SmallInt;
     Begin
+      Session.io.Buffer.Start;  // A61
       Session.io.AnsiGotoXY (1, Session.io.ScreenInfo[1].Y);
 
       For A := 1 to PageSize Do
@@ -2715,6 +2742,9 @@ Var
           Session.io.AnsiClrEOL;
           Session.io.OutRawLn('');
         End;
+
+      Session.io.Buffer.Stop;  // A61
+      Session.io.BufFlush;
     End;
 
     Procedure FullReDraw;

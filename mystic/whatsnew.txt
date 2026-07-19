@@ -795,3 +795,23 @@
  + [r3.1+] 2,888 total PPUs across 8 platforms.
  + [r3.1+] Lazarus LCL backported to 4 platforms (Linux, Win32,
    FreeBSD, x86_64-Linux). GUI apps possible without Lazarus IDE.
+
+[A61] Slightly improved output buffering when generating default menus,
+      loading messages in the full screen reader, the message index list,
+      lightbar file list, and ANSI editor/log viewer (BBS_Ansi_Buffer unit)
+[A61] Inline description importing from text files via @TEXTDIZ extract
+      command. Searches between @BEGIN_FILE_ID_DIZ / @END_FILE_ID_DIZ tags
+[A61] ANSI viewer display for text files via @TEXTVIEW view command
+[A61] Standard display for text files via @TEXTSHOW view command (MCI disabled)
+[A61] Default archive config: TXT, ASC, NFO support @TEXTDIZ/@TEXTVIEW;
+      ANS supports @TEXTVIEW. Archives with @ prefix hidden from user selection
+[A61] INTL kludge format verified correct
+[A61] DI MCI code now maps to real baud rates (|DI25 = 2400, |DI55 = 19200, etc)
+[A61] Q key now exits the ANSI viewer (in addition to Escape)
+[A61] Q key now exits lightbar file list (in addition to Escape)
+[A61] Fixed page down / End key drawing in lightbar file lister
+[A61] Fixed lightbar file lister showing prompt twice on first display
+[A61] Echomail resend confirmation when re-saving a message already exported
+[A61] New event system type: Hourly. Executes once per hour at defined minute
+[A61] Mystic now exports messages in DOS CRLF format even on Linux
+[A61] 80-char line auto-wrap fix in full screen reader (no double line feed)

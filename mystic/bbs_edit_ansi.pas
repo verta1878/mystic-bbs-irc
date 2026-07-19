@@ -604,6 +604,8 @@ Procedure TEditorANSI.DrawPage (StartY, EndY: Byte; ExitEOF: Boolean);
 Var
   CountY : LongInt;
 Begin
+  TBBSCore(Owner).io.Buffer.Start;  // A61
+
   For CountY := StartY to EndY Do Begin
     If TopLine + CountY - 1 > LastLine + 1 Then Begin
       TBBSCore(Owner).io.AnsiGotoXY (WinX1, WinY1 + CountY - 1);
@@ -619,10 +621,17 @@ Begin
       TBBSCore(Owner).io.AnsiColor  (8);
       TBBSCore(Owner).io.BufAddStr  (strPadC('(END)', RowSize, ' '));
 
-      If ExitEOF Then Exit;
+      If ExitEOF Then Begin
+        TBBSCore(Owner).io.Buffer.Stop;  // A61
+        TBBSCore(Owner).io.BufFlush;
+        Exit;
+      End;
     End Else
       DrawLine (TopLine + CountY - 1, 1, CountY);
   End;
+
+  TBBSCore(Owner).io.Buffer.Stop;  // A61
+  TBBSCore(Owner).io.BufFlush;
 End;
 
 Procedure TEditorANSI.ScrollUp;
@@ -2024,6 +2033,11 @@ Begin
   {$I-} ReWrite (F); {$I+}
   If IOResult <> 0 Then Exit;
 
+  // Write CRLF line endings even on Linux for BBS cross-platform compatibility
+  {$IFDEF UNIX}
+  SetTextLineEnding(F, #13#10);
+  {$ENDIF}
+
   For Line := 1 to LastLine Do
     WriteLn (F, GetLineText(Line));
 
@@ -2129,7 +2143,14 @@ Begin
     Session.io.RemoteRestore (Img);
 
     Case Res of
-      'Q' : Begin Done := True; Save := False; End;
+      'Q' : Begin
+              // Bug fix: prompt to save unsaved changes before quitting
+              If FileChanged Then Begin
+                If ShowMsgBox(1, 'Save changes before exit?') Then
+                  SaveFile;
+              End;
+              Done := True; Save := False;
+            End;
       'S' : Begin
               If FileName <> '' Then Begin
                 If SaveFile Then Begin
@@ -2139,12 +2160,12 @@ Begin
               End;
             End;
       'A' : Begin
-              WriteXY (1, TBBSCore(Owner).User.ThisUser.ScreenSize, 112,
-                       strPadR(' Save as: ', 80, ' '));
-              Session.io.AnsiGotoXY (11, TBBSCore(Owner).User.ThisUser.ScreenSize);
-              NewFN := Session.io.GetInput (60, 60, 11, FileName);
+              NewFN := FilePickerDialog(bbsCfg.DataPath, '*.*');
               If NewFN <> '' Then Begin
-                If SaveFileAs(NewFN) Then DrawFileStatusBar;
+                If SaveFileAs(NewFN) Then Begin
+                  DrawFileStatusBar;
+                  ShowMsgBox(0, 'File saved');
+                End;
               End;
               DrawFileStatusBar;
             End;

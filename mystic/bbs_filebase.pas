@@ -643,6 +643,8 @@ Function TFileBase.ImportDIZ (FN: String) : Boolean;
 Var
   DizFile : Text;
   DizName : String;
+  TempArc   : RecArchive;
+  IsTextDiz : Boolean;
   {$IFDEF FS_SENSITIVE}
     Arc : PArchive;
     SR  : ArcSearchRec;
@@ -669,6 +671,58 @@ Begin
       Dispose (Arc, Done);
     End;
   {$ENDIF}
+
+  // A61: @TEXTDIZ — if the archive config for this file extension has
+  // @TEXTDIZ as the extract command, search the file itself for
+  // @BEGIN_FILE_ID_DIZ / @END_FILE_ID_DIZ tags and import the description.
+  IsTextDiz := False;
+  FileMode := 66;
+  Reset (ArcFile);
+  While Not Eof(ArcFile) Do Begin
+    Read (ArcFile, TempArc);
+    If TempArc.Active and ((TempArc.OSType = OSType) or (TempArc.OSType = 3)) Then
+      If strUpper(TempArc.Ext) = strUpper(JustFileExt(FN)) Then Begin
+        IsTextDiz := (strUpper(TempArc.Unpack) = '@TEXTDIZ');
+        Break;
+      End;
+  End;
+  Close (ArcFile);
+
+      If IsTextDiz Then Begin
+        Assign (DizFile, FBase.Path + FN);
+        {$I-} Reset (DizFile); {$I+}
+
+        If IoResult = 0 Then Begin
+          FDir.DescLines := 0;
+          Result         := False;
+
+          While Not Eof(DizFile) Do Begin
+            ReadLn (DizFile, DizName);
+
+            If Pos('@BEGIN_FILE_ID_DIZ', strUpper(DizName)) > 0 Then Begin
+              Result := True;
+              Continue;
+            End;
+
+            If Pos('@END_FILE_ID_DIZ', strUpper(DizName)) > 0 Then
+              Break;
+
+            If Result Then Begin
+              Inc (FDir.DescLines);
+              Session.Msgs.MsgText[FDir.DescLines] := strDizColor(DizName);
+
+              If Length(Session.Msgs.MsgText[FDir.DescLines]) > mysMaxFileDescLen Then
+                Session.Msgs.MsgText[FDir.DescLines][0] := Chr(mysMaxFileDescLen);
+
+              If FDir.DescLines = bbsCfg.MaxFileDesc Then Break;
+            End;
+          End;
+
+          Close (DizFile);
+        End;
+
+        Exit;
+      End;
 
   ExecuteArchive (FBase.Path + FN, '', DizName, 2);
 
@@ -1124,8 +1178,41 @@ End;
 
 Function TFileBase.ArchiveView (FName: String) : Boolean;
 Var
-  Mask : String[70];
+  Mask    : String[70];
+  ViewCmd : String;
 Begin
+  // A61: Check if this file extension has @TEXTVIEW or @TEXTSHOW
+  // as its view command. If so, display the file directly instead
+  // of trying to list it as an archive.
+  ViewCmd := '';
+  FileMode := 66;
+  Reset (ArcFile);
+  While Not Eof(ArcFile) Do Begin
+    Read (ArcFile, Arc);
+    If Arc.Active and ((Arc.OSType = OSType) or (Arc.OSType = 3)) Then
+      If strUpper(Arc.Ext) = strUpper(JustFileExt(FName)) Then Begin
+        ViewCmd := strUpper(Arc.View);
+        Break;
+      End;
+  End;
+  Close (ArcFile);
+
+  // A61: @TEXTVIEW — display using ANSI viewer with SAUCE extraction
+  If ViewCmd = '@TEXTVIEW' Then Begin
+    Result := True;
+    Session.io.OutFile(FName, True, 0);
+    Exit;
+  End;
+
+  // A61: @TEXTSHOW — display using standard display function
+  If ViewCmd = '@TEXTSHOW' Then Begin
+    Result := True;
+    Session.io.AllowMCI := False;
+    Session.io.OutFile(FName, True, 0);
+    Session.io.AllowMCI := True;
+    Exit;
+  End;
+
   // 1.12: show the embedded FILE_ID.ANS cover screen first (if present)
   ShowFileIDAns (FName);
 
@@ -1368,6 +1455,10 @@ Begin
     Read (ArcFile, Arc);
 
     If Arc.Active and ((Arc.OSType = OSType) or (Arc.OSType = 3)) Then Begin
+      // A61: skip archives with @ prefix in description — these are
+      // internal types (TXT, ANS, NFO, ASC) not meant for user selection
+      If (Length(Arc.Desc) > 0) and (Arc.Desc[1] = '@') Then Continue;
+
       Inc (Count);
 
       If Count = 1 Then
@@ -1401,7 +1492,8 @@ Begin
     While Not Eof(ArcFile) And (Count <> NewArc) Do Begin
       Read (ArcFile, Arc);
 
-      If (Arc.Active) and ((Arc.OSType = OSType) or (Arc.OSType = 3)) Then
+      If (Arc.Active) and ((Arc.OSType = OSType) or (Arc.OSType = 3)) and
+         ((Length(Arc.Desc) = 0) or (Arc.Desc[1] <> '@')) Then
         Inc (Count);
     End;
   End Else Begin
@@ -2313,10 +2405,17 @@ Var
     BotDesc := TopDesc;
     BotPage := TopPage;
 
+    // A61: Show the prompt directly instead of calling PrintMessage.
+    // PrintMessage is a "flash then restore" function that shows prompt N
+    // then clears and shows 339/323. When called with 339/323 as N, it
+    // was showing the prompt twice. Just display directly here.
+    Session.io.AnsiGotoXY (1, Session.io.ScreenInfo[3].Y);
+    Session.io.AnsiClrEOL;
+
     If Session.User.Access(FBase.SysopACS) Then
-      PrintMessage (339)
+      Session.io.OutFull (Session.GetPrompt(339))
     Else
-      PrintMessage (323);
+      Session.io.OutFull (Session.GetPrompt(323));
 
     UpdateBatch;
   End;
@@ -2407,6 +2506,8 @@ Var
     A       : SmallInt;
     SizeStr : String;
   Begin
+    Session.io.Buffer.Start;  // A61
+
     ListSize := 0;
     Lines    := 0;
     SizeStr  := Session.GetPrompt(491);
@@ -2520,6 +2621,9 @@ Var
         Session.io.OutFull (Str);
       End;
     End;
+
+    Session.io.Buffer.Stop;  // A61
+    Session.io.BufFlush;
   End;
 
   Procedure BarOFF;
@@ -2608,10 +2712,19 @@ Var
                     BarOFF;
                     CurPos := ListSize;
                   End Else Begin
+                    // A61: scroll to end. DrawPage handles both scanning
+                    // and display, so we loop to find the last page, then
+                    // redraw it cleanly at the end.
                     While Not LastPage Do Begin
                       NextPage;
                       DrawPage;
                     End;
+
+                    // Redraw the final page so it displays cleanly
+                    // (previous iterations may have left partial output)
+                    BotDesc := TopDesc;
+                    BotPage := TopPage;
+                    DrawPage;
 
                     CurPos := ListSize;
                   End;
@@ -2640,7 +2753,8 @@ Var
                     NextPage;
                     DrawPage;
                   End;
-            #27 : Begin
+            #27,
+            'Q' : Begin
                     Result := 1;
                     Break;
                   End;
