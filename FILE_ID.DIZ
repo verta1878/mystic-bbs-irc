@@ -2,4 +2,12 @@ Mystic BBS 1.10 A38irc-A63
 Community Fork (IRC) - GPLv3
 Ecstasy BBS - FTN 152/158
 Linux, Windows, DOS
-Built with FPC 2.6.4irc r5.1
+Built with FPC 2.6.4irc r3.1+
+
+Includes:
+  mystic_ripapi  - RIPscrip v1.54 engine v1.0.0
+                   51/51 commands, 4041 lines
+  mystic_ripapi2 - RIPscrip v2.0 engine (dev)
+                   15 new commands, 256-color
+
+github.com/verta1878/mystic-bbs-irc

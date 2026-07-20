@@ -815,3 +815,30 @@
 [A61] New event system type: Hourly. Executes once per hour at defined minute
 [A61] Mystic now exports messages in DOS CRLF format even on Linux
 [A61] 80-char line auto-wrap fix in full screen reader (no double line feed)
+
+[RIP] Added RIPscrip v1.54 server-side rendering engine (mystic_rip2/)
+[RIP] TRIPEngine: 640x350 pixel buffer, 16-color EGA palette
+[RIP] All 36 Level 0 drawing commands (line, rect, circle, oval, arc,
+      bezier, polygon, flood fill, palette, fill/line styles)
+[RIP] All 15 Level 1 commands (mouse fields, buttons, icons, text blocks,
+      variables, copy region, file query, scene loading)
+[RIP] Full BGI-compatible API: PutPixel, Line, LineTo, Rectangle, Bar,
+      Bar3D, Circle, Ellipse, FillEllipse, Arc, PieSlice, Sector, etc
+[RIP] MegaNum base-36 decoding, line continuation, viewport clipping
+[RIP] Get/Put image, 3D button rendering, stack-based flood fill
+[RIP] Text variable system (RIP_DEFINE) with persist/required flags
+[RIP] CopyRegion with 8-pixel boundary alignment and overlap-safe copy
+[RIP] ripscript.ppu precompiled for i386-linux
+[RIP] API documentation: ripscript.doc, ripscript.txt, ripscript.htm
+[RIP] RIPscrip v1.53, v1.54 specs and v3 whitepaper in docs/rip/
+[RIP] CP437 8x8 font bitmap table — full 256 character VGA ROM font
+[RIP] Line pattern rendering (dotted, dashed, center, user-defined)
+[RIP] Fill pattern rendering (all 12 BGI styles + user-defined 8x8)
+[RIP] Scanline polygon fill for convex and concave polygons
+[RIP] ICN icon file load/save (4-bit packed pixel format)
+[RIP] Fixed ICN icon format: EGA planar (4 bit planes per row), not nibble-packed
+[RIP] RIP_LOAD_ICON parser implemented (was stub)
+[RIP] CHR vector font loader cleaned up, duplicate removed
+[RIP] Added 10 BGI CHR fonts (BOLD EURO GOTH LCOM LITT SANS SCRI SIMP TRIP TSCR)
+[RIP] Added 8 ICN icons (chat door files logo mail quit sysinfo who)
+[RIP] Analyzed 32 RIP scene files — all commands verified implemented

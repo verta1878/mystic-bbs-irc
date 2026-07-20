@@ -56,6 +56,7 @@ cp "$INSTALL_DATA" release/full-win32/
 cp COPYING release/full-win32/
 cp mystic/file_id.win release/full-win32/FILE_ID.DIZ
 cp mystic/whatsnew.txt release/full-win32/
+cp mystic/upgrade.txt release/full-win32/
 cd release/full-win32
 zip -9 "$ROOT/release/mystic-${VER}-win32-full-${DATE}.zip" * 2>&1 | tail -1
 cd "$ROOT"
@@ -67,6 +68,7 @@ cp "$INSTALL_DATA" release/full-linux/
 cp COPYING release/full-linux/
 cp mystic/file_id.lnx release/full-linux/FILE_ID.DIZ
 cp mystic/whatsnew.txt release/full-linux/
+cp mystic/upgrade.txt release/full-linux/
 cd release/full-linux
 tar czf "$ROOT/release/mystic-${VER}-linux-full-${DATE}.tar.gz" *
 cd "$ROOT"
@@ -78,6 +80,7 @@ cp "$INSTALL_DATA" release/full-dos/
 cp COPYING release/full-dos/
 cp mystic/file_id.dos release/full-dos/FILE_ID.DIZ
 cp mystic/whatsnew.txt release/full-dos/
+cp mystic/upgrade.txt release/full-dos/
 cd release/full-dos
 zip -9 "$ROOT/release/mystic-${VER}-dos-full-${DATE}.zip" * 2>&1 | tail -1
 cd "$ROOT"
