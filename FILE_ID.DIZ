@@ -1,13 +1,20 @@
 Mystic BBS 1.10 A38irc-A63
 Community Fork (IRC) - GPLv3
-Ecstasy BBS - FTN 152/158
-Linux, Windows, DOS
+Ecstasy BBS - FTN 1:152/158
+Linux, Windows, DOS, OS/2
 Built with FPC 2.6.4irc r3.1+
 
-Includes:
-  mystic_ripapi  - RIPscrip v1.54 engine v1.0.0
-                   51/51 commands, 4041 lines
-  mystic_ripapi2 - RIPscrip v2.0 engine (dev)
-                   15 new commands, 256-color
+RIPscrip Engines (1,433 tests passing):
+  v1 ripscr.pas    4,041 lines  51 cmds
+  v2 rip2api.pas   5,304 lines  67 cmds
+  v3 rip3api.pas   8,294 lines  69 cmds
+  v4 rip4api.pas   8,572 lines  69+ cmds
 
-github.com/verta1878/mystic-bbs-irc
+Protocols: Xmodem Ymodem Ymodem-G
+  Zmodem Zmodem-8K Zmodem-32K Kermit
+
+MIS: Telnet FTP HTTP SMTP POP3 NNTP BINKP
+  FTP: SIZE/REST/PASV fixed
+  HTTP: new file server (port 8080)
+
+July 2026

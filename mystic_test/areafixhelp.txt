@@ -1,0 +1,69 @@
+AreaFix Help
+============
+
+AreaFix lets you manage your echomail area links here without asking the
+sysop.  You send commands by NetMail addressed to "AreaFix", with your
+AreaFix password in the Subject line, and one command per line in the
+message body.
+
+  To  : AreaFix
+  Subj: yourpassword
+  ----------------------------------------------------------------
+  %LIST
+  +MYSTIC
+  -SOMEECHO
+
+Commands
+--------
+
+  %LIST            List every echo area available to you.
+
+  %LINKED          List only the areas you are currently linked to.
+
+  %UNLINKED        List the available areas you are NOT linked to.
+
+  %HELP            Send this help text.
+
+  %PWD <newpass>   Change your AreaFix password to <newpass>.
+
+  %COMPRESS <type> Set the archive/compression type used for your mail
+                   (for example ZIP).  Use %COMPRESS with no type, or
+                   %COMPRESS ? , for raw (uncompressed) PKT mail.
+
+  +ECHOTAG         Link (connect) to an echo area.  The '+' is optional -
+                   a bare tag on a line also adds the area.  You may add a
+                   rescan qualifier, separated by a comma or a space:
+                       +MYSTIC
+                       +MYSTIC,R=50     (link and send the last 50 msgs)
+                       MYSTIC D=30       (link and send the last 30 days)
+
+  -ECHOTAG         Unlink (disconnect) from an echo area:
+                       -MYSTIC
+
+  =ECHOTAG         Rescan an area you are already linked to, optionally
+                   with an R= or D= qualifier:
+                       =MYSTIC R=100     (resend the last 100 msgs)
+                       =MYSTIC D=7        (resend the last 7 days)
+
+  %RESCAN          Rescan (resend old messages from) all of your linked
+                   areas.  You may add a default qualifier:
+                       %RESCAN R=100     (last 100 msgs of each area)
+                       %RESCAN D=14       (last 14 days of each area)
+                   With no qualifier the default is the last 250 messages
+                   of each linked area.  NOTE: a full rescan can generate a
+                   very large amount of mail - prefer R= on individual
+                   areas when you can.
+
+Rescan qualifiers
+-----------------
+
+  R=#   Resend the last # messages of the area.
+  D=#   Resend messages from the last # days.
+
+Notes
+-----
+
+  * One command per line.
+  * Your password goes in the Subject line, not the body.
+  * Commands and echo tags are not case sensitive.
+  * If a command or area is not recognised you will be told in the reply.

@@ -39,7 +39,7 @@ Interface
 
 Uses
   RIP_Parser,
-  ripscript;
+  ripscr;
 
 Type
   TRIPViewer = Class(TRIPParser)

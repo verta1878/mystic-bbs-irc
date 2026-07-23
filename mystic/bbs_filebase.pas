@@ -54,7 +54,10 @@ Uses
   {$ELSE}
     m_Protocol_Queue,
     m_Protocol_Base,
-    m_Protocol_Zmodem;
+    m_Protocol_Xmodem,
+    m_Protocol_Ymodem,
+    m_Protocol_Zmodem,
+    m_Protocol_Kermit;
   {$ENDIF}
 
 Type
@@ -443,9 +446,23 @@ Var
       Protocol := TProtocolZmodem.Create(Client, Queue)
     Else If Command = '@ZMODEM8' Then Begin
       Protocol := TProtocolZmodem.Create(Client, Queue);
-
       TProtocolZmodem(Protocol).CurBufSize := 8 * 1024;
-    End Else Begin
+    End
+    Else If Command = '@ZMODEM32' Then Begin
+      Protocol := TProtocolZmodem.Create(Client, Queue);
+      TProtocolZmodem(Protocol).CurBufSize := 32 * 1024;
+    End
+    Else If Command = '@YMODEM' Then
+      Protocol := TProtocolYmodem.Create(Client, Queue)
+    Else If Command = '@YMODEMG' Then Begin
+      Protocol := TProtocolYmodem.Create(Client, Queue);
+      TProtocolYmodem(Protocol).UseG := True;
+    End
+    Else If Command = '@XMODEM' Then
+      Protocol := TProtocolXmodem.Create(Client, Queue)
+    Else If Command = '@KERMIT' Then
+      Protocol := TProtocolKermit.Create(Client, Queue)
+    Else Begin
       {$IFDEF UNIX}
       Client.Free;
       {$ENDIF}

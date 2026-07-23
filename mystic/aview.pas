@@ -66,7 +66,8 @@ Uses
   AViewZIP,
   AViewARJ,
   AViewLZH,
-  AViewRAR;
+  AViewRAR,
+  AViewMeta;
 
 Function GetArchiveType (Name: String) : Char;
 Var
@@ -98,6 +99,12 @@ Begin
   Else
   If (Buf[3] = '-') and (Buf[4] = 'l') and (Buf[5] in ['h', 'z']) Then
     Result := 'L';
+
+  // Media files: detect by extension (no single magic number)
+  If Result = '?' Then Begin
+    If IsMediaExtension(Name) Then
+      Result := 'M';
+  End;
 End;
 
 Constructor TGeneralArchive.Init;
@@ -154,6 +161,7 @@ Begin
     'Z' : _Archive := New(PZipArchive, Init);
     'L' : _Archive := New(PLzhArchive, Init);
     'R' : _Archive := New(PRarArchive, Init);
+    'M' : _Archive := New(PMediaArchive, Init);
   End;
 
   Assign(_Archive^.ArcFile, N);

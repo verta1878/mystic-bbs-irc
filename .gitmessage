@@ -1,0 +1,11 @@
+RIPscrip v1.54 engine v1.0.0 + v2.0 Phases 9-12 complete
+
+v1.54 engine (mystic_ripapi/ripscript.pas): 4041 lines, 51/51 commands
+v2.0 engine (mystic_ripapi2/rip2api.pas): 4971 lines, Phases 9-12
+
+v2.0 additions: bare | prefix, 256-color, SVGA to 1280x1024,
+15 new commands, LoadBMH/PAL/JPG/RFF, sprites, 2D/3D transforms,
+block resize/rotate, scrolling, antialiased lines, palette ops.
+
+pasjpeg (58 files), wavdec/pcmdec/dosplay for audio.
+mystic_test/ integration workspace with full BBS source.

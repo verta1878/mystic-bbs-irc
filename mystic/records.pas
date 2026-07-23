@@ -419,6 +419,7 @@ Type
     UnsecurePath      : String[mysMaxPathSize];
     inetBINKPRename   : Byte;
     inetBINKPExempt   : Boolean;
+
     Reserved          : Array[1..552] of Char;
     UseRipDetect     : Boolean;
   End;
