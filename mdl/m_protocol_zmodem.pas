@@ -42,7 +42,7 @@ Uses
 
 Const
   ZAttnLen    = 32;
-  MaxBufSize  = 1024 * 8;
+  MaxBufSize  = 1024 * 32;  // Zmodem 32K block support
   RxTimeOut   : Word = 500;
 
 Type
@@ -53,6 +53,8 @@ Type
     CurBufSize : Word;
     UseCRC32   : Boolean;
     EscapeAll  : Boolean;
+    CrashRecov : Boolean;
+    AutoDownld : Boolean;
     LastSent   : Byte;
     Attn       : String[ZAttnLen];
     TxHdr      : ZHdrType;
@@ -221,8 +223,13 @@ Begin
   Status.Protocol := 'Zmodem';
   LastSent        := 0;
   EscapeAll       := False;
+  CrashRecov      := True;
+  AutoDownld      := False;
   Attn            := '';
   CurBufSize      := 1024;
+  // Zmodem:     CurBufSize := 1024
+  // Zmodem 8K:  CurBufSize := 8192
+  // Zmodem 32K: CurBufSize := 32768
 End;
 
 Destructor TProtocolZmodem.Destroy;

@@ -1,0 +1,176 @@
+                            MBBSHTML Documentation
+
+     .-------------------.
+     | WHAT IS MBBSHTML? |-------------------------------------------------
+     `-------------------'
+
+      MBBSHTML is a utility used to create HTML web pages based on your
+      Mystic BBS file area listings.  100% of the created web page is
+      configurable by templates.  This program is used to maintain the
+      file pages on the official Mystic BBS web page!
+
+     .-------------------------------.
+     | MBBSHTML COMMAND LINE OPTIONS |-------------------------------------
+     `-------------------------------'
+
+      There are several command line options needed in orded to use this
+      utility.  Below is a basic description.  A more detailed explaination
+      will be available in the templates section of the documentation.
+
+      MBBSHTML [mystic_dir] [template_1] [template_2] [template_3] [output]
+
+      [mystic_dir]  The root path of your Mystic BBS installation.  In
+                    other words, MBBSHTML will look for MYSTIC.DAT in this
+                    directory.
+
+      [template_1]  The template used for the web page that will be
+                    created.
+
+      [template_2]  The template used for each file listed on the web
+                    page.
+
+      [template_3]  An optional template.  When used, it will alternate
+                    with template_2.  In other words, the first file in the
+                    listing will use [template_2], the next file will
+                    use [template_3], the third file will use [template_2]
+                    and so on.  If you do not wish to use this template,
+                    just supply "NONE" (without the quotes) on the command
+                    line for the [template_3] name.
+
+      [output]      This is the file name of the output file, ie, the
+                    finalize file listing created by MBBSHTML.
+
+     .-------------------------------------.
+     | CREATING YOUR [TEMPLATE_1] TEMPLATE |-------------------------------
+     `-------------------------------------'
+
+      [TEMPLATE_1] is the backbone of the created .HTML file listing.  All
+      HTML code for the produced page should be listed here, except for the
+      actual file listing code which is produced by MBBSHTML and
+      [TEMPLATE_2] and [TEMPLATE_3].  Inside of this template you must list
+      which file bases should be included.  This is done by using a simple
+      command embedded in the template:
+
+         <!--MBBSHTML:<file_area_data>,<file_area_path>-->
+
+         The <file_area_data> field should contain the storage file name
+         for the file area, as setup in MCFG's file base editor.  If you
+         have a filename of UPLOADS set for your Uploads base inside of
+         MCFG, then you'd use UPLOADS here to tell MBBSHTML that you
+         want to list all files in that base.
+
+         <file_area_path> is the path that will be returned by the @PATH@
+         MCI code used in the [TEMPLATE_2] and [TEMPLATE_3] files.
+
+     An unlimited number of file bases can be defined in a single template
+     file.  An example of a simple [TEMPLATE_1] file might be:
+
+      <html>
+        <head>
+          <title>MBBSHTML file listing</title>
+        </head>
+
+        <body>
+          <h3>Recent Uploads:</h3>
+          <!--MBBSHTML:UPLOADS,uploads/-->
+          <p>
+          <h3>General Files</h3>
+          <!--MBBSHTML:GENERAL,general/-->
+        </body>
+      </html>
+
+     .-------------------------------------.
+     | CREATING YOUR [TEMPLATE_2] TEMPLATE |-------------------------------
+     `-------------------------------------'
+
+      [TEMPLATE_2] defines the HTML code to use for each file listed in
+      the produced web page.  The following MCI codes are supported for
+      this file, and will be replaced by their corresponding data:
+
+         @LNAME@ : The file name converted to all lower cased letters
+         @UNAME@ : The file name converted to all upper cased letters
+         @SIZEK@ : The file size in kilo-bytes
+         @SIZEB@ : The file size in bytes
+         @DESC@  : The file description
+         @PATH@  : The file path as defined within [TEMPLATE_1]
+
+      An example of a simple [TEMPLATE_2] file might be:
+
+      <b>@UNAME@</b> @SIZEK@ KB @DESC@
+      <p>
+
+     .-------------------------------------.
+     | CREATING YOUR [TEMPLATE_3] TEMPLATE |-------------------------------
+     `-------------------------------------'
+
+      [TEMPLATE_3] is identical in all ways to the [TEMPLATE_2] file.  When
+      used, it will be alternated with the [TEMPLATE_2] file for every
+      other file entry.  For example:
+
+         First file  = [TEMPLATE_2]
+         Second file = [TEMPLATE_3]
+         Third file  = [TEMPLATE_2]
+         Fourth file = [TEMPLATE_3]
+         ... (and so on)
+
+      This is useful for creating a file listing inside of a table with
+      every other file having a different color background.
+                    
+     .----------------------------.
+     | EXAMPLES OF USING MBBSHTML |----------------------------------------
+     `----------------------------'
+
+      MBBSHTML comes with a default set of templates.  If you don't quite
+      understand on the concept of how MBBSHTML works yet, you may wish to
+      experiment with these included templates.
+
+      The first thing you need to do is open up MCFG and select a file
+      base that you know has files in it.  Edit the base settings and
+      observe the "FILE NAME:" setting.  In our example, the file base
+      we're using has a file name setting of "UPLOADS".
+
+      Next you should open up the TEMPLATE_1 file, which is found as
+      temp_upload.html.  Find the line which has this text on it:
+
+      <!--MBBSHTML:FILENAME,files/-->
+
+      Now change FILENAME to whatever the file name field was for the
+      area you picked out in MCFG.  In our example, we used UPLOADS:
+
+      <!--MBBSHTML:UPLOADS,uploads/-->
+
+      The second field is the path to the files.  We'll change that to
+      uploads/ for our example.  This field doesn't effect MBBSHTML, it
+      is just used for the @PATH@ MCI code in the [TEMPLATE_2] file.
+
+      Now save template_uploads.html and we're ready to produce a file
+      listing HTML!  Now we execute MBBSHTML:
+
+      MBBSHTML C:\MYSTIC temp_uploads.html temp_file1.html NONE output.html
+
+      Make sure you replace C:\MYSTIC with whatever path your Mystic
+      installation resides in.  If all goes well, you should be able to
+      open up output.html with your web browser and see the file listing
+      produced by MBBSHTML.
+
+      If the above output.html was successful, try replacing the NONE
+      command line option with temp_file2.html.  This is the alternate
+      file listing template (TEMPLATE_3).  Afterwards, open up your
+      browser and see how this template was used to make each file entry
+      have a different background color.
+
+     .-----------------------.
+     | CONTACTING THE AUTHOR |---------------------------------------------
+     `-----------------------'
+
+      If you have and suggestions or bug reports, you can contact the
+      author by any one of the following:
+
+         www: www.mysticbbs.com/mystic
+              www.geocities.com/mysticbbs.geo
+      e-mail: mysticbbs@geocities.com
+      usenet: alt.bbs.mystic
+         irc: #mysticbbs (efnet)
+        fido: MYSTIC
+
+      ---------------------------------------------------------------------

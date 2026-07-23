@@ -2,7 +2,7 @@ RIPscrip v4.0 Server-Side Rendering Engine
 ================================================================
 8,572 lines | 300+ items | 69+ commands | GPLv3
 Compiler: FPC 2.6.4irc r3.1+ (-Mdelphi, {$H-})
-Compile:  ppcx64 -Mdelphi -Fuimg -Fuwav -Fuprg -Fuprn -Fupasjpeg
+Compile:  ppcx64 -Mdelphi -Fuimg -Fuwav -Fuprg -Fuprt -Fupasjpeg
 ================================================================
 
   COMPARISON            v1.0 (1.54)    v2.0.15        v3.0.24        v4.0.0
@@ -40,7 +40,7 @@ HTML 1.0 Rendering (5 units):
   INPUT/SELECT/TEXTAREA visual rendering
   All 7 TeleGrafix whitepaper "Future Goals" addressed
 
-Print API (6 units in prn/):
+Print API (6 units in prt/):
   prnapi   — common API (config, page buffer, DPI scaling)
   prnbmp   — BMP file output
   prnescp  — ESC/P dot-matrix (Epson 9/24-pin)
@@ -88,7 +88,7 @@ wav/ — 41 codecs
 prg/ — 6 codecs
   ripdecr   ripbind   riptile   riplayr   ripchnge  riprndr
 
-prn/ — 6 codecs
+prt/ — 6 codecs
   prnapi    prnbmp    prnescp   prnpcl    prnps     prnraw
 
 pasjpeg/ — 58 JPEG library files (IJG port)

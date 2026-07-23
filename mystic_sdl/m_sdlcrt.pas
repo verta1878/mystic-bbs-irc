@@ -18,7 +18,7 @@
 // along with Mystic BBS.  If not, see <http://www.gnu.org/licenses/>.
 //
 // ====================================================================
-Unit m_SDLCRT;
+Unit m_sdlcrt;
 
 {$I M_OPS.PAS}
 

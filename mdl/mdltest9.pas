@@ -21,7 +21,7 @@
 Program MDLTEST9;
 
 Uses
-  m_SDLCRT;
+  m_sdlcrt;
 
 Var
   Console : TSDLConsole;

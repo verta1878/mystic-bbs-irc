@@ -16,7 +16,7 @@ up a fresh BBS installation.
 ./install_make install_data "/path/to/mystic/data/*" DATA
 ./install_make install_data "/path/to/mystic/text/*" TEXT
 ./install_make install_data "/path/to/mystic/menus/*" MENUS
-./install_make install_data "/path/to/mystic/scripts/*" SCRIPT
+./install_make install_data "/path/to/mystic/mystic/scripts/*" SCRIPT
 ./install_make install_data "/path/to/mystic/docs/*" DOCS
 ```
 
@@ -47,7 +47,7 @@ install_make <NAME> <FILEMASK> <EID>
 | `DATA` | `data/` | Binary data files (.dat, .cfg, default databases) |
 | `TEXT` | `text/` | ANSI/ASCII screens and prompts (.ans, .asc) |
 | `MENUS` | `menus/` | Menu definitions (.mnu) |
-| `SCRIPT` | `scripts/` | MPL scripts (.mps, .mpx) and helper binaries |
+| `SCRIPT` | `mystic/scripts/` | MPL scripts (.mps, .mpx) and helper binaries |
 | `ROOT` | `(root)` | Top-level files (mystic.dat, config files) |
 
 The `install` program extracts these sections to their respective directories
@@ -66,7 +66,7 @@ rm -f install_data.mys
 ./install_make install_data "/home/sysop/mystic/data/*" DATA
 ./install_make install_data "/home/sysop/mystic/text/*" TEXT
 ./install_make install_data "/home/sysop/mystic/menus/*" MENUS
-./install_make install_data "/home/sysop/mystic/scripts/*" SCRIPT
+./install_make install_data "/home/sysop/mystic/mystic/scripts/*" SCRIPT
 
 # Root files (specific files, not everything)
 ./install_make install_data "/home/sysop/mystic/mystic.dat" ROOT

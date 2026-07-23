@@ -3,8 +3,8 @@ set -u
 ROOT="$(cd "$(dirname "$0")" && pwd)"; cd "$ROOT"
 BIN="$ROOT/out-dos/bin"; UNITS="$ROOT/out-dos/units"
 mkdir -p "$BIN" "$UNITS"
-FPC="${FPC:-/home/claude/fpc264irc/bin/ppc386}"
-FPCROOT="${FPCROOT:-/home/claude/fpc264irc}"
+FPC="${FPC:-../fpc264irc-git/bin/ppc386}"
+FPCROOT="${FPCROOT:-../fpc264irc-git}"
 XTOOLS="$FPCROOT/bin/tools/i386-go32v2"
 XUNITS="$FPCROOT/bin/units/i386-go32v2"
 FPCOPTS=(-Tgo32v2 -Mdelphi -Fumdl -Fumystic -Fimdl -Fimystic -Fomdl
@@ -14,6 +14,24 @@ MARCOPTS=(-Tgo32v2 -Mobjfpc -Fumystic -Fimystic
           -FU"$UNITS" -FE"$BIN"
           -XPi386-go32v2- -FD"$XTOOLS" -Fu"$XUNITS")
 PASS=0; FAIL=0
+
+# ============================================================
+# Pre-flight: check for cross-tools
+# ============================================================
+check_tools() {
+    if [ ! -d "$XTOOLS" ]; then
+        echo "ERROR: DOS cross-tools not found at $XTOOLS"
+        echo "Install fpc264irc: https://github.com/verta1878/fpc264irc"
+        exit 1
+    fi
+    if [ ! -f "$FPC" ]; then
+        echo "ERROR: Compiler not found at $FPC"
+        echo "Clone fpc264irc as sibling: git clone https://github.com/verta1878/fpc264irc"
+        exit 1
+    fi
+}
+check_tools
+
 build () {
     local t="$1" mode="${2:-delphi}"
     local src="mystic/${t}.pas" log="out-dos/${t}.build.log"

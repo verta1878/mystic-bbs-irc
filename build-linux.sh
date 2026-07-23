@@ -3,8 +3,8 @@ set -u
 ROOT="$(cd "$(dirname "$0")" && pwd)"; cd "$ROOT"
 BIN="$ROOT/out-linux/bin"; UNITS="$ROOT/out-linux/units"
 mkdir -p "$BIN" "$UNITS"
-FPC="${FPC:-/home/claude/fpc264irc/bin/ppc386}"
-FPCROOT="${FPCROOT:-/home/claude/fpc264irc}"
+FPC="${FPC:-../fpc264irc-git/bin/ppc386}"
+FPCROOT="${FPCROOT:-../fpc264irc-git}"
 XTOOLS="$FPCROOT/bin/tools/i386-linux"
 XUNITS="$FPCROOT/bin/units/i386-linux"
 FPCOPTS=(-Tlinux -Mdelphi -Fumdl -Fumystic -Fimdl -Fimystic -Fomdl
@@ -14,6 +14,42 @@ MARCOPTS=(-Tlinux -Mobjfpc -Fumystic -Fimystic
           -FU"$UNITS" -FE"$BIN" -Fl/usr/lib/i386-linux-gnu
           -FD"$XTOOLS" -Fu"$XUNITS")
 PASS=0; FAIL=0
+
+# ============================================================
+# Pre-flight: check for i386 multilib (required for linking)
+# ============================================================
+check_multilib() {
+    local missing=""
+    for lib in libc.so libpthread.so libdl.so; do
+        if ! find /usr/lib/i386-linux-gnu /usr/lib32 /lib/i386-linux-gnu              -name "$lib" 2>/dev/null | grep -q .; then
+            missing="$missing $lib"
+        fi
+    done
+    if [ -n "$missing" ]; then
+        echo "╔══════════════════════════════════════════════════════════╗"
+        echo "║  ERROR: 32-bit libraries not found                      ║"
+        echo "║                                                         ║"
+        echo "║  Missing:$missing"
+        echo "║                                                         ║"
+        echo "║  This build produces i386 (32-bit) Linux binaries.      ║"
+        echo "║  Your system needs the i386 multilib packages:          ║"
+        echo "║                                                         ║"
+        echo "║  Debian/Ubuntu:                                         ║"
+        echo "║    sudo dpkg --add-architecture i386                    ║"
+        echo "║    sudo apt-get update                                  ║"
+        echo "║    sudo apt-get install libc6-dev:i386                  ║"
+        echo "║                                                         ║"
+        echo "║  Fedora/RHEL:                                           ║"
+        echo "║    sudo dnf install glibc-devel.i686                    ║"
+        echo "║                                                         ║"
+        echo "║  Arch:                                                  ║"
+        echo "║    sudo pacman -S lib32-glibc                           ║"
+        echo "╚══════════════════════════════════════════════════════════╝"
+        exit 1
+    fi
+}
+check_multilib
+
 build () {
     local t="$1" mode="${2:-delphi}"
     local src="mystic/${t}.pas" log="out-linux/${t}.build.log"

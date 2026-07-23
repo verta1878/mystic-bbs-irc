@@ -14,7 +14,7 @@ Codec directories (DOS 8.3 compliant):
   img/ — 32 image/animation/graphics/font/HTML codecs
   wav/ — 44 audio + 3 ASM fast-paths/video/streaming codecs
   prg/ — 6 progressive rendering codecs
-  prn/ — 6 printer driver codecs
+  prt/ — 6 printer driver codecs
   pasjpeg/ — 58 JPEG library files
 
 Total codec files: 146 (88 units + 58 pasjpeg)

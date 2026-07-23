@@ -1,7 +1,7 @@
 ================================================================
- Mystic BBS 1.10 A38 - IRC whatsnew
+ Mystic BBS 1.10IRC whatsnew
 ================================================================
- This file lists changes made in this fork of the 1.10 A38 source.
+ This file lists changes made in the 1.10IRC community fork.
  Ordered OLDEST FIRST: the initial-port Phase 0 work is at the top;
  the most recent work is at the bottom.  Convention (matching Mystic's
  own whatsnew):
@@ -842,3 +842,14 @@
 [RIP] Added 10 BGI CHR fonts (BOLD EURO GOTH LCOM LITT SANS SCRI SIMP TRIP TSCR)
 [RIP] Added 8 ICN icons (chat door files logo mail quit sysinfo who)
 [RIP] Analyzed 32 RIP scene files — all commands verified implemented
+
+--- Alpha 62-63 ---
+ Version-bumped to 1.10IRC final. No code changes.
+ All A41-A61 items ported and verified.
+ 1.10IRC is feature-complete and in alpha testing.
+
+ Next version: 1.11IRC starting at A1.
+
+================================================================
+ End of 1.10IRC whatsnew
+================================================================

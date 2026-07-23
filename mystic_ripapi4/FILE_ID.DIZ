@@ -14,7 +14,7 @@
   + MIDI FM synthesizer (32 voices)
   + All filenames DOS 8.3 compliant
 
-  img/32 wav/44 prg/6 prn/6 pasjpeg/58
+  img/32 wav/44 prg/6 prt/6 pasjpeg/58
   Pure Pascal | Zero dependencies
   FPC 2.6.4irc | All platforms | GPLv3
   Tests: 629/629 (15 suites)

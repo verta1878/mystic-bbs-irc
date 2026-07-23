@@ -1795,7 +1795,7 @@ wav/ — 41 codecs
 prg/ — 6 codecs
   ripdecr  ripbind  riptile  riplayr  ripchnge riprndr
 
-prn/ — 6 codecs
+prt/ — 6 codecs
   prnapi   prnbmp   prnescp  prnpcl   prnps    prnraw
 
 pasjpeg/ — 58 JPEG library files

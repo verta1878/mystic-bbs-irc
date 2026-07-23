@@ -68,6 +68,56 @@ if [ "$COMPILE_ONLY" != "1" ]; then
   fi
 fi
 
+# ============================================================
+# Pre-flight: check for Darwin build dependencies
+# ============================================================
+check_darwin_tools() {
+    local fail=0
+
+    if [ ! -f "$FPC" ]; then
+        echo "ERROR: Compiler not found at $FPC"
+        echo "Clone fpc264irc as sibling: git clone https://github.com/verta1878/fpc264irc"
+        fail=1
+    fi
+
+    if [ "$COMPILE_ONLY" != "1" ]; then
+        if ! command -v "${XPPREFIX}as" >/dev/null 2>&1; then
+            echo "ERROR: Darwin cross-assembler (${XPPREFIX}as) not found on PATH"
+            echo "Set PATH to include ld64 toolchain bin/ directory"
+            fail=1
+        fi
+
+        if ! command -v clang >/dev/null 2>&1; then
+            echo "╔══════════════════════════════════════════════════════════╗"
+            echo "║  ERROR: clang not found                                 ║"
+            echo "║                                                         ║"
+            echo "║  The Darwin cross-assembler requires clang.             ║"
+            echo "║                                                         ║"
+            echo "║  Debian/Ubuntu:                                         ║"
+            echo "║    sudo apt-get install clang                           ║"
+            echo "║                                                         ║"
+            echo "║  Fedora/RHEL:                                           ║"
+            echo "║    sudo dnf install clang                               ║"
+            echo "║                                                         ║"
+            echo "║  Arch:                                                  ║"
+            echo "║    sudo pacman -S clang                                 ║"
+            echo "║                                                         ║"
+            echo "║  Or set COMPILE_ONLY=1 to skip assembling/linking.      ║"
+            echo "╚══════════════════════════════════════════════════════════╝"
+            fail=1
+        fi
+
+        if [ -z "$SDK" ]; then
+            echo "ERROR: No macOS SDK found. Set SDK=/path/to/MacOSX10.6.sdk"
+            fail=1
+        fi
+    fi
+
+    [ $fail -eq 1 ] && exit 1
+}
+check_darwin_tools
+
+
 FPCOPTS="-Tdarwin -Mdelphi -Fumdl -Fumystic -Fimdl -Fimystic -Fomdl"
 FPCOPTS="$FPCOPTS -FU$UNITS -FE$BIN"
 [ -n "$DARWINUNITS" ] && FPCOPTS="$FPCOPTS $DARWINUNITS"

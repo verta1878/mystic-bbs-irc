@@ -52,3 +52,30 @@ Compiles 44/46 on Linux (2 Windows-only expected).
 - [ ] Verify all 15 Linux binaries build
 - [ ] Verify all 15 Win32 binaries build
 - [ ] Verify 9 DOS binaries build
+
+## Version Issues — MUST FIX
+
+### default.txt is v1.12, code is v1.10
+- default.txt has 555 prompts (from g00r00's v1.12)
+- Our code (A38 base) expects fewer prompts
+- Mystic reads prompts by line number — count mismatch will crash
+- Need to either:
+  a) Trim default.txt back to 1.10 prompt count, OR
+  b) Update code to handle 1.12 prompt numbers
+- The v1.12 prompts include 528-531 (FTP/Web download) which our
+  code doesn't call yet — those are safe (unused prompts don't crash)
+- Risk: prompts after the 1.10 count may shift existing prompts
+
+### Version numbering
+- Keep 1.10IRC for FidoNet version compatibility
+- 1.10IRC is in alpha testing
+- 1.11 is future roadmap
+- upgrade.txt needs updating for IRC fork changes
+- whatsnew.txt is current through A61
+
+### upgrade.txt needs
+- IRC fork specific upgrade notes
+- Note about default.txt being v1.12 format
+- Note about new protocol.dat entries needed
+- Note about webroot/ directory creation
+- Note about HTTP server on port 8080
